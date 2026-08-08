@@ -5,6 +5,14 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-09
+
+### Fixed
+
+- Fetch the remote annotated tag into an independent verification ref before
+  checking its signature in the release workflow. This prevents the checkout
+  action's peeled commit ref from replacing the signed tag object.
+
 ## [0.1.0] - 2026-08-09
 
 ### Added
@@ -21,5 +29,6 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 - Deterministic Swift Testing coverage, API inventory, schema verification, and
   opt-in real Codex binary validation.
 
-[Unreleased]: https://github.com/swift-library/swift-codex/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/swift-library/swift-codex/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/swift-library/swift-codex/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/swift-library/swift-codex/releases/tag/v0.1.0
