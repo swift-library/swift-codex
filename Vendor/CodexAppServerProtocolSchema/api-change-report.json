@@ -1,0 +1,1080 @@
+{
+  "schema": "swift-codex.codex-app-server-api-change-report.v1",
+  "from": null,
+  "to": {
+    "schema": "swift-codex.codex-app-server-api-inventory.v1",
+    "upstreamTag": "rust-v0.147.0",
+    "inventorySha256": "7772c4afed7ea063a3d028bcdf3e767201977af284db0aaf9a899c75cef3a497",
+    "adopted": [
+      {
+        "surface": "stable",
+        "method": "account/login/cancel"
+      },
+      {
+        "surface": "stable",
+        "method": "account/login/start"
+      },
+      {
+        "surface": "stable",
+        "method": "account/logout"
+      },
+      {
+        "surface": "stable",
+        "method": "account/rateLimitResetCredit/consume"
+      },
+      {
+        "surface": "stable",
+        "method": "account/rateLimits/read"
+      },
+      {
+        "surface": "stable",
+        "method": "account/read"
+      },
+      {
+        "surface": "stable",
+        "method": "account/sendAddCreditsNudgeEmail"
+      },
+      {
+        "surface": "stable",
+        "method": "account/usage/read"
+      },
+      {
+        "surface": "stable",
+        "method": "account/workspaceMessages/read"
+      },
+      {
+        "surface": "stable",
+        "method": "app/installed"
+      },
+      {
+        "surface": "stable",
+        "method": "app/list"
+      },
+      {
+        "surface": "stable",
+        "method": "app/read"
+      },
+      {
+        "surface": "stable",
+        "method": "command/exec"
+      },
+      {
+        "surface": "stable",
+        "method": "command/exec/resize"
+      },
+      {
+        "surface": "stable",
+        "method": "command/exec/terminate"
+      },
+      {
+        "surface": "stable",
+        "method": "command/exec/write"
+      },
+      {
+        "surface": "stable",
+        "method": "config/batchWrite"
+      },
+      {
+        "surface": "stable",
+        "method": "config/mcpServer/reload"
+      },
+      {
+        "surface": "stable",
+        "method": "config/read"
+      },
+      {
+        "surface": "stable",
+        "method": "config/value/write"
+      },
+      {
+        "surface": "stable",
+        "method": "configRequirements/read"
+      },
+      {
+        "surface": "stable",
+        "method": "experimentalFeature/enablement/set"
+      },
+      {
+        "surface": "stable",
+        "method": "experimentalFeature/list"
+      },
+      {
+        "surface": "stable",
+        "method": "externalAgentConfig/detect"
+      },
+      {
+        "surface": "stable",
+        "method": "externalAgentConfig/import"
+      },
+      {
+        "surface": "stable",
+        "method": "externalAgentConfig/import/readHistories"
+      },
+      {
+        "surface": "stable",
+        "method": "externalAgentConfig/import/recordHistory"
+      },
+      {
+        "surface": "stable",
+        "method": "feedback/upload"
+      },
+      {
+        "surface": "stable",
+        "method": "fs/copy"
+      },
+      {
+        "surface": "stable",
+        "method": "fs/createDirectory"
+      },
+      {
+        "surface": "stable",
+        "method": "fs/getMetadata"
+      },
+      {
+        "surface": "stable",
+        "method": "fs/readDirectory"
+      },
+      {
+        "surface": "stable",
+        "method": "fs/readFile"
+      },
+      {
+        "surface": "stable",
+        "method": "fs/remove"
+      },
+      {
+        "surface": "stable",
+        "method": "fs/unwatch"
+      },
+      {
+        "surface": "stable",
+        "method": "fs/watch"
+      },
+      {
+        "surface": "stable",
+        "method": "fs/writeFile"
+      },
+      {
+        "surface": "stable",
+        "method": "hooks/list"
+      },
+      {
+        "surface": "stable",
+        "method": "marketplace/add"
+      },
+      {
+        "surface": "stable",
+        "method": "marketplace/remove"
+      },
+      {
+        "surface": "stable",
+        "method": "marketplace/upgrade"
+      },
+      {
+        "surface": "stable",
+        "method": "mcpServer/oauth/login"
+      },
+      {
+        "surface": "stable",
+        "method": "mcpServer/resource/read"
+      },
+      {
+        "surface": "stable",
+        "method": "mcpServer/tool/call"
+      },
+      {
+        "surface": "stable",
+        "method": "mcpServerStatus/list"
+      },
+      {
+        "surface": "stable",
+        "method": "model/list"
+      },
+      {
+        "surface": "stable",
+        "method": "modelProvider/capabilities/read"
+      },
+      {
+        "surface": "stable",
+        "method": "permissionProfile/list"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/install"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/installed"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/list"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/read"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/share/checkout"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/share/delete"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/share/list"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/share/save"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/share/updateTargets"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/skill/read"
+      },
+      {
+        "surface": "stable",
+        "method": "plugin/uninstall"
+      },
+      {
+        "surface": "stable",
+        "method": "review/start"
+      },
+      {
+        "surface": "stable",
+        "method": "skills/config/write"
+      },
+      {
+        "surface": "stable",
+        "method": "skills/extraRoots/set"
+      },
+      {
+        "surface": "stable",
+        "method": "skills/list"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/approveGuardianDeniedAction"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/archive"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/compact/start"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/delete"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/fork"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/goal/clear"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/goal/get"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/goal/set"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/inject_items"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/list"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/loaded/list"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/metadata/update"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/name/set"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/read"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/resume"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/rollback"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/section/move"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/shellCommand"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/start"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/unarchive"
+      },
+      {
+        "surface": "stable",
+        "method": "thread/unsubscribe"
+      },
+      {
+        "surface": "stable",
+        "method": "threadSection/create"
+      },
+      {
+        "surface": "stable",
+        "method": "threadSection/delete"
+      },
+      {
+        "surface": "stable",
+        "method": "threadSection/list"
+      },
+      {
+        "surface": "stable",
+        "method": "threadSection/update"
+      },
+      {
+        "surface": "stable",
+        "method": "turn/interrupt"
+      },
+      {
+        "surface": "stable",
+        "method": "turn/start"
+      },
+      {
+        "surface": "stable",
+        "method": "turn/steer"
+      },
+      {
+        "surface": "stable",
+        "method": "windowsSandbox/readiness"
+      },
+      {
+        "surface": "stable",
+        "method": "windowsSandbox/setupStart"
+      },
+      {
+        "surface": "experimental",
+        "method": "collaborationMode/list"
+      },
+      {
+        "surface": "experimental",
+        "method": "environment/add"
+      },
+      {
+        "surface": "experimental",
+        "method": "environment/info"
+      },
+      {
+        "surface": "experimental",
+        "method": "environment/status"
+      },
+      {
+        "surface": "experimental",
+        "method": "memory/reset"
+      },
+      {
+        "surface": "experimental",
+        "method": "mock/experimentalMethod"
+      },
+      {
+        "surface": "experimental",
+        "method": "plugin/search"
+      },
+      {
+        "surface": "experimental",
+        "method": "process/kill"
+      },
+      {
+        "surface": "experimental",
+        "method": "process/resizePty"
+      },
+      {
+        "surface": "experimental",
+        "method": "process/spawn"
+      },
+      {
+        "surface": "experimental",
+        "method": "process/writeStdin"
+      },
+      {
+        "surface": "experimental",
+        "method": "remoteControl/client/list"
+      },
+      {
+        "surface": "experimental",
+        "method": "remoteControl/client/revoke"
+      },
+      {
+        "surface": "experimental",
+        "method": "remoteControl/disable"
+      },
+      {
+        "surface": "experimental",
+        "method": "remoteControl/enable"
+      },
+      {
+        "surface": "experimental",
+        "method": "remoteControl/pairing/start"
+      },
+      {
+        "surface": "experimental",
+        "method": "remoteControl/pairing/status"
+      },
+      {
+        "surface": "experimental",
+        "method": "remoteControl/status/read"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/backgroundTerminals/clean"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/backgroundTerminals/list"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/backgroundTerminals/terminate"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/decrement_elicitation"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/increment_elicitation"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/items/list"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/memoryMode/set"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/realtime/appendAudio"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/realtime/appendSpeech"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/realtime/appendText"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/realtime/listVoices"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/realtime/start"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/realtime/stop"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/search"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/searchOccurrences"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/settings/update"
+      },
+      {
+        "surface": "experimental",
+        "method": "thread/turns/list"
+      }
+    ],
+    "excluded": [
+      {
+        "method": "FuzzyFileSearch",
+        "reason": "legacy method is not adopted"
+      },
+      {
+        "method": "GetAuthStatus",
+        "reason": "legacy method is not adopted"
+      },
+      {
+        "method": "GetConversationSummary",
+        "reason": "legacy method is not adopted"
+      },
+      {
+        "method": "GitDiffToRemote",
+        "reason": "legacy method is not adopted"
+      },
+      {
+        "method": "fuzzyFileSearch",
+        "reason": "deprecated upstream method is not adopted"
+      },
+      {
+        "method": "fuzzyFileSearch/sessionStart",
+        "reason": "experimental fuzzy session is not adopted"
+      },
+      {
+        "method": "fuzzyFileSearch/sessionStop",
+        "reason": "experimental fuzzy session is not adopted"
+      },
+      {
+        "method": "fuzzyFileSearch/sessionUpdate",
+        "reason": "experimental fuzzy session is not adopted"
+      },
+      {
+        "method": "initialize",
+        "reason": "connection lifecycle owns the handshake"
+      },
+      {
+        "method": "initialized",
+        "reason": "connection lifecycle owns the handshake"
+      }
+    ]
+  },
+  "added": [
+    {
+      "surface": "experimental",
+      "method": "collaborationMode/list"
+    },
+    {
+      "surface": "experimental",
+      "method": "environment/add"
+    },
+    {
+      "surface": "experimental",
+      "method": "environment/info"
+    },
+    {
+      "surface": "experimental",
+      "method": "environment/status"
+    },
+    {
+      "surface": "experimental",
+      "method": "memory/reset"
+    },
+    {
+      "surface": "experimental",
+      "method": "mock/experimentalMethod"
+    },
+    {
+      "surface": "experimental",
+      "method": "plugin/search"
+    },
+    {
+      "surface": "experimental",
+      "method": "process/kill"
+    },
+    {
+      "surface": "experimental",
+      "method": "process/resizePty"
+    },
+    {
+      "surface": "experimental",
+      "method": "process/spawn"
+    },
+    {
+      "surface": "experimental",
+      "method": "process/writeStdin"
+    },
+    {
+      "surface": "experimental",
+      "method": "remoteControl/client/list"
+    },
+    {
+      "surface": "experimental",
+      "method": "remoteControl/client/revoke"
+    },
+    {
+      "surface": "experimental",
+      "method": "remoteControl/disable"
+    },
+    {
+      "surface": "experimental",
+      "method": "remoteControl/enable"
+    },
+    {
+      "surface": "experimental",
+      "method": "remoteControl/pairing/start"
+    },
+    {
+      "surface": "experimental",
+      "method": "remoteControl/pairing/status"
+    },
+    {
+      "surface": "experimental",
+      "method": "remoteControl/status/read"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/backgroundTerminals/clean"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/backgroundTerminals/list"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/backgroundTerminals/terminate"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/decrement_elicitation"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/increment_elicitation"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/items/list"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/memoryMode/set"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/realtime/appendAudio"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/realtime/appendSpeech"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/realtime/appendText"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/realtime/listVoices"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/realtime/start"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/realtime/stop"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/search"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/searchOccurrences"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/settings/update"
+    },
+    {
+      "surface": "experimental",
+      "method": "thread/turns/list"
+    },
+    {
+      "surface": "stable",
+      "method": "account/login/cancel"
+    },
+    {
+      "surface": "stable",
+      "method": "account/login/start"
+    },
+    {
+      "surface": "stable",
+      "method": "account/logout"
+    },
+    {
+      "surface": "stable",
+      "method": "account/rateLimitResetCredit/consume"
+    },
+    {
+      "surface": "stable",
+      "method": "account/rateLimits/read"
+    },
+    {
+      "surface": "stable",
+      "method": "account/read"
+    },
+    {
+      "surface": "stable",
+      "method": "account/sendAddCreditsNudgeEmail"
+    },
+    {
+      "surface": "stable",
+      "method": "account/usage/read"
+    },
+    {
+      "surface": "stable",
+      "method": "account/workspaceMessages/read"
+    },
+    {
+      "surface": "stable",
+      "method": "app/installed"
+    },
+    {
+      "surface": "stable",
+      "method": "app/list"
+    },
+    {
+      "surface": "stable",
+      "method": "app/read"
+    },
+    {
+      "surface": "stable",
+      "method": "command/exec"
+    },
+    {
+      "surface": "stable",
+      "method": "command/exec/resize"
+    },
+    {
+      "surface": "stable",
+      "method": "command/exec/terminate"
+    },
+    {
+      "surface": "stable",
+      "method": "command/exec/write"
+    },
+    {
+      "surface": "stable",
+      "method": "config/batchWrite"
+    },
+    {
+      "surface": "stable",
+      "method": "config/mcpServer/reload"
+    },
+    {
+      "surface": "stable",
+      "method": "config/read"
+    },
+    {
+      "surface": "stable",
+      "method": "config/value/write"
+    },
+    {
+      "surface": "stable",
+      "method": "configRequirements/read"
+    },
+    {
+      "surface": "stable",
+      "method": "experimentalFeature/enablement/set"
+    },
+    {
+      "surface": "stable",
+      "method": "experimentalFeature/list"
+    },
+    {
+      "surface": "stable",
+      "method": "externalAgentConfig/detect"
+    },
+    {
+      "surface": "stable",
+      "method": "externalAgentConfig/import"
+    },
+    {
+      "surface": "stable",
+      "method": "externalAgentConfig/import/readHistories"
+    },
+    {
+      "surface": "stable",
+      "method": "externalAgentConfig/import/recordHistory"
+    },
+    {
+      "surface": "stable",
+      "method": "feedback/upload"
+    },
+    {
+      "surface": "stable",
+      "method": "fs/copy"
+    },
+    {
+      "surface": "stable",
+      "method": "fs/createDirectory"
+    },
+    {
+      "surface": "stable",
+      "method": "fs/getMetadata"
+    },
+    {
+      "surface": "stable",
+      "method": "fs/readDirectory"
+    },
+    {
+      "surface": "stable",
+      "method": "fs/readFile"
+    },
+    {
+      "surface": "stable",
+      "method": "fs/remove"
+    },
+    {
+      "surface": "stable",
+      "method": "fs/unwatch"
+    },
+    {
+      "surface": "stable",
+      "method": "fs/watch"
+    },
+    {
+      "surface": "stable",
+      "method": "fs/writeFile"
+    },
+    {
+      "surface": "stable",
+      "method": "hooks/list"
+    },
+    {
+      "surface": "stable",
+      "method": "marketplace/add"
+    },
+    {
+      "surface": "stable",
+      "method": "marketplace/remove"
+    },
+    {
+      "surface": "stable",
+      "method": "marketplace/upgrade"
+    },
+    {
+      "surface": "stable",
+      "method": "mcpServer/oauth/login"
+    },
+    {
+      "surface": "stable",
+      "method": "mcpServer/resource/read"
+    },
+    {
+      "surface": "stable",
+      "method": "mcpServer/tool/call"
+    },
+    {
+      "surface": "stable",
+      "method": "mcpServerStatus/list"
+    },
+    {
+      "surface": "stable",
+      "method": "model/list"
+    },
+    {
+      "surface": "stable",
+      "method": "modelProvider/capabilities/read"
+    },
+    {
+      "surface": "stable",
+      "method": "permissionProfile/list"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/install"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/installed"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/list"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/read"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/share/checkout"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/share/delete"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/share/list"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/share/save"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/share/updateTargets"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/skill/read"
+    },
+    {
+      "surface": "stable",
+      "method": "plugin/uninstall"
+    },
+    {
+      "surface": "stable",
+      "method": "review/start"
+    },
+    {
+      "surface": "stable",
+      "method": "skills/config/write"
+    },
+    {
+      "surface": "stable",
+      "method": "skills/extraRoots/set"
+    },
+    {
+      "surface": "stable",
+      "method": "skills/list"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/approveGuardianDeniedAction"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/archive"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/compact/start"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/delete"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/fork"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/goal/clear"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/goal/get"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/goal/set"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/inject_items"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/list"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/loaded/list"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/metadata/update"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/name/set"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/read"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/resume"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/rollback"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/section/move"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/shellCommand"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/start"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/unarchive"
+    },
+    {
+      "surface": "stable",
+      "method": "thread/unsubscribe"
+    },
+    {
+      "surface": "stable",
+      "method": "threadSection/create"
+    },
+    {
+      "surface": "stable",
+      "method": "threadSection/delete"
+    },
+    {
+      "surface": "stable",
+      "method": "threadSection/list"
+    },
+    {
+      "surface": "stable",
+      "method": "threadSection/update"
+    },
+    {
+      "surface": "stable",
+      "method": "turn/interrupt"
+    },
+    {
+      "surface": "stable",
+      "method": "turn/start"
+    },
+    {
+      "surface": "stable",
+      "method": "turn/steer"
+    },
+    {
+      "surface": "stable",
+      "method": "windowsSandbox/readiness"
+    },
+    {
+      "surface": "stable",
+      "method": "windowsSandbox/setupStart"
+    }
+  ],
+  "removed": []
+}

@@ -1,0 +1,55 @@
+name: Real Codex Binary
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      codex_version:
+        description: Codex npm package version matching the pinned schema
+        required: true
+        default: 0.147.0
+  schedule:
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    name: AppServer and MCP binary integration
+    runs-on: macos-26
+    env:
+      PINNED_CODEX_VERSION: ${{ inputs.codex_version || '0.147.0' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install pinned Codex CLI
+        run: npm install --global "@openai/codex@$PINNED_CODEX_VERSION"
+
+      - name: Verify binary
+        run: |
+          codex_version="$(codex --version)"
+          echo "$codex_version"
+          [[ "$codex_version" == *"$PINNED_CODEX_VERSION"* ]]
+          echo "SWIFT_CODEX_BINARY=$(command -v codex)" >> "$GITHUB_ENV"
+
+      - name: AppServer real-binary tests
+        run: |
+          SWIFT_CODEX_APP_SERVER_REAL_BINARY_TESTS=1 \
+          SWIFT_CODEX_APP_SERVER_REAL_BINARY_PATH="$SWIFT_CODEX_BINARY" \
+          SWIFT_CODEX_APP_SERVER_REAL_BINARY_VERSION_CONTAINS="$PINNED_CODEX_VERSION" \
+            swift test \
+              --scratch-path "$RUNNER_TEMP/swift-codex-real-binary" \
+              --no-parallel \
+              --filter CodexAppServerRealBinaryIntegration
+
+      - name: MCP real-binary tests
+        run: |
+          SWIFT_CODEX_REAL_BINARY_TESTS=1 \
+          SWIFT_CODEX_REAL_BINARY_PATH="$SWIFT_CODEX_BINARY" \
+            swift test \
+              --scratch-path "$RUNNER_TEMP/swift-codex-real-binary" \
+              --no-parallel \
+              --filter CodexMCPRealBinaryIntegration

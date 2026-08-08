@@ -1,0 +1,85 @@
+name: Swift Package
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Repository quality
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install release tooling
+        run: brew install ripgrep
+
+      - name: Toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Public repository hygiene
+        run: Scripts/verify-public-repository.sh
+
+      - name: Vendored schema integrity
+        run: Scripts/verify-schema-snapshot.sh
+
+      - name: Dependency manifest
+        run: Scripts/verify-dependency-manifest.py
+
+      - name: Public API baseline
+        run: Scripts/verify-public-api.py
+
+      - name: Strict Swift format
+        run: |
+          xcrun swift-format lint --strict --recursive \
+            --configuration .swift-format \
+            Package.swift Sources Tests Plugins
+
+      - name: Build DocC documentation
+        run: Scripts/verify-documentation.sh
+
+  build-and-test:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Swift 6.2 baseline
+            runner: macos-26
+            xcode_path: /Applications/Xcode_26.0.1.app/Contents/Developer
+            expected_version: 'Swift version 6.2'
+          - name: Current hosted Swift
+            runner: macos-26
+            xcode_path: /Applications/Xcode.app/Contents/Developer
+            expected_version: ''
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Toolchain
+        run: |
+          sudo xcode-select --switch "${{ matrix.xcode_path }}"
+          swift_version="$(swift --version)"
+          echo "$swift_version"
+          xcodebuild -version
+          if [[ -n "${{ matrix.expected_version }}" ]]; then
+            [[ "$swift_version" == *"${{ matrix.expected_version }}"* ]]
+          fi
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test --no-parallel
+
+      - name: Isolated native build and test
+        run: Scripts/verify-native-build-and-test.sh

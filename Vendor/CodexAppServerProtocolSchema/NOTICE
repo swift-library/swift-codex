@@ -1,0 +1,6 @@
+OpenAI Codex
+Copyright 2025 OpenAI
+
+The Ratatui attribution in the upstream repository NOTICE does not pertain to
+the vendored app-server protocol schema and is intentionally excluded under
+Apache License 2.0 section 4(d).

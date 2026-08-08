@@ -1,0 +1,115 @@
+{
+  "generator": {
+    "command": "swift package dump-symbol-graph",
+    "minimum_access_level": "public",
+    "normalization": "semantic-declarations-and-relationships-v1",
+    "skip_inherited_docs": true,
+    "skip_synthesized_members": true
+  },
+  "modules": [
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "213d95a570b5f5ebb6a396d1b707288315fa4ab2743e0c0e8ad6e3fcb91227f5",
+        "6.4": "f5331b871886e627e7ab6fdd5c870b36da4177945e8316bb1a9d42b94d213cf2"
+      },
+      "name": "Codex",
+      "relationship_count": 74,
+      "symbol_count": 59
+    },
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "87626617e1a0ca69f1d7739b7bdcd33f63e2d7d69575c0f56da13766458d1514",
+        "6.4": "f79d6c35c3792532c018cb2ad252781b855e1e68ce0879d34aaad02999e051b1"
+      },
+      "name": "CodexAppServerClient",
+      "relationship_count": 194,
+      "symbol_count": 181
+    },
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "53edecc4388fe50c9225619d0c6e7decee4d8f69cf5c4a08700c44a1466dd5a0",
+        "6.4": "9e372d6261fdbb47e4642f00120fccd881c6edf188909834b3b9ed7a0bafea6f"
+      },
+      "name": "CodexAppServerHummingbird",
+      "relationship_count": 15,
+      "symbol_count": 10
+    },
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "719d42fc643bda373915c37b46ea6c5584b005dcaa580743772ae42582baa74d",
+        "6.4": "a061fa5f804a23f8bb6d884946155b4482de06c65da9ccb23904cb5c87d11cc3"
+      },
+      "name": "CodexAppServerNIO",
+      "relationship_count": 30,
+      "symbol_count": 21
+    },
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "94e7958b00eec84904a174d4c1175f58db10d5505a47a613264ee986feb9db5a",
+        "6.4": "d60f15c812cbf0f0e7a5178bce6cebbe72384e4802ddc7579e8d5d90697642ef"
+      },
+      "name": "CodexAppServerProtocol",
+      "relationship_count": 30020,
+      "symbol_count": 14768
+    },
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "be7f8ac8ce4ff6d973b32999ce53f5014fc7f82a8bb9c9cccf0733f4f5380ad6",
+        "6.4": "0d81c8ec00700a8a0fb8a9807320e65d67001ef23a67beb7d32c3bc2ac2004d5"
+      },
+      "name": "CodexAppServerRuntime",
+      "relationship_count": 109,
+      "symbol_count": 66
+    },
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "3dbdb4d0629bc5b73c9fae7d8c4dfad5eee15185b25ae772dc77ebd59c26c569",
+        "6.4": "db2f1652d81b7ce060e25392d3d07b70b7d2fe576aeac6e2c7890b723037bf44"
+      },
+      "name": "CodexAppServerStdio",
+      "relationship_count": 37,
+      "symbol_count": 27
+    },
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "f6faad2c4cf1d19b200286bd7ddc4f4dee853e0b61ccbe70e6c7207f2c645f18",
+        "6.4": "24c051d563a03a66f699467649ca76d306ddc2e0354332783e753e9aa5ac5fbe"
+      },
+      "name": "CodexAppServerURLSession",
+      "relationship_count": 15,
+      "symbol_count": 9
+    },
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "f24bc0a27289d65716cba107f443b66ea3facddf7de4308a1591a21e9a423e93",
+        "6.4": "13d0e6ac2959ffeef118cb91e4ce727ea112419969bcd99954900db3f6495c8f"
+      },
+      "name": "CodexAppServerVapor",
+      "relationship_count": 16,
+      "symbol_count": 11
+    },
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "52d9756be00c2a5b604d50f8c346833ee54e708abede914b040b47f79ccb8b33",
+        "6.4": "5a853214571a90b4fd2139254fbd1d56da297a72cdc00dc418d6fcdbcf3e10d7"
+      },
+      "name": "CodexExec",
+      "relationship_count": 329,
+      "symbol_count": 228
+    },
+    {
+      "api_sha256_by_swift_minor": {
+        "6.3": "5a99285ac08c98f3b4605aa134148e1246eeabbe43b77d1693c02c16b5f527e9",
+        "6.4": "a2bbaa35840745074dbb36641df439563478c449f1bbaf086d9e8f8a65fbee3e"
+      },
+      "name": "CodexMCP",
+      "relationship_count": 221,
+      "symbol_count": 159
+    }
+  ],
+  "recorded_swift_minors": [
+    "6.3",
+    "6.4"
+  ],
+  "schema_version": 3
+}

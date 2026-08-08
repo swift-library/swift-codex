@@ -1,0 +1,72 @@
+name: API Breaking Changes
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: Diagnose public API changes
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Diagnose against pull request base
+        id: diagnose
+        continue-on-error: true
+        run: |
+          set +e
+          swift package diagnose-api-breaking-changes \
+            "origin/${{ github.event.pull_request.base.ref }}" \
+            > api-diff.log 2>&1
+          exit_code=$?
+          breakages=$(grep -c "💔 API breakage:" api-diff.log || true)
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          echo "breakage_count=$breakages" >> "$GITHUB_OUTPUT"
+          cat api-diff.log
+
+      - name: Summarize
+        if: always()
+        run: |
+          {
+            echo "## Public API compatibility"
+            echo
+            echo "Baseline: \`origin/${{ github.event.pull_request.base.ref }}\`"
+            echo "Detected breakages: **${{ steps.diagnose.outputs.breakage_count }}**"
+            echo
+            if [ -s api-diff.log ]; then
+              echo '<details><summary>API digester output</summary>'
+              echo
+              echo '```text'
+              tail -500 api-diff.log
+              echo '```'
+              echo '</details>'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Reject API digester failures
+        if: >-
+          steps.diagnose.outputs.exit_code != '0' &&
+          steps.diagnose.outputs.breakage_count == '0'
+        run: |
+          echo "::error::API digester failed without reporting an API breakage."
+          exit 1
+
+      - name: Enforce breaking-change review policy
+        if: >-
+          steps.diagnose.outputs.breakage_count != '0' &&
+          !contains(github.event.pull_request.labels.*.name, 'breaking-change')
+        run: |
+          echo "::error::Public API changes require the breaking-change label."
+          exit 1
