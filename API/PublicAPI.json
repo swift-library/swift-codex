@@ -1,0 +1,77 @@
+{
+  "generator": {
+    "command": "swift package dump-symbol-graph",
+    "minimum_access_level": "public",
+    "skip_inherited_docs": true,
+    "skip_synthesized_members": true
+  },
+  "modules": [
+    {
+      "api_sha256": "0d94e6373fbaca5affea006a0a74c598c3883ac9e2559fe996fd535f1acb9b25",
+      "name": "Codex",
+      "relationship_count": 74,
+      "symbol_count": 59
+    },
+    {
+      "api_sha256": "e2745d8238e12afa5553ffa8a608de28f10e812c82b55050b53440f9011a7f32",
+      "name": "CodexAppServerClient",
+      "relationship_count": 194,
+      "symbol_count": 181
+    },
+    {
+      "api_sha256": "f4da3fa5128270c544dc4877a11c8a76e5fe0c2925f2fb77e0b8646a6b24273e",
+      "name": "CodexAppServerHummingbird",
+      "relationship_count": 15,
+      "symbol_count": 10
+    },
+    {
+      "api_sha256": "7d1af84074757f24a356651f6067fc337706debfbba829b641a51a3d0a007bfa",
+      "name": "CodexAppServerNIO",
+      "relationship_count": 30,
+      "symbol_count": 21
+    },
+    {
+      "api_sha256": "5195d0150c42bd56ccbafd86834e13b39ef083f621fa101a0c00b7e8dc8bee93",
+      "name": "CodexAppServerProtocol",
+      "relationship_count": 30020,
+      "symbol_count": 14768
+    },
+    {
+      "api_sha256": "245ee9f044aa1eafd08ef8bd569b53893c961e5ab4ad01bbe85151e915079d0e",
+      "name": "CodexAppServerRuntime",
+      "relationship_count": 109,
+      "symbol_count": 66
+    },
+    {
+      "api_sha256": "5db0bca0ec5e0a13058a150f99514ce95faef4d8ecac145e4aa9f7ca5f1e0381",
+      "name": "CodexAppServerStdio",
+      "relationship_count": 37,
+      "symbol_count": 27
+    },
+    {
+      "api_sha256": "facad17494ce007000f556fcf979d19c9b66c3a2cb8d0e714b825402c97b8f10",
+      "name": "CodexAppServerURLSession",
+      "relationship_count": 16,
+      "symbol_count": 10
+    },
+    {
+      "api_sha256": "654d81dea6b5d535d50748774cf51a239c5a97fcc9091df9e1d35f1d7da6b8dc",
+      "name": "CodexAppServerVapor",
+      "relationship_count": 16,
+      "symbol_count": 11
+    },
+    {
+      "api_sha256": "534b0e67104f7ccf98c7433db3e3e5619b0733b27246340d7342151664ffde21",
+      "name": "CodexExec",
+      "relationship_count": 329,
+      "symbol_count": 228
+    },
+    {
+      "api_sha256": "c3ac700881eed638dfc76aca28ccf8b94b536b73d3b19f5fd4f6b69417d01093",
+      "name": "CodexMCP",
+      "relationship_count": 221,
+      "symbol_count": 159
+    }
+  ],
+  "schema_version": 1
+}

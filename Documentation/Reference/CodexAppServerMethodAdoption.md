@@ -1,0 +1,295 @@
+# Codex App Server Method Adoption
+
+This page is generated from
+`Vendor/CodexAppServerProtocolSchema/method-adoption.json`. The manifest
+is the source of truth for typed wrappers, the raw-method deny policy,
+and this inventory.
+
+Pinned schema: `rust-v0.147.0`. Inventory SHA-256:
+`7772c4afed7ea063a3d028bcdf3e767201977af284db0aaf9a899c75cef3a497`.
+
+## Stable (93)
+
+- `account/login/cancel`
+- `account/login/start`
+- `account/logout`
+- `account/rateLimitResetCredit/consume`
+- `account/rateLimits/read`
+- `account/read`
+- `account/sendAddCreditsNudgeEmail`
+- `account/usage/read`
+- `account/workspaceMessages/read`
+- `app/installed`
+- `app/list`
+- `app/read`
+- `command/exec`
+- `command/exec/resize`
+- `command/exec/terminate`
+- `command/exec/write`
+- `config/batchWrite`
+- `config/mcpServer/reload`
+- `config/read`
+- `config/value/write`
+- `configRequirements/read`
+- `experimentalFeature/enablement/set`
+- `experimentalFeature/list`
+- `externalAgentConfig/detect`
+- `externalAgentConfig/import`
+- `externalAgentConfig/import/readHistories`
+- `externalAgentConfig/import/recordHistory`
+- `feedback/upload`
+- `fs/copy`
+- `fs/createDirectory`
+- `fs/getMetadata`
+- `fs/readDirectory`
+- `fs/readFile`
+- `fs/remove`
+- `fs/unwatch`
+- `fs/watch`
+- `fs/writeFile`
+- `hooks/list`
+- `marketplace/add`
+- `marketplace/remove`
+- `marketplace/upgrade`
+- `mcpServer/oauth/login`
+- `mcpServer/resource/read`
+- `mcpServer/tool/call`
+- `mcpServerStatus/list`
+- `model/list`
+- `modelProvider/capabilities/read`
+- `permissionProfile/list`
+- `plugin/install`
+- `plugin/installed`
+- `plugin/list`
+- `plugin/read`
+- `plugin/share/checkout`
+- `plugin/share/delete`
+- `plugin/share/list`
+- `plugin/share/save`
+- `plugin/share/updateTargets`
+- `plugin/skill/read`
+- `plugin/uninstall`
+- `review/start`
+- `skills/config/write`
+- `skills/extraRoots/set`
+- `skills/list`
+- `thread/approveGuardianDeniedAction`
+- `thread/archive`
+- `thread/compact/start`
+- `thread/delete`
+- `thread/fork`
+- `thread/goal/clear`
+- `thread/goal/get`
+- `thread/goal/set`
+- `thread/inject_items`
+- `thread/list`
+- `thread/loaded/list`
+- `thread/metadata/update`
+- `thread/name/set`
+- `thread/read`
+- `thread/resume`
+- `thread/rollback`
+- `thread/section/move`
+- `thread/shellCommand`
+- `thread/start`
+- `thread/unarchive`
+- `thread/unsubscribe`
+- `threadSection/create`
+- `threadSection/delete`
+- `threadSection/list`
+- `threadSection/update`
+- `turn/interrupt`
+- `turn/start`
+- `turn/steer`
+- `windowsSandbox/readiness`
+- `windowsSandbox/setupStart`
+
+## Experimental-only (35)
+
+- `collaborationMode/list`
+- `environment/add`
+- `environment/info`
+- `environment/status`
+- `memory/reset`
+- `mock/experimentalMethod`
+- `plugin/search`
+- `process/kill`
+- `process/resizePty`
+- `process/spawn`
+- `process/writeStdin`
+- `remoteControl/client/list`
+- `remoteControl/client/revoke`
+- `remoteControl/disable`
+- `remoteControl/enable`
+- `remoteControl/pairing/start`
+- `remoteControl/pairing/status`
+- `remoteControl/status/read`
+- `thread/backgroundTerminals/clean`
+- `thread/backgroundTerminals/list`
+- `thread/backgroundTerminals/terminate`
+- `thread/decrement_elicitation`
+- `thread/increment_elicitation`
+- `thread/items/list`
+- `thread/memoryMode/set`
+- `thread/realtime/appendAudio`
+- `thread/realtime/appendSpeech`
+- `thread/realtime/appendText`
+- `thread/realtime/listVoices`
+- `thread/realtime/start`
+- `thread/realtime/stop`
+- `thread/search`
+- `thread/searchOccurrences`
+- `thread/settings/update`
+- `thread/turns/list`
+
+## Excluded (10)
+
+- `FuzzyFileSearch` — legacy method is not adopted
+- `GetAuthStatus` — legacy method is not adopted
+- `GetConversationSummary` — legacy method is not adopted
+- `GitDiffToRemote` — legacy method is not adopted
+- `fuzzyFileSearch` — deprecated upstream method is not adopted
+- `fuzzyFileSearch/sessionStart` — experimental fuzzy session is not adopted
+- `fuzzyFileSearch/sessionStop` — experimental fuzzy session is not adopted
+- `fuzzyFileSearch/sessionUpdate` — experimental fuzzy session is not adopted
+- `initialize` — connection lifecycle owns the handshake
+- `initialized` — connection lifecycle owns the handshake
+
+## Last Schema Refresh API Diff
+
+Added: 128. Removed: 0.
+
+### Added
+
+- `experimental` `collaborationMode/list`
+- `experimental` `environment/add`
+- `experimental` `environment/info`
+- `experimental` `environment/status`
+- `experimental` `memory/reset`
+- `experimental` `mock/experimentalMethod`
+- `experimental` `plugin/search`
+- `experimental` `process/kill`
+- `experimental` `process/resizePty`
+- `experimental` `process/spawn`
+- `experimental` `process/writeStdin`
+- `experimental` `remoteControl/client/list`
+- `experimental` `remoteControl/client/revoke`
+- `experimental` `remoteControl/disable`
+- `experimental` `remoteControl/enable`
+- `experimental` `remoteControl/pairing/start`
+- `experimental` `remoteControl/pairing/status`
+- `experimental` `remoteControl/status/read`
+- `experimental` `thread/backgroundTerminals/clean`
+- `experimental` `thread/backgroundTerminals/list`
+- `experimental` `thread/backgroundTerminals/terminate`
+- `experimental` `thread/decrement_elicitation`
+- `experimental` `thread/increment_elicitation`
+- `experimental` `thread/items/list`
+- `experimental` `thread/memoryMode/set`
+- `experimental` `thread/realtime/appendAudio`
+- `experimental` `thread/realtime/appendSpeech`
+- `experimental` `thread/realtime/appendText`
+- `experimental` `thread/realtime/listVoices`
+- `experimental` `thread/realtime/start`
+- `experimental` `thread/realtime/stop`
+- `experimental` `thread/search`
+- `experimental` `thread/searchOccurrences`
+- `experimental` `thread/settings/update`
+- `experimental` `thread/turns/list`
+- `stable` `account/login/cancel`
+- `stable` `account/login/start`
+- `stable` `account/logout`
+- `stable` `account/rateLimitResetCredit/consume`
+- `stable` `account/rateLimits/read`
+- `stable` `account/read`
+- `stable` `account/sendAddCreditsNudgeEmail`
+- `stable` `account/usage/read`
+- `stable` `account/workspaceMessages/read`
+- `stable` `app/installed`
+- `stable` `app/list`
+- `stable` `app/read`
+- `stable` `command/exec`
+- `stable` `command/exec/resize`
+- `stable` `command/exec/terminate`
+- `stable` `command/exec/write`
+- `stable` `config/batchWrite`
+- `stable` `config/mcpServer/reload`
+- `stable` `config/read`
+- `stable` `config/value/write`
+- `stable` `configRequirements/read`
+- `stable` `experimentalFeature/enablement/set`
+- `stable` `experimentalFeature/list`
+- `stable` `externalAgentConfig/detect`
+- `stable` `externalAgentConfig/import`
+- `stable` `externalAgentConfig/import/readHistories`
+- `stable` `externalAgentConfig/import/recordHistory`
+- `stable` `feedback/upload`
+- `stable` `fs/copy`
+- `stable` `fs/createDirectory`
+- `stable` `fs/getMetadata`
+- `stable` `fs/readDirectory`
+- `stable` `fs/readFile`
+- `stable` `fs/remove`
+- `stable` `fs/unwatch`
+- `stable` `fs/watch`
+- `stable` `fs/writeFile`
+- `stable` `hooks/list`
+- `stable` `marketplace/add`
+- `stable` `marketplace/remove`
+- `stable` `marketplace/upgrade`
+- `stable` `mcpServer/oauth/login`
+- `stable` `mcpServer/resource/read`
+- `stable` `mcpServer/tool/call`
+- `stable` `mcpServerStatus/list`
+- `stable` `model/list`
+- `stable` `modelProvider/capabilities/read`
+- `stable` `permissionProfile/list`
+- `stable` `plugin/install`
+- `stable` `plugin/installed`
+- `stable` `plugin/list`
+- `stable` `plugin/read`
+- `stable` `plugin/share/checkout`
+- `stable` `plugin/share/delete`
+- `stable` `plugin/share/list`
+- `stable` `plugin/share/save`
+- `stable` `plugin/share/updateTargets`
+- `stable` `plugin/skill/read`
+- `stable` `plugin/uninstall`
+- `stable` `review/start`
+- `stable` `skills/config/write`
+- `stable` `skills/extraRoots/set`
+- `stable` `skills/list`
+- `stable` `thread/approveGuardianDeniedAction`
+- `stable` `thread/archive`
+- `stable` `thread/compact/start`
+- `stable` `thread/delete`
+- `stable` `thread/fork`
+- `stable` `thread/goal/clear`
+- `stable` `thread/goal/get`
+- `stable` `thread/goal/set`
+- `stable` `thread/inject_items`
+- `stable` `thread/list`
+- `stable` `thread/loaded/list`
+- `stable` `thread/metadata/update`
+- `stable` `thread/name/set`
+- `stable` `thread/read`
+- `stable` `thread/resume`
+- `stable` `thread/rollback`
+- `stable` `thread/section/move`
+- `stable` `thread/shellCommand`
+- `stable` `thread/start`
+- `stable` `thread/unarchive`
+- `stable` `thread/unsubscribe`
+- `stable` `threadSection/create`
+- `stable` `threadSection/delete`
+- `stable` `threadSection/list`
+- `stable` `threadSection/update`
+- `stable` `turn/interrupt`
+- `stable` `turn/start`
+- `stable` `turn/steer`
+- `stable` `windowsSandbox/readiness`
+- `stable` `windowsSandbox/setupStart`
+
+### Removed
+
+None.

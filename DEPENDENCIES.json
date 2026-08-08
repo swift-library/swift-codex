@@ -1,0 +1,661 @@
+{
+  "dependencies": [
+    {
+      "direct": false,
+      "identity": "async-http-client",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/swift-server/async-http-client.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "3a5b74a58782c3b4c1f0bc75e9b67b10c2494e8f",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.33.1"
+    },
+    {
+      "direct": false,
+      "identity": "async-kit",
+      "license_files": [
+        "LICENSE"
+      ],
+      "location": "https://github.com/vapor/async-kit.git",
+      "required_by": [
+        "vapor"
+      ],
+      "revision": "6bbb83cbf9d886623a967a965c8fb1b73e6566f9",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.22.0"
+    },
+    {
+      "direct": false,
+      "identity": "compress-nio",
+      "license_files": [
+        "LICENSE"
+      ],
+      "location": "https://github.com/adam-fowler/compress-nio.git",
+      "required_by": [
+        "hummingbird-websocket"
+      ],
+      "revision": "e1caa19077dda4b00441142ef57da3db02acd466",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.4.2"
+    },
+    {
+      "direct": false,
+      "identity": "console-kit",
+      "license_files": [
+        "LICENSE"
+      ],
+      "location": "https://github.com/vapor/console-kit.git",
+      "required_by": [
+        "vapor"
+      ],
+      "revision": "32ad16dfc7677b927b225595ed18f3debb32f577",
+      "roles": [
+        "runtime"
+      ],
+      "version": "4.16.0"
+    },
+    {
+      "direct": false,
+      "identity": "eventsource",
+      "license_files": [
+        "LICENSE.md"
+      ],
+      "location": "https://github.com/mattt/eventsource.git",
+      "required_by": [
+        "swift-sdk"
+      ],
+      "revision": "a3a85a85214caf642abaa96ae664e4c772a59f6e",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.4.1"
+    },
+    {
+      "direct": true,
+      "identity": "hummingbird",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/hummingbird-project/hummingbird.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket"
+      ],
+      "revision": "277e5db5b6d348270088e6ee8e8fa2539bae603d",
+      "roles": [
+        "runtime"
+      ],
+      "version": "2.23.0"
+    },
+    {
+      "direct": true,
+      "identity": "hummingbird-websocket",
+      "license_files": [
+        "LICENSE"
+      ],
+      "location": "https://github.com/hummingbird-project/hummingbird-websocket.git",
+      "required_by": [
+        "hummingbird-websocket"
+      ],
+      "revision": "716c54294152c6d3301a6239a1d74db57cbcd6dc",
+      "roles": [
+        "runtime"
+      ],
+      "version": "2.6.0"
+    },
+    {
+      "direct": false,
+      "identity": "multipart-kit",
+      "license_files": [
+        "LICENSE"
+      ],
+      "location": "https://github.com/vapor/multipart-kit.git",
+      "required_by": [
+        "vapor"
+      ],
+      "revision": "3498e60218e6003894ff95192d756e238c01f44e",
+      "roles": [
+        "runtime"
+      ],
+      "version": "4.7.1"
+    },
+    {
+      "direct": false,
+      "identity": "routing-kit",
+      "license_files": [
+        "LICENSE"
+      ],
+      "location": "https://github.com/vapor/routing-kit.git",
+      "required_by": [
+        "vapor"
+      ],
+      "revision": "1a10ccea61e4248effd23b6e814999ce7bdf0ee0",
+      "roles": [
+        "runtime"
+      ],
+      "version": "4.9.3"
+    },
+    {
+      "direct": false,
+      "identity": "swift-algorithms",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-algorithms.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "87e50f483c54e6efd60e885f7f5aa946cee68023",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.2.1"
+    },
+    {
+      "direct": false,
+      "identity": "swift-asn1",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-asn1.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "eb50cbd14606a9161cbc5d452f18797c90ef0bab",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.7.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-async-algorithms",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-async-algorithms.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "9d349bcc328ac3c31ce40e746b5882742a0d1272",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.1.3"
+    },
+    {
+      "direct": false,
+      "identity": "swift-atomics",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-atomics.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "swift-nio",
+        "swift-nio-ssl",
+        "swift-sdk",
+        "vapor"
+      ],
+      "revision": "b601256eab081c0f92f059e12818ac1d4f178ff7",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.3.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-certificates",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-certificates.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "bde8ca32a096825dfce37467137c903418c1893d",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.19.1"
+    },
+    {
+      "direct": false,
+      "identity": "swift-collections",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-collections.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "swift-nio",
+        "swift-nio-ssl",
+        "swift-sdk",
+        "vapor"
+      ],
+      "revision": "6675bc0ff86e61436e615df6fc5174e043e57924",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.4.1"
+    },
+    {
+      "direct": false,
+      "identity": "swift-configuration",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-configuration.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "be76c4ad929eb6c4bcaf3351799f2adf9e6848a9",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.2.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-crypto",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-crypto.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "1b6b2e274e85105bfa155183145a1dcfd63331f1",
+      "roles": [
+        "runtime"
+      ],
+      "version": "4.5.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-distributed-tracing",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-distributed-tracing.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "dc4030184203ffafbb2ec614352487235d747fe0",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.4.1"
+    },
+    {
+      "direct": true,
+      "identity": "swift-docc-plugin",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/swiftlang/swift-docc-plugin",
+      "required_by": [
+        "swift-docc-plugin"
+      ],
+      "revision": "647c708be89f834fa6a6d4945442793a77ddf5b6",
+      "roles": [
+        "documentation-tool"
+      ],
+      "version": "1.5.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-docc-symbolkit",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/swiftlang/swift-docc-symbolkit",
+      "required_by": [
+        "swift-docc-plugin"
+      ],
+      "revision": "b45d1f2ed151d057b54504d653e0da5552844e34",
+      "roles": [
+        "documentation-tool"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-http-structured-headers",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-http-structured-headers.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "933538faa42c432d385f02e07df0ace7c5ecfc47",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.7.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-http-types",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-http-types.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "45eb0224913ea070ec4fba17291b9e7ecf4749ca",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.5.1"
+    },
+    {
+      "direct": false,
+      "identity": "swift-log",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-log.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "swift-sdk",
+        "vapor"
+      ],
+      "revision": "5073617dac96330a486245e4c0179cb0a6fd2256",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.12.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-metrics",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-metrics.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "d51c8d13fa366eec807eedb4e37daa60ff5bfdd5",
+      "roles": [
+        "runtime"
+      ],
+      "version": "2.10.1"
+    },
+    {
+      "direct": true,
+      "identity": "swift-nio",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-nio.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "swift-nio",
+        "swift-nio-ssl",
+        "swift-sdk",
+        "vapor"
+      ],
+      "revision": "f71c8d2a5e74a2c6d11a0fbe324774b5d6084237",
+      "roles": [
+        "runtime"
+      ],
+      "version": "2.99.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-nio-extras",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-nio-extras.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "5a48717e29f62cb8326d6d42e46b562ca93847a6",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.34.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-nio-http2",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-nio-http2.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "81cc18264f92cd307ff98430f89372711d4f6fe9",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.43.0"
+    },
+    {
+      "direct": true,
+      "identity": "swift-nio-ssl",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-nio-ssl.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "swift-nio-ssl",
+        "vapor"
+      ],
+      "revision": "3f337058ccd7243c4cac7911477d8ad4c598d4da",
+      "roles": [
+        "runtime"
+      ],
+      "version": "2.37.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-nio-transport-services",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-nio-transport-services.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "67787bb645a5e67d2edcdfbe48a216cc549222d5",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.28.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-numerics",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-numerics.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.1.1"
+    },
+    {
+      "direct": true,
+      "identity": "swift-sdk",
+      "license_files": [
+        "LICENSE"
+      ],
+      "location": "https://github.com/modelcontextprotocol/swift-sdk.git",
+      "required_by": [
+        "swift-sdk"
+      ],
+      "revision": "6132fd4b5b4217ce4717c4775e4607f5c3120129",
+      "roles": [
+        "runtime"
+      ],
+      "version": "0.12.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-service-context",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-service-context.git",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "d0997351b0c7779017f88e7a93bc30a1878d7f29",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.3.0"
+    },
+    {
+      "direct": false,
+      "identity": "swift-service-lifecycle",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/swift-server/swift-service-lifecycle",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "vapor"
+      ],
+      "revision": "9829955b385e5bb88128b73f1b8389e9b9c3191a",
+      "roles": [
+        "runtime"
+      ],
+      "version": "2.11.0"
+    },
+    {
+      "direct": true,
+      "identity": "swift-system",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/apple/swift-system",
+      "required_by": [
+        "hummingbird",
+        "hummingbird-websocket",
+        "swift-nio",
+        "swift-nio-ssl",
+        "swift-sdk",
+        "swift-system",
+        "vapor"
+      ],
+      "revision": "7c6ad0fc39d0763e0b699210e4124afd5041c5df",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.6.4"
+    },
+    {
+      "direct": false,
+      "identity": "swift-websocket",
+      "license_files": [
+        "LICENSE.txt"
+      ],
+      "location": "https://github.com/hummingbird-project/swift-websocket.git",
+      "required_by": [
+        "hummingbird-websocket"
+      ],
+      "revision": "ca48d46c25f8fa948d37eaa480c73172182cf90f",
+      "roles": [
+        "runtime"
+      ],
+      "version": "1.5.0"
+    },
+    {
+      "direct": true,
+      "identity": "vapor",
+      "license_files": [
+        "LICENSE"
+      ],
+      "location": "https://github.com/vapor/vapor.git",
+      "required_by": [
+        "vapor"
+      ],
+      "revision": "cfd8f434843ac7850e2d97f46c1aa5ddb906cf1c",
+      "roles": [
+        "runtime"
+      ],
+      "version": "4.121.4"
+    },
+    {
+      "direct": false,
+      "identity": "websocket-kit",
+      "license_files": [
+        "LICENSE"
+      ],
+      "location": "https://github.com/vapor/websocket-kit.git",
+      "required_by": [
+        "vapor"
+      ],
+      "revision": "90bbbdab3ede12c803cfbe91646f291c092517a3",
+      "roles": [
+        "runtime"
+      ],
+      "version": "2.16.2"
+    }
+  ],
+  "distribution_note": "SwiftPM resolves these source dependencies for consumers; they are not vendored in this repository.",
+  "schema_version": 1,
+  "source": "Package.resolved"
+}
