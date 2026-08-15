@@ -51,6 +51,8 @@ public struct CodexExecRequestOptions: Equatable, Sendable {
   public var dangerouslyBypassApprovalsAndSandbox: Bool
   /// Whether to pass the upstream ephemeral flag.
   public var ephemeral: Bool
+  /// Whether to ignore the user's Codex config while retaining `CODEX_HOME` authentication.
+  public var ignoreUserConfig: Bool
   /// Whether to pass the upstream full-auto flag.
   public var fullAuto: Bool
   /// Optional upstream profile name.
@@ -76,6 +78,7 @@ public struct CodexExecRequestOptions: Equatable, Sendable {
     colorMode: String? = nil,
     dangerouslyBypassApprovalsAndSandbox: Bool = false,
     ephemeral: Bool = false,
+    ignoreUserConfig: Bool = false,
     fullAuto: Bool = false,
     profile: String? = nil,
     sandboxMode: String? = nil,
@@ -94,6 +97,7 @@ public struct CodexExecRequestOptions: Equatable, Sendable {
     self.colorMode = colorMode
     self.dangerouslyBypassApprovalsAndSandbox = dangerouslyBypassApprovalsAndSandbox
     self.ephemeral = ephemeral
+    self.ignoreUserConfig = ignoreUserConfig
     self.fullAuto = fullAuto
     self.profile = profile
     self.sandboxMode = sandboxMode

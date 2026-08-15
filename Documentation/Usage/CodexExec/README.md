@@ -97,6 +97,7 @@ func runWithConfiguration() async throws {
     ),
     outputMode: .jsonl,
     options: .init(
+      ignoreUserConfig: true,
       skipGitRepoCheck: true,
       configOverrides: ["sandbox_mode=\"workspace-write\""]
     )
@@ -105,6 +106,12 @@ func runWithConfiguration() async throws {
   _ = try await client.run(request)
 }
 ```
+
+Set `ignoreUserConfig` when an embedding application must prevent the user's
+global models, MCP servers, hooks, or other `config.toml` settings from changing
+the request. This maps to the upstream `--ignore-user-config` flag. Codex still
+uses `CODEX_HOME` for authentication, so the caller does not need to copy or
+inject login credentials.
 
 ## Output Contract
 
