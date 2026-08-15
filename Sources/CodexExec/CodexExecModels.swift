@@ -78,7 +78,49 @@ public struct CodexExecRequestOptions: Equatable, Sendable {
     colorMode: String? = nil,
     dangerouslyBypassApprovalsAndSandbox: Bool = false,
     ephemeral: Bool = false,
-    ignoreUserConfig: Bool = false,
+    fullAuto: Bool = false,
+    profile: String? = nil,
+    sandboxMode: String? = nil,
+    skipGitRepoCheck: Bool = false,
+    configOverrides: [String] = []
+  ) {
+    self.init(
+      images: images,
+      additionalWritableDirectories: additionalWritableDirectories,
+      approvalMode: approvalMode,
+      searchEnabled: searchEnabled,
+      enabledFeatures: enabledFeatures,
+      disabledFeatures: disabledFeatures,
+      model: model,
+      useOSS: useOSS,
+      workingDirectory: workingDirectory,
+      colorMode: colorMode,
+      dangerouslyBypassApprovalsAndSandbox: dangerouslyBypassApprovalsAndSandbox,
+      ephemeral: ephemeral,
+      ignoreUserConfig: false,
+      fullAuto: fullAuto,
+      profile: profile,
+      sandboxMode: sandboxMode,
+      skipGitRepoCheck: skipGitRepoCheck,
+      configOverrides: configOverrides
+    )
+  }
+
+  /// Creates shared exec request options with an explicit user-config policy.
+  public init(
+    images: [URL] = [],
+    additionalWritableDirectories: [URL] = [],
+    approvalMode: String? = nil,
+    searchEnabled: Bool? = nil,
+    enabledFeatures: [String] = [],
+    disabledFeatures: [String] = [],
+    model: String? = nil,
+    useOSS: Bool = false,
+    workingDirectory: URL? = nil,
+    colorMode: String? = nil,
+    dangerouslyBypassApprovalsAndSandbox: Bool = false,
+    ephemeral: Bool = false,
+    ignoreUserConfig: Bool,
     fullAuto: Bool = false,
     profile: String? = nil,
     sandboxMode: String? = nil,

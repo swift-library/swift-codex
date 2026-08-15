@@ -5,6 +5,13 @@ import Testing
 
 @Suite("CodexExec")
 struct CodexExecTests {
+  @Test("Existing request initializer keeps user config by default")
+  func existingRequestInitializerRemainsCompatible() {
+    let options = CodexExecRequestOptions(ephemeral: true, fullAuto: true)
+
+    #expect(!options.ignoreUserConfig)
+  }
+
   @Test("Run keeps the public operation explicit and uses launch configuration")
   func runUsesExplicitRunKind() async throws {
     let launcher = RecordingLauncher()
