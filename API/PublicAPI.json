@@ -90,7 +90,7 @@
     },
     {
       "api_sha256_by_swift_minor": {
-        "6.3": "52d9756be00c2a5b604d50f8c346833ee54e708abede914b040b47f79ccb8b33",
+        "6.3": "9bd5b57c4df7d7e75dceabd4f146fa650aba48ade60e037b4cbc7dc740d9e87b",
         "6.4": "9bdcca8e45e144ac307385c53ea85bbb48aa8076f9633a0498a715e779c144a7"
       },
       "name": "CodexExec",
