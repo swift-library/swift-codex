@@ -90,12 +90,12 @@
     },
     {
       "api_sha256_by_swift_minor": {
-        "6.3": "52d9756be00c2a5b604d50f8c346833ee54e708abede914b040b47f79ccb8b33",
-        "6.4": "5a853214571a90b4fd2139254fbd1d56da297a72cdc00dc418d6fcdbcf3e10d7"
+        "6.3": "c2eb89e7b3089ea621522e27fea6f790da31bfe2df158575362d2d380f2b7d38",
+        "6.4": "291c9b69536a2a969df4aa0a331e6c96e931fffc08025efc41ba31425f1db1d6"
       },
       "name": "CodexExec",
-      "relationship_count": 329,
-      "symbol_count": 228
+      "relationship_count": 331,
+      "symbol_count": 230
     },
     {
       "api_sha256_by_swift_minor": {

@@ -5,6 +5,13 @@ import Testing
 
 @Suite("CodexExec")
 struct CodexExecTests {
+  @Test("Existing request initializer keeps user config by default")
+  func existingRequestInitializerRemainsCompatible() {
+    let options = CodexExecRequestOptions(ephemeral: true, fullAuto: true)
+
+    #expect(!options.ignoreUserConfig)
+  }
+
   @Test("Run keeps the public operation explicit and uses launch configuration")
   func runUsesExplicitRunKind() async throws {
     let launcher = RecordingLauncher()
@@ -84,6 +91,7 @@ struct CodexExecTests {
         colorMode: "never",
         dangerouslyBypassApprovalsAndSandbox: true,
         ephemeral: true,
+        ignoreUserConfig: true,
         fullAuto: true,
         profile: "ci",
         sandboxMode: "workspace-write",
@@ -125,6 +133,7 @@ struct CodexExecTests {
         "--full-auto",
         "--dangerously-bypass-approvals-and-sandbox",
         "--ephemeral",
+        "--ignore-user-config",
         "--color", "never",
         "--skip-git-repo-check",
         "--config", "a=1",

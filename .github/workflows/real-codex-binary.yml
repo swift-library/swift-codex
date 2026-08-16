@@ -3,6 +3,8 @@ name: Real Codex Binary
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
   workflow_dispatch:
     inputs:
       codex_version:

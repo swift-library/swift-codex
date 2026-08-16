@@ -133,6 +133,10 @@ extension CodexExecClient {
       arguments.append("--ephemeral")
     }
 
+    if options.ignoreUserConfig {
+      arguments.append("--ignore-user-config")
+    }
+
     if let colorMode = options.colorMode {
       arguments.append(contentsOf: ["--color", colorMode])
     }

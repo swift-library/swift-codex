@@ -51,6 +51,8 @@ public struct CodexExecRequestOptions: Equatable, Sendable {
   public var dangerouslyBypassApprovalsAndSandbox: Bool
   /// Whether to pass the upstream ephemeral flag.
   public var ephemeral: Bool
+  /// Whether to ignore the user's Codex config while retaining `CODEX_HOME` authentication.
+  public var ignoreUserConfig: Bool
   /// Whether to pass the upstream full-auto flag.
   public var fullAuto: Bool
   /// Optional upstream profile name.
@@ -82,6 +84,49 @@ public struct CodexExecRequestOptions: Equatable, Sendable {
     skipGitRepoCheck: Bool = false,
     configOverrides: [String] = []
   ) {
+    self.init(
+      images: images,
+      additionalWritableDirectories: additionalWritableDirectories,
+      approvalMode: approvalMode,
+      searchEnabled: searchEnabled,
+      enabledFeatures: enabledFeatures,
+      disabledFeatures: disabledFeatures,
+      model: model,
+      useOSS: useOSS,
+      workingDirectory: workingDirectory,
+      colorMode: colorMode,
+      dangerouslyBypassApprovalsAndSandbox: dangerouslyBypassApprovalsAndSandbox,
+      ephemeral: ephemeral,
+      ignoreUserConfig: false,
+      fullAuto: fullAuto,
+      profile: profile,
+      sandboxMode: sandboxMode,
+      skipGitRepoCheck: skipGitRepoCheck,
+      configOverrides: configOverrides
+    )
+  }
+
+  /// Creates shared exec request options with an explicit user-config policy.
+  public init(
+    images: [URL] = [],
+    additionalWritableDirectories: [URL] = [],
+    approvalMode: String? = nil,
+    searchEnabled: Bool? = nil,
+    enabledFeatures: [String] = [],
+    disabledFeatures: [String] = [],
+    model: String? = nil,
+    useOSS: Bool = false,
+    workingDirectory: URL? = nil,
+    colorMode: String? = nil,
+    dangerouslyBypassApprovalsAndSandbox: Bool = false,
+    ephemeral: Bool = false,
+    ignoreUserConfig: Bool,
+    fullAuto: Bool = false,
+    profile: String? = nil,
+    sandboxMode: String? = nil,
+    skipGitRepoCheck: Bool = false,
+    configOverrides: [String] = []
+  ) {
     self.images = images
     self.additionalWritableDirectories = additionalWritableDirectories
     self.approvalMode = approvalMode
@@ -94,6 +139,7 @@ public struct CodexExecRequestOptions: Equatable, Sendable {
     self.colorMode = colorMode
     self.dangerouslyBypassApprovalsAndSandbox = dangerouslyBypassApprovalsAndSandbox
     self.ephemeral = ephemeral
+    self.ignoreUserConfig = ignoreUserConfig
     self.fullAuto = fullAuto
     self.profile = profile
     self.sandboxMode = sandboxMode
