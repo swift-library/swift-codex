@@ -2,6 +2,13 @@ import Foundation
 
 extension CodexExecClient {
   func makePreparedLaunch(for kind: CodexExecLaunchKind) throws -> CodexExecPreparedLaunch {
+    guard configuration.outputLimits.stdoutBytes >= 0,
+      configuration.outputLimits.stderrBytes >= 0,
+      configuration.outputLimits.stdoutLines >= 0
+    else {
+      throw CodexExecError.invalidInvocation(
+        description: "Output capture budgets must be nonnegative.")
+    }
     let executableURL = try executableResolver.resolveExecutable(using: configuration)
     var environment = configuration.environmentOverride ?? ProcessInfo.processInfo.environment
 
@@ -15,11 +22,12 @@ extension CodexExecClient {
     return CodexExecPreparedLaunch(
       kind: kind,
       executableURL: executableURL,
-      arguments: arguments(
+      arguments: try arguments(
         for: kind, workingDirectory: workingDirectory, promptMapping: promptMapping),
       environment: environment,
       workingDirectory: workingDirectory,
-      standardInput: promptMapping.standardInput
+      standardInput: promptMapping.standardInput,
+      outputLimits: configuration.outputLimits
     )
   }
 
@@ -27,9 +35,9 @@ extension CodexExecClient {
     for kind: CodexExecLaunchKind,
     workingDirectory: URL?,
     promptMapping: CodexExecPromptMapping
-  ) -> [String] {
+  ) throws -> [String] {
     var arguments = ["exec"]
-    arguments.append(contentsOf: sharedArguments(for: kind, workingDirectory: workingDirectory))
+    arguments.append(contentsOf: try sharedArguments(for: kind, workingDirectory: workingDirectory))
 
     switch kind {
     case .run(let request):
@@ -58,7 +66,7 @@ extension CodexExecClient {
     return arguments
   }
 
-  func sharedArguments(for kind: CodexExecLaunchKind, workingDirectory: URL?) -> [String] {
+  func sharedArguments(for kind: CodexExecLaunchKind, workingDirectory: URL?) throws -> [String] {
     let outputMode: CodexExecOutputMode
     let outputSchemaFile: URL?
     let outputLastMessageFile: URL?
@@ -75,6 +83,12 @@ extension CodexExecClient {
       outputSchemaFile = request.outputSchemaFile
       outputLastMessageFile = request.outputLastMessageFile
       options = request.options
+    }
+
+    guard !options.fullAuto else {
+      throw CodexExecError.invalidInvocation(
+        description:
+          "fullAuto is unsupported by Codex 0.154.0. Supply native configuration explicitly.")
     }
 
     var arguments: [String] = []
@@ -95,11 +109,16 @@ extension CodexExecClient {
       contentsOf: repeatedFlag("--add-dir", values: options.additionalWritableDirectories))
 
     if let approvalMode = options.approvalMode {
-      arguments.append(contentsOf: ["--ask-for-approval", approvalMode])
+      let encoder = JSONEncoder()
+      encoder.outputFormatting = [.withoutEscapingSlashes]
+      let value = String(decoding: try encoder.encode(approvalMode), as: UTF8.self)
+      arguments.append(contentsOf: ["--config", "approval_policy=\(value)"])
     }
 
-    if options.searchEnabled == true {
-      arguments.append("--search")
+    if let searchEnabled = options.searchEnabled {
+      arguments.append(contentsOf: [
+        "--config", searchEnabled ? #"web_search="live""# : #"web_search="disabled""#,
+      ])
     }
 
     arguments.append(contentsOf: repeatedFlag("--enable", values: options.enabledFeatures))
@@ -119,10 +138,6 @@ extension CodexExecClient {
 
     if let sandboxMode = options.sandboxMode {
       arguments.append(contentsOf: ["--sandbox", sandboxMode])
-    }
-
-    if options.fullAuto {
-      arguments.append("--full-auto")
     }
 
     if options.dangerouslyBypassApprovalsAndSandbox {

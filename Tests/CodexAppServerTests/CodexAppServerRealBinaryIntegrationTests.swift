@@ -10,6 +10,67 @@ import Testing
 @Suite("CodexAppServer Real Binary Integration")
 struct CodexAppServerRealBinaryIntegrationTests {
   @Test(
+    "Optional isolated real-binary raw session preserves native permission configuration",
+    .enabled(if: CodexAppServerRealBinaryIntegrationConfig.isEnabledForCurrentEnvironment)
+  )
+  func realBinaryRawSessionUsesIsolatedNativeConfiguration() async throws {
+    let config = try #require(CodexAppServerRealBinaryIntegrationConfig.makeIfEnabled())
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "swift-codex-raw-integration-\(UUID().uuidString)", isDirectory: true)
+    let codexDirectory = root.appendingPathComponent("codex", isDirectory: true)
+    try FileManager.default.createDirectory(at: codexDirectory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    var process = config.processConfiguration
+    process.environment = [
+      "PATH": ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin",
+      "CODEX_HOME": codexDirectory.path,
+    ]
+    process.workingDirectoryURL = root
+    let isolatedProcess = process
+    let client = CodexAppServerClient(
+      sessionConfiguration: .init(
+        clientInfo: .init(name: "swift_codex_raw_integration", version: "0.1.0"),
+        experimentalApi: true,
+        inboundMessageMode: .raw),
+      transportFactory: { try CodexAppServerStdioTransport(configuration: isolatedProcess) })
+    let connection = try await withRealBinaryTimeout(seconds: config.operationTimeoutSeconds) {
+      try await client.start()
+    }
+    do {
+      _ = try await withRealBinaryTimeout(seconds: config.operationTimeoutSeconds) {
+        try await connection.sendRawRequest(method: "configRequirements/read")
+      }
+      typealias JSON = CodexAppServerProtocol.Stable.JSONValue
+      let policy = JSON.object([
+        "granular": .object([
+          "mcp_elicitations": .bool(true), "rules": .bool(true),
+          "sandbox_approval": .bool(true), "request_permissions": .bool(true),
+          "skill_approval": .bool(true),
+        ])
+      ])
+      let result = try await withRealBinaryTimeout(seconds: config.operationTimeoutSeconds) {
+        try await connection.sendRawRequest(
+          method: "thread/start",
+          params: JSON.object([
+            "cwd": .string(root.path), "ephemeral": .bool(true),
+            "approvalPolicy": policy, "sandbox": .string("read-only"),
+          ]))
+      }
+      guard case .object(let response) = result else {
+        Issue.record("thread/start did not return an object")
+        await connection.close()
+        return
+      }
+      #expect(response["approvalPolicy"] == policy)
+      #expect(response["thread"] != nil)
+      await connection.close()
+    } catch {
+      await connection.close()
+      throw error
+    }
+  }
+
+  @Test(
     "Optional real-binary smoke coverage verifies app-server handshake over stdio",
     .enabled(if: CodexAppServerRealBinaryIntegrationConfig.isEnabledForCurrentEnvironment)
   )

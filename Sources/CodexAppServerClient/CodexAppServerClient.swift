@@ -2,6 +2,14 @@ import CodexAppServerRuntime
 import Foundation
 
 public struct CodexAppServerClient: Sendable {
+  /// Selects the representation used by the connection's inbound streams.
+  public enum InboundMessageMode: Equatable, Sendable {
+    /// Decode the pinned stable protocol into typed notifications and requests.
+    case typed
+    /// Preserve complete JSON payloads, including experimental and unknown fields.
+    case raw
+  }
+
   public struct ClientInfo: Equatable, Sendable {
     public var name: String
     public var title: String?
@@ -22,15 +30,18 @@ public struct CodexAppServerClient: Sendable {
     public var clientInfo: ClientInfo
     public var experimentalApi: Bool
     public var optOutNotificationMethods: [String]
+    public var inboundMessageMode: InboundMessageMode
 
     public init(
       clientInfo: ClientInfo,
       experimentalApi: Bool = false,
-      optOutNotificationMethods: [String] = []
+      optOutNotificationMethods: [String] = [],
+      inboundMessageMode: InboundMessageMode = .typed
     ) {
       self.clientInfo = clientInfo
       self.experimentalApi = experimentalApi
       self.optOutNotificationMethods = optOutNotificationMethods
+      self.inboundMessageMode = inboundMessageMode
     }
   }
 
@@ -48,7 +59,8 @@ public struct CodexAppServerClient: Sendable {
 
   public func start() async throws -> CodexAppServerConnection {
     let transport = try await transportFactory()
-    let connection = CodexAppServerConnection(transport: transport)
+    let connection = CodexAppServerConnection(
+      transport: transport, inboundMessageMode: sessionConfiguration.inboundMessageMode)
 
     do {
       _ = try await connection.performInitialize(configuration: sessionConfiguration)

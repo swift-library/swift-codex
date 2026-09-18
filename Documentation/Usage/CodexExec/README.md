@@ -22,8 +22,11 @@ func runHumanReadable() async throws {
     promptInput: .text("Explain this package layout.")
   ))
 
-  for try await line in handle.stdoutLines {
-    print(line)
+  do {
+    for try await line in handle.stdoutLines { print(line) }
+  } catch {
+    _ = try? await handle.waitForTermination()
+    throw error
   }
 
   let termination = try await handle.waitForTermination()
@@ -45,8 +48,11 @@ func runJSONL() async throws {
 
   let events = CodexExecJSONLDecoder().decode(handle.stdoutLines)
 
-  for try await event in events {
-    print(event)
+  do {
+    for try await event in events { print(event) }
+  } catch {
+    _ = try? await handle.waitForTermination()
+    throw error
   }
 
   _ = try await handle.waitForTermination()
@@ -66,8 +72,11 @@ func resumeSession(id: String) async throws {
     outputMode: .jsonl
   ))
 
-  for try await event in CodexExecJSONLDecoder().decode(handle.stdoutLines) {
-    print(event)
+  do {
+    for try await event in CodexExecJSONLDecoder().decode(handle.stdoutLines) { print(event) }
+  } catch {
+    _ = try? await handle.waitForTermination()
+    throw error
   }
 
   _ = try await handle.waitForTermination()
@@ -103,7 +112,8 @@ func runWithConfiguration() async throws {
     )
   )
 
-  _ = try await client.run(request)
+  let handle = try await client.run(request)
+  _ = try await handle.waitForTermination()
 }
 ```
 
@@ -122,3 +132,16 @@ completion is obtained separately through `waitForTermination()`.
 JSONL interpretation is opt-in through `CodexExecJSONLDecoder`. Unknown
 documented-forward-compatible events and items preserve raw JSON so callers can
 continue processing without losing protocol data.
+
+Capture is finite: `CodexExecLaunchConfiguration.outputLimits` defaults to
+8 MiB and 65,536 complete stdout lines, plus 1 MiB stderr. Increase these
+budgets explicitly for larger expected output. The SDK keeps a complete-line
+stdout prefix and a byte stderr prefix while continuing to drain the process.
+It never emits a partially retained JSONL line.
+
+When output exceeds a budget, `outputCaptureLimitExceeded` exposes the retained
+partial observation and its `outputCapture.stdoutDroppedBytes` and
+`stderrDroppedBytes`. Native failures and cancellation retain those same
+missing-output counts. A stdout stream error alone does not mean the process
+has terminated: always await `waitForTermination()`, including after a stream
+error, to settle process cleanup and inspect final stderr evidence.

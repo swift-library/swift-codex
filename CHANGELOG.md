@@ -5,6 +5,30 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-19
+
+### Changed
+
+- Align generated stable and experimental App Server protocol models with
+  upstream Codex 0.154.0, including explicit client method adoption.
+- Validate the separate legacy MCP client against Codex 0.139.0, which exposes
+  `mcp-server`; Codex 0.154.0 no longer exposes that entry point.
+- Preserve native Exec configuration and approval policy. The obsolete
+  `fullAuto` preset now fails before launch with this upstream version.
+
+### Added
+
+- Lossless App Server requests, notifications and server-request responses,
+  preserving experimental and unknown fields across client boundaries.
+- Bounded Exec stdout and stderr capture with explicit truncation metadata.
+
+### Fixed
+
+- Consume each App Server response once, including reused request identifiers
+  and connection closure.
+- Close Exec standard input after writing the prompt and retain native process
+  termination and cancellation results.
+
 ## [0.1.2] - 2026-08-17
 
 ### Added
@@ -37,7 +61,8 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 - Deterministic Swift Testing coverage, API inventory, schema verification, and
   opt-in real Codex binary validation.
 
-[Unreleased]: https://github.com/swift-library/swift-codex/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/swift-library/swift-codex/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/swift-library/swift-codex/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/swift-library/swift-codex/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/swift-library/swift-codex/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/swift-library/swift-codex/releases/tag/v0.1.0

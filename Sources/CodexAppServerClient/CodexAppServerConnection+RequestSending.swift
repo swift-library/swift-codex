@@ -81,39 +81,32 @@ extension CodexAppServerConnection {
   static func consumeInboundMessages(
     from transport: any CodexAppServerMessageTransport,
     state: CodexAppServerConnectionState,
-    notificationChannel: CodexAppServerAsyncThrowingChannel<
-      CodexAppServerProtocol.Stable.ServerNotification
-    >,
-    typedServerRequestChannel: CodexAppServerAsyncThrowingChannel<CodexAppServerTypedServerRequest>
+    channels: CodexAppServerInboundChannels
   ) async {
     do {
       for try await line in transport.inboundMessages {
         try await handleInboundMessage(
           line,
           state: state,
-          notificationChannel: notificationChannel,
-          typedServerRequestChannel: typedServerRequestChannel
+          channels: channels
         )
       }
       await failConnection(
         CodexAppServerClientError.peerClosed,
         state: state,
-        notificationChannel: notificationChannel,
-        typedServerRequestChannel: typedServerRequestChannel
+        channels: channels
       )
     } catch is CancellationError {
       await failConnection(
         CodexAppServerClientError.closed,
         state: state,
-        notificationChannel: notificationChannel,
-        typedServerRequestChannel: typedServerRequestChannel
+        channels: channels
       )
     } catch {
       await failConnection(
         error,
         state: state,
-        notificationChannel: notificationChannel,
-        typedServerRequestChannel: typedServerRequestChannel
+        channels: channels
       )
     }
   }
@@ -121,10 +114,7 @@ extension CodexAppServerConnection {
   private static func handleInboundMessage(
     _ line: String,
     state: CodexAppServerConnectionState,
-    notificationChannel: CodexAppServerAsyncThrowingChannel<
-      CodexAppServerProtocol.Stable.ServerNotification
-    >,
-    typedServerRequestChannel: CodexAppServerAsyncThrowingChannel<CodexAppServerTypedServerRequest>
+    channels: CodexAppServerInboundChannels
   ) async throws {
     let envelope: CodexAppServerConnectionFoundation.RawEnvelope
     do {
@@ -178,7 +168,15 @@ extension CodexAppServerConnection {
         )
       )
 
-    case .notification:
+    case .notification(let method, let params):
+      if channels.mode == .raw {
+        channels.rawNotifications.yield(
+          .init(
+            method: method, params: params.map(stableJSONValue),
+            payload: try decodeStableLine(CodexAppServerProtocol.Stable.JSONValue.self, from: line))
+        )
+        return
+      }
       let notification: CodexAppServerProtocol.Stable.ServerNotification
       do {
         notification = try decodeStableLine(
@@ -191,9 +189,20 @@ extension CodexAppServerConnection {
             + error.localizedDescription
         )
       }
-      notificationChannel.yield(notification)
+      channels.notifications.yield(notification)
 
-    case .request:
+    case .request(let id, let method, let params):
+      if channels.mode == .raw {
+        let payload = try decodeStableLine(CodexAppServerProtocol.Stable.JSONValue.self, from: line)
+        let token = try await mapRuntimeStateError {
+          try await state.addServerRequest(id: id)
+        }
+        channels.rawServerRequests.yield(
+          .init(
+            id: stableRequestID(id), method: method, params: params.map(stableJSONValue),
+            payload: payload, connectionID: channels.connectionID, requestToken: token))
+        return
+      }
       let request: CodexAppServerProtocol.Stable.ServerRequest
       do {
         request = try decodeStableLine(
@@ -205,10 +214,10 @@ extension CodexAppServerConnection {
       }
 
       let serverRequest = CodexAppServerServerRequest(request: request)
-      try await mapRuntimeStateError {
+      _ = try await mapRuntimeStateError {
         try await state.addServerRequest(id: runtimeRequestID(serverRequest.id))
       }
-      typedServerRequestChannel.yield(
+      channels.typedServerRequests.yield(
         CodexAppServerTypedServerRequest(serverRequest: serverRequest)
       )
     }
@@ -217,17 +226,13 @@ extension CodexAppServerConnection {
   private static func failConnection(
     _ error: Error,
     state: CodexAppServerConnectionState,
-    notificationChannel: CodexAppServerAsyncThrowingChannel<
-      CodexAppServerProtocol.Stable.ServerNotification
-    >,
-    typedServerRequestChannel: CodexAppServerAsyncThrowingChannel<CodexAppServerTypedServerRequest>
+    channels: CodexAppServerInboundChannels
   ) async {
     let pendingResponses = await state.close(error: error)
     for pendingResponse in pendingResponses {
       pendingResponse.fail(error)
     }
-    notificationChannel.finish(throwing: error)
-    typedServerRequestChannel.finish(throwing: error)
+    channels.finish(throwing: error)
   }
 
   private static func encodeStableLine(_ value: some Encodable) throws -> String {

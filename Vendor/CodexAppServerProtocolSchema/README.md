@@ -7,7 +7,7 @@ snapshot used by `CodexAppServer` code generation.
 
 - Upstream repository: `openai/codex`
 - Upstream commit:
-  `be6e8eac029b183056b7e4402879f15d2c85f61b` (`rust-v0.147.0`)
+  `6b9826e3aa83b1a5947db50f4332cb9c65f1b340` (`rust-v0.154.0`)
 - Upstream source root: `codex-rs/app-server-protocol`
 - Upstream toolchain source: `codex-rs/rust-toolchain.toml`
 
@@ -72,6 +72,10 @@ by the SwiftPM build-tool plugin into its plugin work directory during ordinary
 
 8. Replace `stable/json/` from the upstream checked-in stable fixtures and
    `experimental/json/` from the generated experimental fixtures.
+   Alternatively, use `Scripts/import-schema-snapshot.py` with the pinned
+   commit's stable and experimental precomputed exports and complete Git tree.
+   It verifies both compressed export identities and every stable JSON file
+   against that source tree before replacing the vendored files.
 9. Update tag, dereferenced commit, toolchain, precomputed-export hashes, and
    provenance in `upstream.lock.json`.
 10. Run `Scripts/refresh-schema-metadata.py` to rewrite the path-sorted

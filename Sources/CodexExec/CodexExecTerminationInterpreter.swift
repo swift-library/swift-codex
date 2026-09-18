@@ -32,6 +32,10 @@ extension CodexExecClient {
       throw postLaunchError
     }
 
+    guard output.outputCapture.isComplete else {
+      throw CodexExecError.outputCaptureLimitExceeded(partialObservation: partialObservation)
+    }
+
     if requiresCompletedTurn(for: launchKind), !hasCompletedTurn(partialObservation) {
       throw CodexExecError.interrupted(partialObservation: partialObservation)
     }
@@ -48,7 +52,8 @@ extension CodexExecClient {
       operation: operation,
       effectiveWorkingDirectory: preparedLaunch.workingDirectory,
       exitInterpretation: exitInterpretation,
-      capturedStderrText: partialObservation.stderrText
+      capturedStderrText: partialObservation.stderrText,
+      outputCapture: output.outputCapture
     )
   }
 
@@ -67,7 +72,8 @@ extension CodexExecClient {
         stderrText: stderrText,
         finalMessageText: stdoutText.isEmpty ? nil : stdoutText,
         events: [],
-        resolvedSessionID: nil
+        resolvedSessionID: nil,
+        outputCapture: output.outputCapture
       )
     case .jsonl:
       var events: [CodexExecEvent] = []
@@ -86,7 +92,8 @@ extension CodexExecClient {
                 stderrText: stderrText,
                 finalMessageText: finalMessageText,
                 events: events,
-                resolvedSessionID: resolvedSessionID
+                resolvedSessionID: resolvedSessionID,
+                outputCapture: output.outputCapture
               )
             )
           }
@@ -123,7 +130,8 @@ extension CodexExecClient {
         stderrText: stderrText,
         finalMessageText: finalMessageText,
         events: events,
-        resolvedSessionID: resolvedSessionID
+        resolvedSessionID: resolvedSessionID,
+        outputCapture: output.outputCapture
       )
     }
   }

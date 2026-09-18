@@ -116,7 +116,7 @@ private let acceptanceTraceability: [String: [String]] = [
     "runMapsDocumentedSurface"
   ],
   "full-auto preset": [
-    "runMapsDocumentedSurface"
+    "unsupportedPresetDoesNotLaunch"
   ],
   "dangerous bypass": [
     "runMapsDocumentedSurface"
@@ -191,6 +191,29 @@ private let acceptanceTraceability: [String: [String]] = [
 
 @Suite("CodexExec Acceptance Coverage")
 struct CodexExecAcceptanceCoverageTests {
+  @Test("Absent input uses an owned pipe and delivers EOF")
+  func absentInputDoesNotInheritCallerStandardInput() async throws {
+    let launched = try await CodexExecSystemLauncher().launch(
+      CodexExecPreparedLaunch(
+        kind: .run(CodexExecRunRequest(promptInput: .text("unused"))),
+        executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
+        arguments: [
+          "-e",
+          """
+          $SIG{ALRM} = sub { exit 99 };
+          alarm 2;
+          exit 98 unless -p STDIN;
+          my $count = sysread(STDIN, my $buffer, 1);
+          exit(defined($count) && $count == 0 ? 0 : 97);
+          """,
+        ],
+        environment: ProcessInfo.processInfo.environment, workingDirectory: nil, standardInput: nil
+      ))
+    let output = try await launched.waitForOutput()
+    #expect(output.exitStatus == 0)
+    #expect(output.terminationSignal == nil)
+  }
+
   @Test("Acceptance coverage keeps required architecture scenarios explicitly traceable")
   func acceptanceCoverageKeepsRequiredScenariosTraceable() {
     #expect(Set(acceptanceTraceability.keys) == requiredAcceptanceScenarios)
@@ -247,7 +270,8 @@ struct CodexExecAcceptanceCoverageTests {
       arguments: ["-e", perlScript],
       environment: ProcessInfo.processInfo.environment,
       workingDirectory: nil,
-      standardInput: nil
+      standardInput: nil,
+      outputLimits: .init(stderrBytes: expectedBytes)
     )
 
     let launched = try await launcher.launch(launch)
@@ -285,7 +309,8 @@ struct CodexExecAcceptanceCoverageTests {
       arguments: ["-e", perlScript],
       environment: ProcessInfo.processInfo.environment,
       workingDirectory: nil,
-      standardInput: Data(repeating: 122, count: expectedBytes)
+      standardInput: Data(repeating: 122, count: expectedBytes),
+      outputLimits: .init(stderrBytes: expectedBytes)
     )
 
     let launched = try await launcher.launch(launch)

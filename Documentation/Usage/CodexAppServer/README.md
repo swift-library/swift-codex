@@ -448,6 +448,43 @@ Prefer generated types over handwritten payload mirrors. Runtime code should
 stay focused on connection, lifecycle, JSON-RPC correlation, streams, and
 request resolution.
 
+## Preserve Complete JSON Messages
+
+Use a raw inbound session when forwarding native options or fields outside the
+pinned stable model. The SDK still performs the handshake and owns request IDs,
+response correlation, cancellation, and server-request completion.
+
+```swift
+let client = CodexAppServerClient(
+  sessionConfiguration: .init(
+    clientInfo: .init(name: "my_gateway", version: "1.0.0"),
+    experimentalApi: true,
+    inboundMessageMode: .raw
+  ),
+  transportFactory: { try CodexAppServerStdioTransport() }
+)
+let connection = try await client.start()
+let result = try await connection.sendRawRequest(
+  method: "config/read",
+  params: CodexAppServerProtocol.Stable.JSONValue.object(["includeLayers": .bool(true)])
+)
+```
+
+Consume `connection.rawNotifications` and `connection.rawServerRequests` with
+one consumer per stream. Both expose `method`, optional `params`, and `payload`
+containing the complete JSON envelope; server requests also expose `id`.
+Respond with `resolveServerRequest(request, with: response)` or
+`rejectServerRequest(request, code: message: data:)`. Unknown request methods
+require an explicit application decision. A handle can be completed only once,
+and only by its receiving connection.
+
+Raw request params and results retain unknown fields, explicit nulls, and
+integer values. This path also accepts methods with typed wrappers. The
+initialize/initialized lifecycle and explicitly excluded methods remain owned
+by their existing SDK routes. Typed streams finish immediately in raw mode;
+raw streams finish immediately in the default typed mode. Close the connection
+when its consumers and outstanding work are complete.
+
 ## Gateway Composition Best Practice
 
 Gateway behavior is not a `swift-codex` foundation target. A gateway is a

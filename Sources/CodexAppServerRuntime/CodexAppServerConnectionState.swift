@@ -13,7 +13,7 @@ package actor CodexAppServerConnectionState {
   private var pending:
     [CodexAppServerConnectionFoundation.RequestID: CodexAppServerPendingResponse] = [:]
   private var cancelledPendingResponses: Set<CodexAppServerConnectionFoundation.RequestID> = []
-  private var activeServerRequests: Set<CodexAppServerConnectionFoundation.RequestID> = []
+  private var activeServerRequests: [CodexAppServerConnectionFoundation.RequestID: UUID] = [:]
 
   package init() {}
 
@@ -73,18 +73,28 @@ package actor CodexAppServerConnectionState {
     cancelledPendingResponses.remove(id) != nil
   }
 
-  package func addServerRequest(id: CodexAppServerConnectionFoundation.RequestID) throws {
-    if activeServerRequests.contains(id) {
+  @discardableResult
+  package func addServerRequest(id: CodexAppServerConnectionFoundation.RequestID) throws -> UUID {
+    guard !isClosed else {
+      throw CodexAppServerConnectionStateError.closed
+    }
+    if activeServerRequests[id] != nil {
       throw CodexAppServerConnectionStateError.duplicateServerRequest(id: id)
     }
 
-    activeServerRequests.insert(id)
+    let token = UUID()
+    activeServerRequests[id] = token
+    return token
   }
 
-  package func completeServerRequest(id: CodexAppServerConnectionFoundation.RequestID) throws {
-    guard activeServerRequests.remove(id) != nil else {
+  package func completeServerRequest(
+    id: CodexAppServerConnectionFoundation.RequestID,
+    token: UUID? = nil
+  ) throws {
+    guard let activeToken = activeServerRequests[id], token == nil || token == activeToken else {
       throw CodexAppServerConnectionStateError.serverRequestAlreadyCompleted(id: id)
     }
+    activeServerRequests.removeValue(forKey: id)
   }
 
   package func close(error: Error) -> [CodexAppServerPendingResponse] {

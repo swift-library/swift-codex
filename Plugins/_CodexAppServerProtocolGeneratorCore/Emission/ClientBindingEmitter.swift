@@ -19,7 +19,7 @@ struct ClientBindingEmitter {
   private func writeMethodPolicy() throws {
     let outputURL = plan.outputRoot
       .appendingPathComponent("CodexAppServerClient+MethodPolicy.swift")
-    let deniedMethods = plan.adoption.rawDeniedMethods(for: plan.bindings)
+    let deniedMethods = plan.adoption.rawDeniedMethods
       .map { "\"\(SwiftNames.stringLiteral($0).dropFirst().dropLast())\"" }
       .joined(separator: ",\n")
     let source = """

@@ -5,6 +5,39 @@ import Testing
 
 @Suite("CodexExec")
 struct CodexExecTests {
+  @Test(
+    "Unsupported full-auto preset fails before run or resume launches", arguments: [false, true])
+  func unsupportedPresetDoesNotLaunch(resume: Bool) async throws {
+    let launcher = RecordingLauncher()
+    let client = CodexExecClient(
+      configuration: .init(executableURL: URL(fileURLWithPath: "/tmp/codex")), launcher: launcher)
+    let options = CodexExecRequestOptions(fullAuto: true)
+    do {
+      if resume {
+        _ = try await client.resume(.init(selector: .sessionID("session"), options: options))
+      } else {
+        _ = try await client.run(.init(promptInput: .text("prompt"), options: options))
+      }
+      Issue.record("Expected unsupported preset to fail before execution")
+    } catch let error as CodexExecError {
+      guard case .invalidInvocation(let description) = error else { throw error }
+      #expect(description.contains("fullAuto is unsupported"))
+    }
+    #expect(await launcher.recordedLaunches().isEmpty)
+  }
+
+  @Test("Explicitly disabled web search is sent as native configuration")
+  func disabledSearchUsesNativeConfig() async throws {
+    let launcher = RecordingLauncher()
+    let client = CodexExecClient(
+      configuration: .init(executableURL: URL(fileURLWithPath: "/tmp/codex")), launcher: launcher)
+    let handle = try await client.run(
+      .init(promptInput: .text("prompt"), options: .init(searchEnabled: false)))
+    _ = try await handle.waitForTermination()
+    let launch = try #require(await launcher.recordedLaunches().first)
+    #expect(launch.arguments == ["exec", "--config", #"web_search="disabled""#, "prompt"])
+  }
+
   @Test("Existing request initializer keeps user config by default")
   func existingRequestInitializerRemainsCompatible() {
     let options = CodexExecRequestOptions(ephemeral: true, fullAuto: true)
@@ -92,7 +125,6 @@ struct CodexExecTests {
         dangerouslyBypassApprovalsAndSandbox: true,
         ephemeral: true,
         ignoreUserConfig: true,
-        fullAuto: true,
         profile: "ci",
         sandboxMode: "workspace-write",
         skipGitRepoCheck: true,
@@ -121,8 +153,8 @@ struct CodexExecTests {
         "--output-last-message", lastMessageFile.path,
         "--add-dir", addDirOne.path,
         "--add-dir", addDirTwo.path,
-        "--ask-for-approval", "never",
-        "--search",
+        "--config", #"approval_policy="never""#,
+        "--config", #"web_search="live""#,
         "--enable", "alpha",
         "--enable", "beta",
         "--disable", "gamma",
@@ -130,7 +162,6 @@ struct CodexExecTests {
         "--oss",
         "--profile", "ci",
         "--sandbox", "workspace-write",
-        "--full-auto",
         "--dangerously-bypass-approvals-and-sandbox",
         "--ephemeral",
         "--ignore-user-config",

@@ -82,7 +82,7 @@ checked into the repository.
 dependencies: [
   .package(
     url: "https://github.com/swift-library/swift-codex.git",
-    .upToNextMinor(from: "0.1.0")
+    .upToNextMinor(from: "0.2.0")
   ),
 ],
 targets: [

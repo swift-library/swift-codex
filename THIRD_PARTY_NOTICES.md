@@ -7,8 +7,8 @@
 
 - Component: JSON Schema snapshots for the Codex app-server protocol
 - Upstream: `openai/codex`
-- Tag: `rust-v0.147.0`
-- Commit: `be6e8eac029b183056b7e4402879f15d2c85f61b`
+- Tag: `rust-v0.154.0`
+- Commit: `6b9826e3aa83b1a5947db50f4332cb9c65f1b340`
 - SPDX identifier: `Apache-2.0`
 - License: `Vendor/CodexAppServerProtocolSchema/LICENSE`
 - Notice: `Vendor/CodexAppServerProtocolSchema/NOTICE`
