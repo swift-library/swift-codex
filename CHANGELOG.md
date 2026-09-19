@@ -73,7 +73,8 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 - Deterministic Swift Testing coverage, API inventory, schema verification, and
   opt-in real Codex binary validation.
 
-[Unreleased]: https://github.com/swift-library/swift-codex/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/swift-library/swift-codex/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/swift-library/swift-codex/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/swift-library/swift-codex/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/swift-library/swift-codex/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/swift-library/swift-codex/compare/v0.1.0...v0.1.1
