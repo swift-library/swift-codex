@@ -61,6 +61,7 @@ jobs:
             xcode_path: /Applications/Xcode.app/Contents/Developer
             expected_version: ''
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -82,4 +83,5 @@ jobs:
         run: swift test --no-parallel
 
       - name: Isolated native build and test
+        timeout-minutes: 25
         run: Scripts/verify-native-build-and-test.sh

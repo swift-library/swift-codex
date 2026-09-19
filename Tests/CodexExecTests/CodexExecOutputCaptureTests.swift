@@ -41,6 +41,33 @@ struct CodexExecOutputCaptureTests {
     }
   }
 
+  @Test("Failed launches release pipe readers before subsequent work")
+  func failedLaunchesLeaveTheExecutorAvailable() async throws {
+    let directory = try makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let missing = CodexExecClient(
+      configuration: .init(
+        executableURL: directory.appendingPathComponent("missing-executable"),
+        environmentOverride: [:]))
+    for _ in 0..<3 {
+      do {
+        _ = try await missing.run(.init(promptInput: .text("unused")))
+        Issue.record("A missing executable unexpectedly launched")
+      } catch CodexExecError.launchFailure {
+        // The failed launch has no remaining child or blocked pipe reader.
+      }
+    }
+    let executable = try makeExecutableScript(
+      in: directory, contents: "#!/usr/bin/perl\nprint \"ready\\n\";\n")
+    let client = CodexExecClient(
+      configuration: .init(executableURL: executable, environmentOverride: [:]))
+    let handle = try await client.run(.init(promptInput: .text("unused")))
+    let lines = try await collectLines(from: handle.stdoutLines)
+    let result = try await handle.waitForTermination()
+    #expect(lines == ["ready"])
+    #expect(result.outputCapture.isComplete)
+  }
+
   @Test("A completed JSONL turn cannot hide omitted later output")
   func jsonlCaptureLimitIsNotMalformedOrSuccessful() async throws {
     let directory = try makeTemporaryDirectory()

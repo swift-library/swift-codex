@@ -104,7 +104,8 @@ struct CodexExecSystemLauncher: CodexExecLaunching {
     }
 
     let stderrReaderTask = Task.detached(priority: nil) {
-      try readStderr(from: stderrPipe.fileHandleForReading, limit: launch.outputLimits.stderrBytes)
+      try await readStderr(
+        from: stderrPipe.fileHandleForReading, limit: launch.outputLimits.stderrBytes)
     }
 
     do {
@@ -113,11 +114,17 @@ struct CodexExecSystemLauncher: CodexExecLaunching {
     } catch {
       stdoutContinuationState.finish(throwing: error)
       stderrReaderTask.cancel()
+      // No child owns the pipe ends after a failed spawn. Finish the pending reader
+      // before releasing launch ownership rather than leaving a blocked read alive.
+      try? stderrPipe.fileHandleForWriting.close()
+      try? stdoutPipe.fileHandleForWriting.close()
+      try? stdinPipe.fileHandleForWriting.close()
+      _ = await stderrReaderTask.result
       throw error
     }
 
     let stdinWriterTask = Task.detached(priority: nil) {
-      writeStandardInput(for: launch, to: stdinPipe)
+      await writeStandardInput(for: launch, to: stdinPipe)
     }
     stdinWriterTaskBox.set(stdinWriterTask)
 
@@ -192,14 +199,18 @@ private func start(_ process: Process) throws {
 private func writeStandardInput(
   for launch: CodexExecPreparedLaunch,
   to stdinPipe: Pipe
-) {
-  guard let standardInput = launch.standardInput else {
-    stdinPipe.fileHandleForWriting.closeFile()
-    return
+) async {
+  await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+    DispatchQueue.global(qos: .utility).async {
+      defer {
+        stdinPipe.fileHandleForWriting.closeFile()
+        continuation.resume(returning: ())
+      }
+      if let standardInput = launch.standardInput {
+        stdinPipe.fileHandleForWriting.write(standardInput)
+      }
+    }
   }
-
-  stdinPipe.fileHandleForWriting.write(standardInput)
-  stdinPipe.fileHandleForWriting.closeFile()
 }
 
 private func waitForProcessOutput(
@@ -280,7 +291,7 @@ private func readStdoutLines(
   onLine: (String) async throws -> Void
 ) async throws -> Int64 {
   var parser = CodexExecBoundedLineParser(limits: limits)
-  while let chunk = try readPipeChunk(from: handle) {
+  while let chunk = try await readPipeChunk(from: handle) {
     for byte in chunk {
       if let line = parser.append(byte) { try await onLine(line) }
     }
@@ -289,9 +300,10 @@ private func readStdoutLines(
   return parser.droppedBytes
 }
 
-private func readStderr(from handle: FileHandle, limit: Int) throws -> CodexExecCapturedStderr {
+private func readStderr(from handle: FileHandle, limit: Int) async throws -> CodexExecCapturedStderr
+{
   var capture = CodexExecCapturedStderr(data: Data(), droppedBytes: 0)
-  while let chunk = try readPipeChunk(from: handle) {
+  while let chunk = try await readPipeChunk(from: handle) {
     let retainedCount = min(chunk.count, limit - capture.data.count)
     capture.data.append(contentsOf: chunk.prefix(retainedCount))
     capture.droppedBytes += Int64(chunk.count - retainedCount)
@@ -299,16 +311,29 @@ private func readStderr(from handle: FileHandle, limit: Int) throws -> CodexExec
   return capture
 }
 
-private func readPipeChunk(from handle: FileHandle) throws -> Data? {
-  var bytes = [UInt8](repeating: 0, count: 16_384)
-  while true {
-    let count = bytes.withUnsafeMutableBytes { buffer in
-      read(handle.fileDescriptor, buffer.baseAddress, buffer.count)
+private func readPipeChunk(from handle: FileHandle) async throws -> Data? {
+  // A pipe can wait for the other stream or stdin to make progress. Suspend the
+  // Swift task while blocking I/O runs outside its cooperative executor.
+  try await withCheckedThrowingContinuation { continuation in
+    DispatchQueue.global(qos: .utility).async {
+      var bytes = [UInt8](repeating: 0, count: 16_384)
+      while true {
+        let count = bytes.withUnsafeMutableBytes { buffer in
+          read(handle.fileDescriptor, buffer.baseAddress, buffer.count)
+        }
+        if count > 0 {
+          continuation.resume(returning: Data(bytes.prefix(count)))
+          return
+        }
+        if count == 0 {
+          continuation.resume(returning: nil)
+          return
+        }
+        if errno == EINTR { continue }
+        continuation.resume(throwing: POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO))
+        return
+      }
     }
-    if count > 0 { return Data(bytes.prefix(count)) }
-    if count == 0 { return nil }
-    if errno == EINTR { continue }
-    throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
   }
 }
 

@@ -5,6 +5,18 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-19
+
+### Fixed
+
+- Keep blocking Exec stdin, stdout and stderr operations off Swift's cooperative
+  executor so bounded capture makes progress on constrained thread pools.
+- Join the stderr reader after a failed process launch instead of retaining a
+  blocked pipe read.
+- Exercise actual pipe capture with a constrained cooperative pool during native
+  validation, and bound CI validation jobs so a stall cannot occupy a runner for
+  six hours.
+
 ## [0.2.0] - 2026-09-19
 
 ### Changed
