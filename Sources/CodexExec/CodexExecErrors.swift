@@ -10,18 +10,22 @@ public struct CodexExecPartialObservation: Equatable, Sendable {
   public var events: [CodexExecEvent]
   /// Session identifier observed from `thread.started`, if any.
   public var resolvedSessionID: String?
+  /// Missing-output metadata for this observation.
+  public var outputCapture: CodexExecOutputCapture
 
   /// Creates preserved partial output for an exec failure.
   public init(
     stderrText: String = "",
     finalMessageText: String? = nil,
     events: [CodexExecEvent] = [],
-    resolvedSessionID: String? = nil
+    resolvedSessionID: String? = nil,
+    outputCapture: CodexExecOutputCapture = .init()
   ) {
     self.stderrText = stderrText
     self.finalMessageText = finalMessageText
     self.events = events
     self.resolvedSessionID = resolvedSessionID
+    self.outputCapture = outputCapture
   }
 }
 
@@ -44,6 +48,8 @@ public enum CodexExecError: Error, Equatable, Sendable {
   case interrupted(partialObservation: CodexExecPartialObservation?)
   /// The Swift task or stream consumer cancelled the request.
   case cancelled(partialObservation: CodexExecPartialObservation?)
+  /// The process output exceeded an SDK capture budget; the preserved prefix is incomplete.
+  case outputCaptureLimitExceeded(partialObservation: CodexExecPartialObservation)
   /// A schema or output-file contract failed at the process boundary.
   case outputFileFailure(
     path: URL, description: String, partialObservation: CodexExecPartialObservation?)

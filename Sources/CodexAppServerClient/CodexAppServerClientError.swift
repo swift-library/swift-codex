@@ -11,6 +11,7 @@ public enum CodexAppServerClientError: Error, Equatable, Sendable {
   case jsonRPCError(code: Int64, message: String, data: CodexAppServerProtocol.Stable.JSONValue?)
   case unmatchedResponse(id: CodexAppServerProtocol.Stable.RequestId)
   case duplicateServerRequest(id: CodexAppServerProtocol.Stable.RequestId)
+  case foreignServerRequest(id: CodexAppServerProtocol.Stable.RequestId)
   case serverRequestAlreadyCompleted(id: CodexAppServerProtocol.Stable.RequestId)
   case responseDecodeFailure(String)
 }

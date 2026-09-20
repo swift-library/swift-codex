@@ -10,18 +10,22 @@ public struct CodexExecLaunchConfiguration: Equatable, Sendable {
   public var apiKey: String?
   /// Default working directory used when a request does not specify one.
   public var defaultWorkingDirectory: URL?
+  /// Finite stdout/stderr capture budgets, applied before output decoding.
+  public var outputLimits: CodexExecOutputLimits
 
   /// Creates process launch defaults.
   public init(
     executableURL: URL? = nil,
     environmentOverride: [String: String]? = nil,
     apiKey: String? = nil,
-    defaultWorkingDirectory: URL? = nil
+    defaultWorkingDirectory: URL? = nil,
+    outputLimits: CodexExecOutputLimits = .init()
   ) {
     self.executableURL = executableURL
     self.environmentOverride = environmentOverride
     self.apiKey = apiKey
     self.defaultWorkingDirectory = defaultWorkingDirectory
+    self.outputLimits = outputLimits
   }
 }
 
@@ -31,9 +35,9 @@ public struct CodexExecRequestOptions: Equatable, Sendable {
   public var images: [URL]
   /// Additional writable directories supplied through repeated add-dir flags.
   public var additionalWritableDirectories: [URL]
-  /// Upstream approval mode value.
+  /// Native `approval_policy` config value; headless approval behavior remains upstream-owned.
   public var approvalMode: String?
-  /// Enables upstream web search when true.
+  /// Sets native `web_search` to `live` or `disabled`; nil keeps upstream configuration.
   public var searchEnabled: Bool?
   /// Feature flags enabled for the request.
   public var enabledFeatures: [String]
@@ -53,7 +57,7 @@ public struct CodexExecRequestOptions: Equatable, Sendable {
   public var ephemeral: Bool
   /// Whether to ignore the user's Codex config while retaining `CODEX_HOME` authentication.
   public var ignoreUserConfig: Bool
-  /// Whether to pass the upstream full-auto flag.
+  /// Legacy preset retained for source compatibility. True fails before launching Codex 0.154.0.
   public var fullAuto: Bool
   /// Optional upstream profile name.
   public var profile: String?
@@ -260,26 +264,30 @@ public struct CodexExecTermination: Equatable, Sendable {
   public var effectiveWorkingDirectory: URL?
   /// Normalized exit or signal status.
   public var exitInterpretation: CodexExecExitInterpretation
-  /// Complete stderr text captured from upstream.
+  /// Stderr text captured from upstream within the configured budget.
   public var capturedStderrText: String
+  /// Whether stdout and stderr capture was complete.
+  public var outputCapture: CodexExecOutputCapture
 
   /// Creates process termination metadata.
   public init(
     operation: CodexExecOperation,
     effectiveWorkingDirectory: URL?,
     exitInterpretation: CodexExecExitInterpretation,
-    capturedStderrText: String = ""
+    capturedStderrText: String = "",
+    outputCapture: CodexExecOutputCapture = .init()
   ) {
     self.operation = operation
     self.effectiveWorkingDirectory = effectiveWorkingDirectory
     self.exitInterpretation = exitInterpretation
     self.capturedStderrText = capturedStderrText
+    self.outputCapture = outputCapture
   }
 }
 
 /// Stream-first handle for a launched upstream exec process.
 public final class CodexExecProcessHandle: @unchecked Sendable {
-  /// Raw stdout lines emitted by upstream.
+  /// Complete stdout lines within the capture budget. Exceeding it terminates the stream with an error.
   public let stdoutLines: AsyncThrowingStream<String, Error>
 
   private let waiter: @Sendable () async throws -> CodexExecTermination

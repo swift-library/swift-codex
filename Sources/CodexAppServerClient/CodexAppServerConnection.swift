@@ -11,33 +11,36 @@ public final class CodexAppServerConnection: @unchecked Sendable {
   /// Typed server requests that require a client response.
   public let typedServerRequests: AsyncThrowingStream<CodexAppServerTypedServerRequest, Error>
 
+  /// Complete notifications in wire order when the session selects raw inbound messages.
+  public let rawNotifications: AsyncThrowingStream<CodexAppServerRawNotification, Error>
+
+  /// Complete server requests when the session selects raw inbound messages.
+  public let rawServerRequests: AsyncThrowingStream<CodexAppServerRawServerRequest, Error>
+
   let transport: any CodexAppServerMessageTransport
   let state: CodexAppServerConnectionState
-  private let notificationChannel:
-    CodexAppServerAsyncThrowingChannel<CodexAppServerProtocol.Stable.ServerNotification>
-  private let typedServerRequestChannel:
-    CodexAppServerAsyncThrowingChannel<CodexAppServerTypedServerRequest>
+  let inboundChannels: CodexAppServerInboundChannels
   private let readTask: Task<Void, Never>
 
-  init(transport: any CodexAppServerMessageTransport) {
-    let notificationChannel =
-      CodexAppServerAsyncThrowingChannel<CodexAppServerProtocol.Stable.ServerNotification>()
-    let typedServerRequestChannel =
-      CodexAppServerAsyncThrowingChannel<CodexAppServerTypedServerRequest>()
+  init(
+    transport: any CodexAppServerMessageTransport,
+    inboundMessageMode: CodexAppServerClient.InboundMessageMode = .typed
+  ) {
+    let inboundChannels = CodexAppServerInboundChannels(mode: inboundMessageMode)
     let state = CodexAppServerConnectionState()
 
     self.transport = transport
     self.state = state
-    self.notificationChannel = notificationChannel
-    self.typedServerRequestChannel = typedServerRequestChannel
-    self.notifications = notificationChannel.stream
-    self.typedServerRequests = typedServerRequestChannel.stream
+    self.inboundChannels = inboundChannels
+    self.notifications = inboundChannels.notifications.stream
+    self.typedServerRequests = inboundChannels.typedServerRequests.stream
+    self.rawNotifications = inboundChannels.rawNotifications.stream
+    self.rawServerRequests = inboundChannels.rawServerRequests.stream
     self.readTask = Task {
       await Self.consumeInboundMessages(
         from: transport,
         state: state,
-        notificationChannel: notificationChannel,
-        typedServerRequestChannel: typedServerRequestChannel
+        channels: inboundChannels
       )
     }
   }
@@ -50,7 +53,44 @@ public final class CodexAppServerConnection: @unchecked Sendable {
     for pendingResponse in pending {
       pendingResponse.fail(CodexAppServerClientError.closed)
     }
-    notificationChannel.finish()
-    typedServerRequestChannel.finish()
+    inboundChannels.finish()
+  }
+}
+
+struct CodexAppServerInboundChannels: Sendable {
+  let mode: CodexAppServerClient.InboundMessageMode
+  let connectionID = UUID()
+  let notifications =
+    CodexAppServerAsyncThrowingChannel<CodexAppServerProtocol.Stable.ServerNotification>()
+  let typedServerRequests =
+    CodexAppServerAsyncThrowingChannel<CodexAppServerTypedServerRequest>()
+  let rawNotifications = CodexAppServerAsyncThrowingChannel<CodexAppServerRawNotification>()
+  let rawServerRequests = CodexAppServerAsyncThrowingChannel<CodexAppServerRawServerRequest>()
+
+  init(mode: CodexAppServerClient.InboundMessageMode) {
+    self.mode = mode
+    // Inactive streams terminate immediately; they never buffer unconsumed copies.
+    switch mode {
+    case .typed:
+      rawNotifications.finish()
+      rawServerRequests.finish()
+    case .raw:
+      notifications.finish()
+      typedServerRequests.finish()
+    }
+  }
+
+  func finish(throwing error: (any Error)? = nil) {
+    if let error {
+      notifications.finish(throwing: error)
+      typedServerRequests.finish(throwing: error)
+      rawNotifications.finish(throwing: error)
+      rawServerRequests.finish(throwing: error)
+    } else {
+      notifications.finish()
+      typedServerRequests.finish()
+      rawNotifications.finish()
+      rawServerRequests.finish()
+    }
   }
 }

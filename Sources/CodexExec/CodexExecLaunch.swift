@@ -7,6 +7,7 @@ struct CodexExecPreparedLaunch: Equatable, Sendable {
   var environment: [String: String]
   var workingDirectory: URL?
   var standardInput: Data?
+  var outputLimits: CodexExecOutputLimits = .init()
 }
 
 enum CodexExecLaunchKind: Equatable, Sendable {
@@ -19,6 +20,7 @@ struct CodexExecProcessOutput: Equatable, Sendable {
   var terminationSignal: Int32?
   var standardOutput: Data
   var standardError: Data
+  var outputCapture: CodexExecOutputCapture = .init()
 }
 
 struct CodexExecLaunchCancelled: Error, Sendable {
@@ -70,7 +72,7 @@ struct CodexExecSystemLauncher: CodexExecLaunching {
     let termination = CodexExecProcessTermination()
     let stdoutCollector = CodexExecStdoutCollector()
     let stdoutContinuationState = CodexExecStdoutContinuationState()
-    let stdoutReaderTaskBox = CodexExecTaskBox<Void, Error>()
+    let stdoutReaderTaskBox = CodexExecTaskBox<Int64, Error>()
     let stdinWriterTaskBox = CodexExecTaskBox<Void, Never>()
 
     configure(
@@ -102,7 +104,8 @@ struct CodexExecSystemLauncher: CodexExecLaunching {
     }
 
     let stderrReaderTask = Task.detached(priority: nil) {
-      stderrPipe.fileHandleForReading.readDataToEndOfFile()
+      try await readStderr(
+        from: stderrPipe.fileHandleForReading, limit: launch.outputLimits.stderrBytes)
     }
 
     do {
@@ -111,21 +114,36 @@ struct CodexExecSystemLauncher: CodexExecLaunching {
     } catch {
       stdoutContinuationState.finish(throwing: error)
       stderrReaderTask.cancel()
+      // No child owns the pipe ends after a failed spawn. Finish the pending reader
+      // before releasing launch ownership rather than leaving a blocked read alive.
+      try? stderrPipe.fileHandleForWriting.close()
+      try? stdoutPipe.fileHandleForWriting.close()
+      try? stdinPipe.fileHandleForWriting.close()
+      _ = await stderrReaderTask.result
       throw error
     }
 
     let stdinWriterTask = Task.detached(priority: nil) {
-      writeStandardInput(for: launch, to: stdinPipe)
+      await writeStandardInput(for: launch, to: stdinPipe)
     }
     stdinWriterTaskBox.set(stdinWriterTask)
 
     let stdoutReaderTask = Task.detached(priority: nil) {
       do {
-        try await readStdoutLines(from: stdoutPipe.fileHandleForReading) { line in
+        let droppedBytes = try await readStdoutLines(
+          from: stdoutPipe.fileHandleForReading, limits: launch.outputLimits
+        ) { line in
           await stdoutCollector.append(line)
           stdoutContinuationState.yield(line)
         }
-        stdoutContinuationState.finish()
+        if droppedBytes > 0 {
+          stdoutContinuationState.finish(
+            throwing: CodexExecError.outputCaptureLimitExceeded(
+              partialObservation: .init(outputCapture: .init(stdoutDroppedBytes: droppedBytes))))
+        } else {
+          stdoutContinuationState.finish()
+        }
+        return droppedBytes
       } catch {
         stdoutContinuationState.finish(throwing: error)
         throw error
@@ -166,9 +184,8 @@ private func configure(
   process.standardOutput = stdoutPipe
   process.standardError = stderrPipe
 
-  if launch.standardInput != nil {
-    process.standardInput = stdinPipe
-  }
+  // An absent payload must produce EOF, never inherit the caller's control stream.
+  process.standardInput = stdinPipe
 }
 
 private func start(_ process: Process) throws {
@@ -182,14 +199,18 @@ private func start(_ process: Process) throws {
 private func writeStandardInput(
   for launch: CodexExecPreparedLaunch,
   to stdinPipe: Pipe
-) {
-  guard let standardInput = launch.standardInput else {
-    stdinPipe.fileHandleForWriting.closeFile()
-    return
+) async {
+  await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+    DispatchQueue.global(qos: .utility).async {
+      defer {
+        stdinPipe.fileHandleForWriting.closeFile()
+        continuation.resume(returning: ())
+      }
+      if let standardInput = launch.standardInput {
+        stdinPipe.fileHandleForWriting.write(standardInput)
+      }
+    }
   }
-
-  stdinPipe.fileHandleForWriting.write(standardInput)
-  stdinPipe.fileHandleForWriting.closeFile()
 }
 
 private func waitForProcessOutput(
@@ -197,27 +218,25 @@ private func waitForProcessOutput(
   termination: CodexExecProcessTermination,
   stdoutCollector: CodexExecStdoutCollector,
   stdinWriterTask: Task<Void, Never>,
-  stdoutReaderTask: Task<Void, Error>,
-  stderrReaderTask: Task<Data, Never>
+  stdoutReaderTask: Task<Int64, Error>,
+  stderrReaderTask: Task<CodexExecCapturedStderr, Error>
 ) async throws -> CodexExecProcessOutput {
   let output = try await withTaskCancellationHandler {
     let terminationResult = await termination.wait()
     await stdinWriterTask.value
 
-    do {
-      try await stdoutReaderTask.value
-    } catch is CancellationError {
-      // Process cancellation will be surfaced after output capture.
-    } catch {
-      throw CodexExecError.launchFailure(description: error.localizedDescription)
-    }
-
-    let stderrData = await stderrReaderTask.value
+    // Settle both readers even when either pipe fails.
+    let stdoutResult = await stdoutReaderTask.result
+    let stderrResult = await stderrReaderTask.result
+    let stdoutDroppedBytes = try stdoutResult.get()
+    let stderr = try stderrResult.get()
     let stdoutText = await stdoutCollector.textSnapshot()
     let processOutput = makeProcessOutput(
       terminationResult: terminationResult,
       standardOutput: Data(stdoutText.utf8),
-      standardError: stderrData
+      standardError: stderr.data,
+      outputCapture: .init(
+        stdoutDroppedBytes: stdoutDroppedBytes, stderrDroppedBytes: stderr.droppedBytes)
     )
 
     if processState.cancellationWasRequested() {
@@ -235,7 +254,8 @@ private func waitForProcessOutput(
 private func makeProcessOutput(
   terminationResult: (status: Int32, reason: Process.TerminationReason),
   standardOutput: Data,
-  standardError: Data
+  standardError: Data,
+  outputCapture: CodexExecOutputCapture
 ) -> CodexExecProcessOutput {
   switch terminationResult.reason {
   case .exit:
@@ -243,65 +263,77 @@ private func makeProcessOutput(
       exitStatus: terminationResult.status,
       terminationSignal: nil,
       standardOutput: standardOutput,
-      standardError: standardError
+      standardError: standardError,
+      outputCapture: outputCapture
     )
   case .uncaughtSignal:
     return CodexExecProcessOutput(
       exitStatus: nil,
       terminationSignal: terminationResult.status,
       standardOutput: standardOutput,
-      standardError: standardError
+      standardError: standardError,
+      outputCapture: outputCapture
     )
   @unknown default:
     return CodexExecProcessOutput(
       exitStatus: nil,
       terminationSignal: nil,
       standardOutput: standardOutput,
-      standardError: standardError
+      standardError: standardError,
+      outputCapture: outputCapture
     )
   }
 }
 
 private func readStdoutLines(
   from handle: FileHandle,
+  limits: CodexExecOutputLimits,
   onLine: (String) async throws -> Void
-) async throws {
-  let duplicatedFD = dup(handle.fileDescriptor)
-  guard duplicatedFD >= 0 else {
-    throw CodexExecError.launchFailure(description: "Unable to duplicate stdout file descriptor.")
-  }
-
-  guard let file = fdopen(duplicatedFD, "r") else {
-    close(duplicatedFD)
-    throw CodexExecError.launchFailure(description: "Unable to open stdout stream.")
-  }
-
-  defer {
-    fclose(file)
-  }
-
-  var linePointer: UnsafeMutablePointer<CChar>?
-  var lineCapacity: Int = 0
-  defer {
-    free(linePointer)
-  }
-
-  while true {
-    let readCount = getline(&linePointer, &lineCapacity, file)
-    if readCount == -1 {
-      break
+) async throws -> Int64 {
+  var parser = CodexExecBoundedLineParser(limits: limits)
+  while let chunk = try await readPipeChunk(from: handle) {
+    for byte in chunk {
+      if let line = parser.append(byte) { try await onLine(line) }
     }
+  }
+  if let line = parser.finish() { try await onLine(line) }
+  return parser.droppedBytes
+}
 
-    guard let linePointer else {
-      continue
+private func readStderr(from handle: FileHandle, limit: Int) async throws -> CodexExecCapturedStderr
+{
+  var capture = CodexExecCapturedStderr(data: Data(), droppedBytes: 0)
+  while let chunk = try await readPipeChunk(from: handle) {
+    let retainedCount = min(chunk.count, limit - capture.data.count)
+    capture.data.append(contentsOf: chunk.prefix(retainedCount))
+    capture.droppedBytes += Int64(chunk.count - retainedCount)
+  }
+  return capture
+}
+
+private func readPipeChunk(from handle: FileHandle) async throws -> Data? {
+  // A pipe can wait for the other stream or stdin to make progress. Suspend the
+  // Swift task while blocking I/O runs outside its cooperative executor.
+  try await withCheckedThrowingContinuation { continuation in
+    DispatchQueue.global(qos: .utility).async {
+      var bytes = [UInt8](repeating: 0, count: 16_384)
+      while true {
+        let count = bytes.withUnsafeMutableBytes { buffer in
+          read(handle.fileDescriptor, buffer.baseAddress, buffer.count)
+        }
+        if count > 0 {
+          continuation.resume(returning: Data(bytes.prefix(count)))
+          return
+        }
+        if count == 0 {
+          continuation.resume(returning: nil)
+          return
+        }
+        if errno == EINTR { continue }
+        continuation.resume(throwing: POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO))
+        return
+      }
     }
-
-    var line = String(cString: linePointer)
-    while line.hasSuffix("\n") || line.hasSuffix("\r") {
-      line.removeLast()
-    }
-
-    try await onLine(line)
   }
 }
 

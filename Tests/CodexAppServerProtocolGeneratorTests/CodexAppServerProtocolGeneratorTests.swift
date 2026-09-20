@@ -9,9 +9,9 @@ struct CodexAppServerProtocolGeneratorTests {
   func plannerMatchesPinnedUpstreamSchemaInventory() throws {
     let plan = try makeGenerationPlan()
 
-    #expect(plan.entries.count == 1_335)
-    #expect(plan.entries.filter { $0.surface == .stable }.count == 626)
-    #expect(plan.entries.filter { $0.surface == .experimental }.count == 709)
+    #expect(plan.entries.count == 1_534)
+    #expect(plan.entries.filter { $0.surface == .stable }.count == 698)
+    #expect(plan.entries.filter { $0.surface == .experimental }.count == 836)
     #expect(plan.unsupportedConstructUses.isEmpty)
     #expect(Set(plan.entries.map(\.outputRelativePath)).count == plan.entries.count)
   }
@@ -133,9 +133,9 @@ struct CodexAppServerProtocolGeneratorTests {
     try plan.validateForGeneration()
     try ClientBindingEmitter(plan: plan).emit()
 
-    #expect(plan.bindings.count == 128)
-    #expect(plan.bindings.filter { $0.surface == .stable }.count == 93)
-    #expect(plan.bindings.filter { $0.surface == .experimental }.count == 35)
+    #expect(plan.bindings.count == 147)
+    #expect(plan.bindings.filter { $0.surface == .stable }.count == 96)
+    #expect(plan.bindings.filter { $0.surface == .experimental }.count == 51)
     try expectFileContains(
       outputRoot.appendingPathComponent("CodexAppServerClient+StableBindings.swift"),
       "public func threadStart("
@@ -146,7 +146,7 @@ struct CodexAppServerProtocolGeneratorTests {
     )
     try expectFileContains(
       outputRoot.appendingPathComponent("CodexAppServerClient+StableBindings.swift"),
-      "public func accountUsageRead()"
+      "public func accountUsageRead("
     )
     try expectFileContains(
       outputRoot.appendingPathComponent("CodexAppServerClient+StableBindings.swift"),

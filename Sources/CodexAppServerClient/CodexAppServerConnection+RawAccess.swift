@@ -1,9 +1,8 @@
 import CodexAppServerProtocol
 
 extension CodexAppServerConnection {
-  /// Sends a raw JSON-RPC request for diagnostics or upstream drift handling.
-  /// Prefer generated typed methods whenever the method is already modeled by
-  /// this target.
+  /// Sends a JSON-RPC request and preserves its complete result.
+  /// Adopted methods can use this path to retain fields outside the typed model.
   public func sendRawRequest(
     method: String
   ) async throws -> CodexAppServerProtocol.Stable.JSONValue {
@@ -16,8 +15,8 @@ extension CodexAppServerConnection {
     )
   }
 
-  /// Sends a raw JSON-RPC request with encodable params for diagnostics or
-  /// unsupported-yet-generated upstream methods.
+  /// Sends complete encodable params without narrowing them to a generated schema.
+  /// Lifecycle-owned and explicitly excluded methods remain unavailable.
   public func sendRawRequest<Params: Encodable & Sendable>(
     method: String,
     params: Params

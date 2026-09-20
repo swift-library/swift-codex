@@ -16,9 +16,11 @@ It does not depend on AppServer or MCP products.
 - ``CodexExecRunRequest``
 - ``CodexExecResumeRequest``
 - ``CodexExecLaunchConfiguration``
+- ``CodexExecOutputLimits``
 
 ### Protocol output
 
 - ``CodexExecEvent``
 - ``CodexExecItem``
 - ``CodexExecError``
+- ``CodexExecOutputCapture``

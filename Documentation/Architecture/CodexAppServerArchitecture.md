@@ -22,7 +22,7 @@ license locations. Ordinary builds generate Swift into plugin work directories
 and never modify the vendored schema or repository sources.
 
 `method-adoption.json` explicitly classifies every pinned client method. It is
-the source of truth for generated typed wrappers, raw-method denial, public
+the source of truth for generated typed wrappers, excluded raw methods, public
 method inventory, documentation, and the schema-refresh API diff. Initialize,
 deprecated fuzzy-file search, and unadopted fuzzy sessions do not receive
 public wrappers.
@@ -37,10 +37,22 @@ explicit ID. Duplicate active IDs fail immediately and cannot replace a
 pending response. JSON-RPC IDs preserve string and `Int64` forms. Error
 responses preserve code, message, and optional data.
 
-Inbound consumers receive one ordered `notifications` stream containing the
-generated `Stable.ServerNotification` enum and one `typedServerRequests`
-stream. Server-request handles bind params, response type, and request ID;
-completion or rejection is allowed once.
+The default inbound mode provides an ordered `notifications` stream containing
+the generated `Stable.ServerNotification` enum and a `typedServerRequests`
+stream. A session configured with `inboundMessageMode: .raw` instead provides
+`rawNotifications` and `rawServerRequests`, preserving complete JSON envelopes
+without decoding their method-specific payloads. Inactive streams finish
+immediately. Each stream has one consumer; events are not duplicated across
+representations.
+
+`sendRawRequest` accepts adopted methods and preserves complete JSON params
+and results, including fields beyond the pinned model. Explicitly excluded
+methods and the initialize/initialized lifecycle remain unavailable through
+raw access. Typed methods continue to provide the pinned generated contract;
+clients forwarding experimental or newer fields use the raw representation.
+Raw server-request handles bind the receiving connection and request ID;
+completion or rejection is allowed once through that connection. Unknown
+methods are delivered to the raw consumer for a response or explicit rejection.
 
 Closing, peer failure, malformed input, and cancellation complete every
 pending response and stream once. Correlation state, pending-response objects,

@@ -32,6 +32,12 @@ swift test --no-parallel
 Scripts/verify-native-build-and-test.sh
 ```
 
+The isolated native gate uses the selected Xcode toolchain for its build and
+test runtime. It applies the single-worker cooperative-pool constraint only to
+the built Swift Testing process, and requires both Exec stress suites to report
+executed, passing cases. SwiftPM package planning itself runs without that
+constraint.
+
 Run the GitHub `Real Codex Binary` workflow against the intended release ref.
 It installs the Codex version matching the vendored schema tag and executes the
 credential-free AppServer and MCP binary checks.

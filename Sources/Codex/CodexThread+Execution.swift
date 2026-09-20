@@ -263,6 +263,11 @@ extension CodexThread {
       )
     case .outputFileFailure(_, let description, _):
       return CodexProcessError(message: description)
+    case .outputCaptureLimitExceeded(let observation):
+      return CodexProcessError(
+        message:
+          "Codex exec output capture is incomplete (stdout: \(observation.outputCapture.stdoutDroppedBytes) bytes omitted, stderr: \(observation.outputCapture.stderrDroppedBytes) bytes omitted)."
+      )
     }
   }
 

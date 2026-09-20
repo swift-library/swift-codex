@@ -107,8 +107,8 @@ struct ClientMethodAdoption: Sendable {
     adoptedMethods.contains(method)
   }
 
-  func rawDeniedMethods(for bindings: [ClientBinding]) -> [String] {
-    Array(Set(bindings.map(\.method)).union(excludedMethods)).sorted()
+  var rawDeniedMethods: [String] {
+    excludedMethods.sorted()
   }
 
   private func validateManifestShape() throws {

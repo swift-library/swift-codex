@@ -10,7 +10,11 @@ on:
       codex_version:
         description: Codex npm package version matching the pinned schema
         required: true
-        default: 0.147.0
+        default: 0.154.0
+      mcp_codex_version:
+        description: Codex npm package version exposing the legacy mcp-server command
+        required: true
+        default: 0.139.0
   schedule:
     - cron: "17 6 * * 1"
 
@@ -22,7 +26,8 @@ jobs:
     name: AppServer and MCP binary integration
     runs-on: macos-26
     env:
-      PINNED_CODEX_VERSION: ${{ inputs.codex_version || '0.147.0' }}
+      PINNED_CODEX_VERSION: ${{ inputs.codex_version || '0.154.0' }}
+      MCP_CODEX_VERSION: ${{ inputs.mcp_codex_version || '0.139.0' }}
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -46,6 +51,12 @@ jobs:
               --scratch-path "$RUNNER_TEMP/swift-codex-real-binary" \
               --no-parallel \
               --filter CodexAppServerRealBinaryIntegration
+
+      - name: Install and verify the MCP-compatible CLI
+        run: |
+          npm install --global "@openai/codex@$MCP_CODEX_VERSION"
+          [[ "$(codex --version)" == *"$MCP_CODEX_VERSION"* ]]
+          codex mcp-server --help | grep -F 'Usage: codex mcp-server'
 
       - name: MCP real-binary tests
         run: |

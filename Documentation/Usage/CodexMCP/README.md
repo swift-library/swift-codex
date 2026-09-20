@@ -2,6 +2,11 @@
 
 `CodexMCP` is a Swift client for the upstream Codex MCP server.
 
+It requires a Codex executable that exposes `codex mcp-server`; its real-binary
+integration baseline is 0.139.0. Codex 0.154.0 does not expose this command.
+Use `CodexAppServerClient` or `CodexExec` with that version. The MCP executable
+compatibility range is independent of the generated App Server schema baseline.
+
 Use this product when your code needs:
 
 - MCP lifecycle over the `codex mcp-server` process

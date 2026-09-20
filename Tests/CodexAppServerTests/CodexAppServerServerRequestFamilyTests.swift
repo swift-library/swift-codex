@@ -306,7 +306,7 @@ private func stableServerRequestFixtures() -> [Stable.ServerRequest] {
       .init(
         id: .requestidoption1("mcp-elicit"),
         method: .mcpserverElicitationRequest,
-        params: .mcpserverelicitationrequestparamsoption3(
+        params: .mcpserverelicitationrequestparamsoption4(
           .init(
             elicitationId: "elicit-1",
             message: "Open authorization page",

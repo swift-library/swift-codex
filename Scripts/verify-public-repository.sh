@@ -82,7 +82,7 @@ if ! rg -q 'https://github.com/swift-library/swift-codex\.git' README.md; then
   fail "README does not use the canonical repository URL"
 fi
 
-if ! rg -q '\.upToNextMinor\(from: "0\.1\.0"\)' README.md; then
+if ! rg -q '\.upToNextMinor\(from: "0\.2\.0"\)' README.md; then
   fail "README does not use the documented 0.x dependency policy"
 fi
 

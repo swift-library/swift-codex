@@ -18,12 +18,12 @@
     },
     {
       "api_sha256_by_swift_minor": {
-        "6.3": "87626617e1a0ca69f1d7739b7bdcd33f63e2d7d69575c0f56da13766458d1514",
-        "6.4": "f79d6c35c3792532c018cb2ad252781b855e1e68ce0879d34aaad02999e051b1"
+        "6.3": "483973fb73d2b7e37962456d25a07c8f293d97814664e6c83bd4e2b02bea97bf",
+        "6.4": "1a96ac3afb76775f97388cfc0144b651588781096e018bb804cde6a7040f766e"
       },
       "name": "CodexAppServerClient",
-      "relationship_count": 194,
-      "symbol_count": 181
+      "relationship_count": 238,
+      "symbol_count": 218
     },
     {
       "api_sha256_by_swift_minor": {
@@ -45,12 +45,12 @@
     },
     {
       "api_sha256_by_swift_minor": {
-        "6.3": "94e7958b00eec84904a174d4c1175f58db10d5505a47a613264ee986feb9db5a",
-        "6.4": "d60f15c812cbf0f0e7a5178bce6cebbe72384e4802ddc7579e8d5d90697642ef"
+        "6.3": "288f335f84711ab5e007ed18ffc580c97c1f6deeb9b4e62d59c9e37fb849845c",
+        "6.4": "59e357ecd39332022597edfca6a9118f9243e4cc70e7bb55d9e742dc8849aa74"
       },
       "name": "CodexAppServerProtocol",
-      "relationship_count": 30020,
-      "symbol_count": 14768
+      "relationship_count": 34434,
+      "symbol_count": 16914
     },
     {
       "api_sha256_by_swift_minor": {
@@ -90,12 +90,12 @@
     },
     {
       "api_sha256_by_swift_minor": {
-        "6.3": "c2eb89e7b3089ea621522e27fea6f790da31bfe2df158575362d2d380f2b7d38",
-        "6.4": "291c9b69536a2a969df4aa0a331e6c96e931fffc08025efc41ba31425f1db1d6"
+        "6.3": "fa8497ffaf9858aac45c1b3648ff84788c3e905722f05e53c42b3d990e6296cd",
+        "6.4": "677adf1d6f70ae9b3ffda96aa50090812ad4653c7bf91ebe58a32f14b879e9e1"
       },
       "name": "CodexExec",
-      "relationship_count": 331,
-      "symbol_count": 230
+      "relationship_count": 349,
+      "symbol_count": 244
     },
     {
       "api_sha256_by_swift_minor": {

@@ -5,10 +5,10 @@ This page is generated from
 is the source of truth for typed wrappers, the raw-method deny policy,
 and this inventory.
 
-Pinned schema: `rust-v0.147.0`. Inventory SHA-256:
-`7772c4afed7ea063a3d028bcdf3e767201977af284db0aaf9a899c75cef3a497`.
+Pinned schema: `rust-v0.154.0`. Inventory SHA-256:
+`7f5aa61a8f2dbd8ae3c99380aef92c617a33bbba33851ff32d56715ef900b1e4`.
 
-## Stable (93)
+## Stable (96)
 
 - `account/login/cancel`
 - `account/login/start`
@@ -82,16 +82,19 @@ Pinned schema: `rust-v0.147.0`. Inventory SHA-256:
 - `thread/goal/get`
 - `thread/goal/set`
 - `thread/inject_items`
+- `thread/items/list`
 - `thread/list`
 - `thread/loaded/list`
 - `thread/metadata/update`
 - `thread/name/set`
 - `thread/read`
 - `thread/resume`
+- `thread/revert`
 - `thread/rollback`
 - `thread/section/move`
 - `thread/shellCommand`
 - `thread/start`
+- `thread/turns/list`
 - `thread/unarchive`
 - `thread/unsubscribe`
 - `threadSection/create`
@@ -104,12 +107,14 @@ Pinned schema: `rust-v0.147.0`. Inventory SHA-256:
 - `windowsSandbox/readiness`
 - `windowsSandbox/setupStart`
 
-## Experimental-only (35)
+## Experimental-only (51)
 
 - `collaborationMode/list`
 - `environment/add`
 - `environment/info`
 - `environment/status`
+- `mcpServer/event/stream/start`
+- `mcpServer/event/stream/stop`
 - `memory/reset`
 - `mock/experimentalMethod`
 - `plugin/search`
@@ -117,6 +122,13 @@ Pinned schema: `rust-v0.147.0`. Inventory SHA-256:
 - `process/resizePty`
 - `process/spawn`
 - `process/writeStdin`
+- `project/create`
+- `project/delete`
+- `project/import`
+- `project/list`
+- `project/move`
+- `project/read`
+- `project/update`
 - `remoteControl/client/list`
 - `remoteControl/client/revoke`
 - `remoteControl/disable`
@@ -124,13 +136,19 @@ Pinned schema: `rust-v0.147.0`. Inventory SHA-256:
 - `remoteControl/pairing/start`
 - `remoteControl/pairing/status`
 - `remoteControl/status/read`
+- `server/diagnostics`
 - `thread/backgroundTerminals/clean`
 - `thread/backgroundTerminals/list`
 - `thread/backgroundTerminals/terminate`
 - `thread/decrement_elicitation`
 - `thread/increment_elicitation`
-- `thread/items/list`
 - `thread/memoryMode/set`
+- `thread/queue/add`
+- `thread/queue/delete`
+- `thread/queue/list`
+- `thread/queue/reorder`
+- `thread/queue/start`
+- `thread/queue/update`
 - `thread/realtime/appendAudio`
 - `thread/realtime/appendSpeech`
 - `thread/realtime/appendText`
@@ -140,156 +158,58 @@ Pinned schema: `rust-v0.147.0`. Inventory SHA-256:
 - `thread/search`
 - `thread/searchOccurrences`
 - `thread/settings/update`
-- `thread/turns/list`
+- `thread/timeline/list`
+- `turn/settings/update`
 
-## Excluded (10)
+## Excluded (17)
 
 - `FuzzyFileSearch` — legacy method is not adopted
 - `GetAuthStatus` — legacy method is not adopted
 - `GetConversationSummary` — legacy method is not adopted
 - `GitDiffToRemote` — legacy method is not adopted
+- `account/bedrock/discover` — Bedrock account onboarding is not adopted
+- `account/bedrock/setup` — Bedrock account onboarding is not adopted
 - `fuzzyFileSearch` — deprecated upstream method is not adopted
 - `fuzzyFileSearch/sessionStart` — experimental fuzzy session is not adopted
 - `fuzzyFileSearch/sessionStop` — experimental fuzzy session is not adopted
 - `fuzzyFileSearch/sessionUpdate` — experimental fuzzy session is not adopted
 - `initialize` — connection lifecycle owns the handshake
 - `initialized` — connection lifecycle owns the handshake
+- `plugin/reconcile` — plugin reconciliation is not adopted
+- `userVerification/delete` — user verification administration is not adopted
+- `userVerification/enroll` — user verification administration is not adopted
+- `userVerification/status` — user verification administration is not adopted
+- `userVerification/verify` — user verification administration is not adopted
 
 ## Last Schema Refresh API Diff
 
-Added: 128. Removed: 0.
+Added: 21. Removed: 2.
 
 ### Added
 
-- `experimental` `collaborationMode/list`
-- `experimental` `environment/add`
-- `experimental` `environment/info`
-- `experimental` `environment/status`
-- `experimental` `memory/reset`
-- `experimental` `mock/experimentalMethod`
-- `experimental` `plugin/search`
-- `experimental` `process/kill`
-- `experimental` `process/resizePty`
-- `experimental` `process/spawn`
-- `experimental` `process/writeStdin`
-- `experimental` `remoteControl/client/list`
-- `experimental` `remoteControl/client/revoke`
-- `experimental` `remoteControl/disable`
-- `experimental` `remoteControl/enable`
-- `experimental` `remoteControl/pairing/start`
-- `experimental` `remoteControl/pairing/status`
-- `experimental` `remoteControl/status/read`
-- `experimental` `thread/backgroundTerminals/clean`
-- `experimental` `thread/backgroundTerminals/list`
-- `experimental` `thread/backgroundTerminals/terminate`
-- `experimental` `thread/decrement_elicitation`
-- `experimental` `thread/increment_elicitation`
-- `experimental` `thread/items/list`
-- `experimental` `thread/memoryMode/set`
-- `experimental` `thread/realtime/appendAudio`
-- `experimental` `thread/realtime/appendSpeech`
-- `experimental` `thread/realtime/appendText`
-- `experimental` `thread/realtime/listVoices`
-- `experimental` `thread/realtime/start`
-- `experimental` `thread/realtime/stop`
-- `experimental` `thread/search`
-- `experimental` `thread/searchOccurrences`
-- `experimental` `thread/settings/update`
-- `experimental` `thread/turns/list`
-- `stable` `account/login/cancel`
-- `stable` `account/login/start`
-- `stable` `account/logout`
-- `stable` `account/rateLimitResetCredit/consume`
-- `stable` `account/rateLimits/read`
-- `stable` `account/read`
-- `stable` `account/sendAddCreditsNudgeEmail`
-- `stable` `account/usage/read`
-- `stable` `account/workspaceMessages/read`
-- `stable` `app/installed`
-- `stable` `app/list`
-- `stable` `app/read`
-- `stable` `command/exec`
-- `stable` `command/exec/resize`
-- `stable` `command/exec/terminate`
-- `stable` `command/exec/write`
-- `stable` `config/batchWrite`
-- `stable` `config/mcpServer/reload`
-- `stable` `config/read`
-- `stable` `config/value/write`
-- `stable` `configRequirements/read`
-- `stable` `experimentalFeature/enablement/set`
-- `stable` `experimentalFeature/list`
-- `stable` `externalAgentConfig/detect`
-- `stable` `externalAgentConfig/import`
-- `stable` `externalAgentConfig/import/readHistories`
-- `stable` `externalAgentConfig/import/recordHistory`
-- `stable` `feedback/upload`
-- `stable` `fs/copy`
-- `stable` `fs/createDirectory`
-- `stable` `fs/getMetadata`
-- `stable` `fs/readDirectory`
-- `stable` `fs/readFile`
-- `stable` `fs/remove`
-- `stable` `fs/unwatch`
-- `stable` `fs/watch`
-- `stable` `fs/writeFile`
-- `stable` `hooks/list`
-- `stable` `marketplace/add`
-- `stable` `marketplace/remove`
-- `stable` `marketplace/upgrade`
-- `stable` `mcpServer/oauth/login`
-- `stable` `mcpServer/resource/read`
-- `stable` `mcpServer/tool/call`
-- `stable` `mcpServerStatus/list`
-- `stable` `model/list`
-- `stable` `modelProvider/capabilities/read`
-- `stable` `permissionProfile/list`
-- `stable` `plugin/install`
-- `stable` `plugin/installed`
-- `stable` `plugin/list`
-- `stable` `plugin/read`
-- `stable` `plugin/share/checkout`
-- `stable` `plugin/share/delete`
-- `stable` `plugin/share/list`
-- `stable` `plugin/share/save`
-- `stable` `plugin/share/updateTargets`
-- `stable` `plugin/skill/read`
-- `stable` `plugin/uninstall`
-- `stable` `review/start`
-- `stable` `skills/config/write`
-- `stable` `skills/extraRoots/set`
-- `stable` `skills/list`
-- `stable` `thread/approveGuardianDeniedAction`
-- `stable` `thread/archive`
-- `stable` `thread/compact/start`
-- `stable` `thread/delete`
-- `stable` `thread/fork`
-- `stable` `thread/goal/clear`
-- `stable` `thread/goal/get`
-- `stable` `thread/goal/set`
-- `stable` `thread/inject_items`
-- `stable` `thread/list`
-- `stable` `thread/loaded/list`
-- `stable` `thread/metadata/update`
-- `stable` `thread/name/set`
-- `stable` `thread/read`
-- `stable` `thread/resume`
-- `stable` `thread/rollback`
-- `stable` `thread/section/move`
-- `stable` `thread/shellCommand`
-- `stable` `thread/start`
-- `stable` `thread/unarchive`
-- `stable` `thread/unsubscribe`
-- `stable` `threadSection/create`
-- `stable` `threadSection/delete`
-- `stable` `threadSection/list`
-- `stable` `threadSection/update`
-- `stable` `turn/interrupt`
-- `stable` `turn/start`
-- `stable` `turn/steer`
-- `stable` `windowsSandbox/readiness`
-- `stable` `windowsSandbox/setupStart`
+- `experimental` `mcpServer/event/stream/start`
+- `experimental` `mcpServer/event/stream/stop`
+- `experimental` `project/create`
+- `experimental` `project/delete`
+- `experimental` `project/import`
+- `experimental` `project/list`
+- `experimental` `project/move`
+- `experimental` `project/read`
+- `experimental` `project/update`
+- `experimental` `server/diagnostics`
+- `experimental` `thread/queue/add`
+- `experimental` `thread/queue/delete`
+- `experimental` `thread/queue/list`
+- `experimental` `thread/queue/reorder`
+- `experimental` `thread/queue/start`
+- `experimental` `thread/queue/update`
+- `experimental` `thread/timeline/list`
+- `experimental` `turn/settings/update`
+- `stable` `thread/items/list`
+- `stable` `thread/revert`
+- `stable` `thread/turns/list`
 
 ### Removed
 
-None.
+- `experimental` `thread/items/list`
+- `experimental` `thread/turns/list`
