@@ -211,6 +211,30 @@ struct CodexMCPScriptedStdioServerTests {
     #expect(result.content == "Stopped late")
   }
 
+  @Test("Immediate cancellation follows its tool request on the wire", .timeLimit(.minutes(1)))
+  func immediateCancellationFollowsToolRequest() async throws {
+    let server = CodexMCPScriptedStdioServer()
+    try await server.start()
+    for requestID in 1...200 {
+      let serverTask = Task {
+        let first = try CodexMCPScriptedStdioServer.parseJSONObject(
+          from: await server.recordClientLine())
+        let second = try CodexMCPScriptedStdioServer.parseJSONObject(
+          from: await server.recordClientLine())
+        #expect(first["method"] as? String == "tools/call")
+        #expect(second["method"] as? String == "notifications/cancelled")
+        server.sendServerLine(
+          CodexMCPScriptedStdioServer.makeRunSuccessResponseLine(
+            requestID: requestID, threadID: "ordered", content: "Completed after cancellation"))
+      }
+      let handle = try await server.client.runCodex(.init(prompt: "hi"))
+      #expect(try await handle.cancel())
+      _ = try await handle.value()
+      try await serverTask.value
+    }
+    try await server.client.stop()
+  }
+
   @Test("Scripted stdio server surfaces transport failure after startup")
   func scriptedServerSurfacesTransportFailure() async throws {
     let server = CodexMCPScriptedStdioServer()

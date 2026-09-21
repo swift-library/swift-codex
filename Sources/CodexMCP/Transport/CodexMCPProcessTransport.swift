@@ -21,6 +21,8 @@ internal actor CodexMCPProcessTransport: Transport {
   private var receiveTask: Task<Void, Never>?
   private var isConnected = false
   private var hasYieldedInbound = false
+  private var sendObservations: [CodexMCPRequestID: AsyncThrowingStream<Void, Error>.Continuation] =
+    [:]
 
   init(
     baseTransport: StdioTransport,
@@ -93,6 +95,10 @@ internal actor CodexMCPProcessTransport: Transport {
     }
 
     isConnected = false
+    for observation in sendObservations.values {
+      observation.finish(throwing: CodexMCPError.transportFailure)
+    }
+    sendObservations.removeAll()
     receiveTask?.cancel()
     receiveTask = nil
     await baseTransport.disconnect()
@@ -109,12 +115,37 @@ internal actor CodexMCPProcessTransport: Transport {
     messageStream
   }
 
-  func send(_ data: Data) async throws {
-    guard isConnected else {
+  func observeRequestSend(_ requestID: CodexMCPRequestID) throws
+    -> AsyncThrowingStream<Void, Error>
+  {
+    guard isConnected, sendObservations[requestID] == nil else {
       throw CodexMCPError.transportFailure
     }
+    let (stream, continuation) = AsyncThrowingStream<Void, Error>.makeStream()
+    sendObservations[requestID] = continuation
+    return stream
+  }
 
-    try await baseTransport.send(normalizeOutboundData(data))
+  func finishRequestSend(_ requestID: CodexMCPRequestID, error: Error? = nil) {
+    guard let observation = sendObservations.removeValue(forKey: requestID) else { return }
+    if let error {
+      observation.finish(throwing: error)
+    } else {
+      observation.finish()
+    }
+  }
+
+  func send(_ data: Data) async throws {
+    let object = try? Self.jsonObject(from: data)
+    let outboundRequestID = object?["method"] != nil ? requestID(from: object?["id"]) : nil
+    do {
+      guard isConnected else { throw CodexMCPError.transportFailure }
+      try await baseTransport.send(normalizeOutboundData(data))
+      if let outboundRequestID { finishRequestSend(outboundRequestID) }
+    } catch {
+      if let outboundRequestID { finishRequestSend(outboundRequestID, error: error) }
+      throw error
+    }
   }
 
   private func normalizeOutboundData(_ data: Data) throws -> Data {

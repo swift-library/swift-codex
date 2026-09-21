@@ -131,6 +131,9 @@ func makeTestSubprocess(
     standardError: Pipe(),
   ) {
     handshakeTask.cancel()
+    // EOF releases the fake server's reader before its descriptor can be reused.
+    try? stdinPipe.fileHandleForWriting.close()
+    _ = await handshakeTask.result
     try await terminateHandler()
   }
 }
