@@ -65,10 +65,11 @@ public actor CodexMCPClient {
   deinit {
     let protocolAdapter = protocolAdapter
     let subprocess = subprocess
-    subprocess?.closeIO()
+    // Stop readers before closing descriptors that the operating system can reuse.
     Task {
       await protocolAdapter?.stop()
       try? await subprocess?.terminate()
+      subprocess?.closeIO()
     }
   }
 }

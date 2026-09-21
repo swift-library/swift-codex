@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Testing
 
@@ -5,6 +6,65 @@ import Testing
 
 @Suite("CodexMCP Client Lifecycle", .serialized)
 struct CodexMCPClientLifecycleTests {
+  @Test("Client release preserves owned pipes until process termination finishes")
+  func releaseKeepsPipesOpenUntilTermination() async throws {
+    let recorder = TerminationRecorder()
+    try await startAndReleaseClientCheckingPipes(recorder: recorder)
+    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+    while await recorder.terminationCount == 0, ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    #expect(await recorder.terminationCount == 1)
+  }
+
+  private func startAndReleaseClientCheckingPipes(recorder: TerminationRecorder) async throws {
+    let stdinPipe = Pipe()
+    let stdoutPipe = Pipe()
+    let inputDescriptor = stdinPipe.fileHandleForReading.fileDescriptor
+    let outputDescriptor = stdoutPipe.fileHandleForWriting.fileDescriptor
+    let handshake = Task {
+      try await performStartupHandshake(stdinPipe: stdinPipe, stdoutPipe: stdoutPipe)
+    }
+    let client = CodexMCPClient(
+      clientInfo: testMCPClientInfo,
+      subprocessLauncher: .init { _ in
+        CodexMCPManagedSubprocess(
+          standardInput: stdinPipe, standardOutput: stdoutPipe, standardError: Pipe()
+        ) {
+          #expect(fcntl(inputDescriptor, F_GETFD) != -1)
+          #expect(fcntl(outputDescriptor, F_GETFD) != -1)
+          await recorder.recordTermination()
+        }
+      }
+    )
+    try await client.start()
+    try await handshake.value
+  }
+
+  @Test(
+    "Releasing a running client cannot consume another client's handshake", .timeLimit(.minutes(1)))
+  func releasedClientsDoNotReadReusedDescriptors() async throws {
+    let recorder = TerminationRecorder()
+    for _ in 0..<200 {
+      try await startAndReleaseClient(recorder: recorder)
+    }
+    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+    while await recorder.terminationCount < 200, ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    #expect(await recorder.terminationCount == 200)
+  }
+
+  private func startAndReleaseClient(recorder: TerminationRecorder) async throws {
+    let client = CodexMCPClient(
+      clientInfo: testMCPClientInfo,
+      subprocessLauncher: .init { _ in
+        makeTestSubprocess { await recorder.recordTermination() }
+      }
+    )
+    try await client.start()
+  }
+
   @Test("Lifecycle shell starts in the idle state")
   func lifecycleShellStartsIdle() async {
     let client = CodexMCPClient(clientInfo: testMCPClientInfo)
