@@ -11,6 +11,8 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 - Stop the MCP transport before closing a released client's subprocess pipes,
   preserving descriptor ownership through process termination.
+- Wait for tool requests to reach the MCP transport before returning their call
+  handles, so immediate cancellation cannot overtake the original request.
 
 ## [0.2.1] - 2026-09-19
 

@@ -15,13 +15,19 @@ extension CodexMCPProtocolClientAdapter {
 
     let context: MCP.RequestContext<MCP.Value>
     do {
+      let sent = try await transport.observeRequestSend(requestID)
       context = try await client.send(
         CodexMCPRawCallTool.request(
           id: mcpRequestID,
           .init(name: name, arguments: argumentObject),
         )
       )
+      // MCP.Client.send schedules its write. A returned handle must not let
+      // cancellation overtake that request on the same transport.
+      for try await _ in sent {}
+      try Task.checkCancellation()
     } catch {
+      await transport.finishRequestSend(requestID, error: error)
       routes.removeValue(forKey: requestID)
       activeRequestIDs.remove(requestID)
       throw consumeJSONRPCFailure(for: requestID)
