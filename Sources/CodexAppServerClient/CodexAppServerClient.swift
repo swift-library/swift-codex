@@ -8,6 +8,8 @@ public struct CodexAppServerClient: Sendable {
     case typed
     /// Preserve complete JSON payloads, including experimental and unknown fields.
     case raw
+    /// Preserve notifications and server requests together in their wire order.
+    case rawOrdered
   }
 
   public struct ClientInfo: Equatable, Sendable {

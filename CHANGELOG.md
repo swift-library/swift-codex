@@ -5,6 +5,12 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## [Unreleased]
 
+### Added
+
+- An ordered raw inbound mode combines notifications and server requests in
+  native wire order while retaining connection-owned, once-only request handles.
+  Existing typed and split raw streams keep their current behavior.
+
 ## [0.2.2] - 2026-09-21
 
 ### Fixed

@@ -19,6 +19,13 @@ public struct CodexAppServerRawServerRequest: Sendable {
   let requestToken: UUID
 }
 
+/// A complete native notification or server request in inbound wire order.
+/// Request handles retain the connection's once-only completion semantics.
+public enum CodexAppServerRawInboundMessage: Sendable {
+  case notification(CodexAppServerRawNotification)
+  case serverRequest(CodexAppServerRawServerRequest)
+}
+
 extension CodexAppServerConnection {
   /// Completes a raw server request without narrowing its response to a generated schema.
   public func resolveServerRequest<Response: Encodable & Sendable>(

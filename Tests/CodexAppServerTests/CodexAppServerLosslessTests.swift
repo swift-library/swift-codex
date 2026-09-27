@@ -10,6 +10,87 @@ private typealias Stable = CodexAppServerProtocol.Stable
 
 @Suite("CodexAppServer Lossless Messages", .timeLimit(.minutes(1)))
 struct CodexAppServerLosslessTests {
+  @Test("Ordered raw messages preserve request and notification causality")
+  func orderedRawMessagesPreserveCausality() async throws {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = CodexAppServerConnection(transport: peer, inboundMessageMode: .rawOrdered)
+    peer.receiveLine(#"{"method":"turn/started","params":{"turnId":"turn-1"}}"#)
+    peer.receiveLine(#"{"id":900,"method":"future/tool","params":{"extension":null},"trace":true}"#)
+    peer.receiveLine(#"{"id":"900","method":"future/tool","params":{}}"#)
+    peer.receiveLine(#"{"method":"turn/completed","params":{"turnId":"turn-1"}}"#)
+    var messages = connection.rawInboundMessages.makeAsyncIterator()
+    guard case .notification(let started) = try await messages.next() else {
+      Issue.record("Expected turn start first.")
+      await connection.close()
+      return
+    }
+    #expect(started.method == "turn/started")
+    guard case .serverRequest(let first) = try await messages.next(),
+      case .serverRequest(let second) = try await messages.next(),
+      case .notification(let completed) = try await messages.next()
+    else {
+      Issue.record("Requests must precede completion even when handlers have not replied.")
+      await connection.close()
+      return
+    }
+    #expect(first.id == .requestidoption2(900))
+    #expect(second.id == .requestidoption1("900"))
+    #expect(
+      first.payload
+        == .object([
+          "id": .number(.integer(900)), "method": .string("future/tool"),
+          "params": .object(["extension": .null]), "trace": .bool(true),
+        ]))
+    #expect(completed.method == "turn/completed")
+    try await connection.resolveServerRequest(first, with: Stable.JSONValue.null)
+    let response = try decode(Stable.JSONRPCResponse.self, await peer.nextSentLine())
+    #expect(response.id == first.id)
+    await #expect(throws: CodexAppServerClientError.serverRequestAlreadyCompleted(id: first.id)) {
+      try await connection.resolveServerRequest(first, with: Stable.JSONValue.null)
+    }
+    try await connection.rejectServerRequest(second, code: -32_601, message: "Unsupported")
+    let rejection = try decode(Stable.JSONRPCError.self, await peer.nextSentLine())
+    #expect(rejection.id == second.id)
+    var notifications = connection.rawNotifications.makeAsyncIterator()
+    var requests = connection.rawServerRequests.makeAsyncIterator()
+    var typed = connection.notifications.makeAsyncIterator()
+    var typedRequests = connection.typedServerRequests.makeAsyncIterator()
+    #expect(try await notifications.next() == nil)
+    #expect(try await requests.next() == nil)
+    #expect(try await typed.next() == nil)
+    #expect(try await typedRequests.next() == nil)
+    await connection.close()
+    #expect(try await messages.next() == nil)
+  }
+
+  @Test(
+    "Other modes do not buffer an unused ordered representation",
+    arguments: [
+      CodexAppServerClient.InboundMessageMode.typed, .raw,
+    ])
+  func orderedStreamIsInactiveInOtherModes(mode: CodexAppServerClient.InboundMessageMode)
+    async throws
+  {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = CodexAppServerConnection(transport: peer, inboundMessageMode: mode)
+    var messages = connection.rawInboundMessages.makeAsyncIterator()
+    #expect(try await messages.next() == nil)
+    await connection.close()
+  }
+
+  @Test("Malformed ordered input fails the stream and pending RPC")
+  func malformedOrderedInputFailsConnection() async throws {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = CodexAppServerConnection(transport: peer, inboundMessageMode: .rawOrdered)
+    let pending = Task { try await connection.sendRawRequest(method: "config/read") }
+    _ = await peer.nextSentLine()
+    peer.receiveLine(#"{"id":1,"method":"future/request","result":{}}"#)
+    await #expect(throws: CodexAppServerClientError.self) { try await pending.value }
+    var messages = connection.rawInboundMessages.makeAsyncIterator()
+    await #expect(throws: CodexAppServerClientError.self) { try await messages.next() }
+    await connection.close()
+  }
+
   @Test("Adopted requests retain native options, unknown fields, and complete results")
   func adoptedRequestRetainsCompletePayloads() async throws {
     let peer = CodexAppServerInMemoryLinePeer()

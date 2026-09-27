@@ -43,7 +43,13 @@ stream. A session configured with `inboundMessageMode: .raw` instead provides
 `rawNotifications` and `rawServerRequests`, preserving complete JSON envelopes
 without decoding their method-specific payloads. Inactive streams finish
 immediately. Each stream has one consumer; events are not duplicated across
-representations.
+representations. Use `.rawOrdered` and `rawInboundMessages` when notification
+and server-request causality must be preserved together. Its messages reuse the
+same raw values and connection-owned request handles. The split raw and typed
+streams are inactive in this mode, so unread copies cannot accumulate. The
+consumer can register a request before processing a following completion
+notification and dispatch its response work separately. RPC response correlation
+remains connection-owned and is not delivered as a second public message.
 
 `sendRawRequest` accepts adopted methods and preserves complete JSON params
 and results, including fields beyond the pinned model. Explicitly excluded
