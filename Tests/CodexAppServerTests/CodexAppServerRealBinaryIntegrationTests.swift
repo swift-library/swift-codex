@@ -11,9 +11,12 @@ import Testing
 struct CodexAppServerRealBinaryIntegrationTests {
   @Test(
     "Optional isolated real-binary raw session preserves native permission configuration",
-    .enabled(if: CodexAppServerRealBinaryIntegrationConfig.isEnabledForCurrentEnvironment)
+    .enabled(if: CodexAppServerRealBinaryIntegrationConfig.isEnabledForCurrentEnvironment),
+    arguments: [CodexAppServerClient.InboundMessageMode.raw, .rawOrdered]
   )
-  func realBinaryRawSessionUsesIsolatedNativeConfiguration() async throws {
+  func realBinaryRawSessionUsesIsolatedNativeConfiguration(
+    inboundMode: CodexAppServerClient.InboundMessageMode
+  ) async throws {
     let config = try #require(CodexAppServerRealBinaryIntegrationConfig.makeIfEnabled())
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(
       "swift-codex-raw-integration-\(UUID().uuidString)", isDirectory: true)
@@ -31,7 +34,7 @@ struct CodexAppServerRealBinaryIntegrationTests {
       sessionConfiguration: .init(
         clientInfo: .init(name: "swift_codex_raw_integration", version: "0.1.0"),
         experimentalApi: true,
-        inboundMessageMode: .raw),
+        inboundMessageMode: inboundMode),
       transportFactory: { try CodexAppServerStdioTransport(configuration: isolatedProcess) })
     let connection = try await withRealBinaryTimeout(seconds: config.operationTimeoutSeconds) {
       try await client.start()

@@ -470,6 +470,15 @@ let result = try await connection.sendRawRequest(
 )
 ```
 
+When state transitions depend on ordering between notifications and server
+requests, select `inboundMessageMode: .rawOrdered` and consume
+`connection.rawInboundMessages` instead. The stream emits `.notification` and
+`.serverRequest` values in their combined wire order. Register the ownership of
+a server request before consuming a later completion notification; its handler
+can run separately. Resolve or reject the same request handle through the
+connection. Other inbound streams finish immediately, and no message copies
+are buffered for them.
+
 Consume `connection.rawNotifications` and `connection.rawServerRequests` with
 one consumer per stream. Both expose `method`, optional `params`, and `payload`
 containing the complete JSON envelope; server requests also expose `id`.

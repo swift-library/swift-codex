@@ -17,6 +17,10 @@ public final class CodexAppServerConnection: @unchecked Sendable {
   /// Complete server requests when the session selects raw inbound messages.
   public let rawServerRequests: AsyncThrowingStream<CodexAppServerRawServerRequest, Error>
 
+  /// Notifications and server requests in one wire-ordered stream in rawOrdered mode.
+  /// Consume each message before admitting work that depends on later messages.
+  public let rawInboundMessages: AsyncThrowingStream<CodexAppServerRawInboundMessage, Error>
+
   let transport: any CodexAppServerMessageTransport
   let state: CodexAppServerConnectionState
   let inboundChannels: CodexAppServerInboundChannels
@@ -36,6 +40,7 @@ public final class CodexAppServerConnection: @unchecked Sendable {
     self.typedServerRequests = inboundChannels.typedServerRequests.stream
     self.rawNotifications = inboundChannels.rawNotifications.stream
     self.rawServerRequests = inboundChannels.rawServerRequests.stream
+    self.rawInboundMessages = inboundChannels.rawInboundMessages.stream
     self.readTask = Task {
       await Self.consumeInboundMessages(
         from: transport,
@@ -66,6 +71,7 @@ struct CodexAppServerInboundChannels: Sendable {
     CodexAppServerAsyncThrowingChannel<CodexAppServerTypedServerRequest>()
   let rawNotifications = CodexAppServerAsyncThrowingChannel<CodexAppServerRawNotification>()
   let rawServerRequests = CodexAppServerAsyncThrowingChannel<CodexAppServerRawServerRequest>()
+  let rawInboundMessages = CodexAppServerAsyncThrowingChannel<CodexAppServerRawInboundMessage>()
 
   init(mode: CodexAppServerClient.InboundMessageMode) {
     self.mode = mode
@@ -74,9 +80,16 @@ struct CodexAppServerInboundChannels: Sendable {
     case .typed:
       rawNotifications.finish()
       rawServerRequests.finish()
+      rawInboundMessages.finish()
     case .raw:
       notifications.finish()
       typedServerRequests.finish()
+      rawInboundMessages.finish()
+    case .rawOrdered:
+      notifications.finish()
+      typedServerRequests.finish()
+      rawNotifications.finish()
+      rawServerRequests.finish()
     }
   }
 
@@ -86,11 +99,13 @@ struct CodexAppServerInboundChannels: Sendable {
       typedServerRequests.finish(throwing: error)
       rawNotifications.finish(throwing: error)
       rawServerRequests.finish(throwing: error)
+      rawInboundMessages.finish(throwing: error)
     } else {
       notifications.finish()
       typedServerRequests.finish()
       rawNotifications.finish()
       rawServerRequests.finish()
+      rawInboundMessages.finish()
     }
   }
 }

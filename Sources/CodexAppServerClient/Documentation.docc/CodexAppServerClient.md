@@ -28,3 +28,9 @@ protocol contract. Consume each selected stream once.
 - ``CodexAppServerTypedServerRequest``
 - ``CodexAppServerRawServerRequest``
 - ``CodexAppServerRawNotification``
+
+Select `inboundMessageMode: .rawOrdered` and consume `rawInboundMessages` to
+observe notifications and server requests in their combined wire order. Each
+message contains the complete raw notification or the existing connection-owned
+request handle. Resolve or reject requests through that connection exactly once.
+Other inbound streams finish immediately in this mode.

@@ -169,12 +169,15 @@ extension CodexAppServerConnection {
       )
 
     case .notification(let method, let params):
-      if channels.mode == .raw {
-        channels.rawNotifications.yield(
-          .init(
-            method: method, params: params.map(stableJSONValue),
-            payload: try decodeStableLine(CodexAppServerProtocol.Stable.JSONValue.self, from: line))
-        )
+      if channels.mode != .typed {
+        let notification = CodexAppServerRawNotification(
+          method: method, params: params.map(stableJSONValue),
+          payload: try decodeStableLine(CodexAppServerProtocol.Stable.JSONValue.self, from: line))
+        if channels.mode == .rawOrdered {
+          channels.rawInboundMessages.yield(.notification(notification))
+        } else {
+          channels.rawNotifications.yield(notification)
+        }
         return
       }
       let notification: CodexAppServerProtocol.Stable.ServerNotification
@@ -192,15 +195,19 @@ extension CodexAppServerConnection {
       channels.notifications.yield(notification)
 
     case .request(let id, let method, let params):
-      if channels.mode == .raw {
+      if channels.mode != .typed {
         let payload = try decodeStableLine(CodexAppServerProtocol.Stable.JSONValue.self, from: line)
         let token = try await mapRuntimeStateError {
           try await state.addServerRequest(id: id)
         }
-        channels.rawServerRequests.yield(
-          .init(
-            id: stableRequestID(id), method: method, params: params.map(stableJSONValue),
-            payload: payload, connectionID: channels.connectionID, requestToken: token))
+        let request = CodexAppServerRawServerRequest(
+          id: stableRequestID(id), method: method, params: params.map(stableJSONValue),
+          payload: payload, connectionID: channels.connectionID, requestToken: token)
+        if channels.mode == .rawOrdered {
+          channels.rawInboundMessages.yield(.serverRequest(request))
+        } else {
+          channels.rawServerRequests.yield(request)
+        }
         return
       }
       let request: CodexAppServerProtocol.Stable.ServerRequest
