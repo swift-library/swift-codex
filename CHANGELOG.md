@@ -11,6 +11,12 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
   native wire order while retaining connection-owned, once-only request handles.
   Existing typed and split raw streams keep their current behavior.
 
+### Changed
+
+- `InboundMessageMode` gains the `rawOrdered` case. Downstream exhaustive
+  switches must handle it; this source compatibility change requires a minor
+  release during `0.x`.
+
 ## [0.2.2] - 2026-09-21
 
 ### Fixed
