@@ -5,6 +5,8 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-27
+
 ### Added
 
 - An ordered raw inbound mode combines notifications and server requests in
