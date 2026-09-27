@@ -18,7 +18,7 @@
     },
     {
       "api_sha256_by_swift_minor": {
-        "6.3": "483973fb73d2b7e37962456d25a07c8f293d97814664e6c83bd4e2b02bea97bf",
+        "6.3": "63442e8faeb9fce5ba2eca13660f116558f61224d09709443ad62b1671b70447",
         "6.4": "0793ae634e23e0e3aca632eb788e08557f09aadfe32280b4617ce06e59563136"
       },
       "name": "CodexAppServerClient",
