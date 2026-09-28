@@ -22,10 +22,12 @@ import Testing
       let pid = try #require(Int32(pidText))
       let sending = Task { try await transport.sendLine(String(repeating: "x", count: 2_000_000)) }
       #expect(try await messages.next() == "receiving")
+      let finishing = Task { try await transport.finishInput() }
       async let firstClose: Void = transport.close()
       async let secondClose: Void = transport.close()
       await firstClose
       await secondClose
+      try await finishing.value
       guard case .failure = await sending.result else {
         Issue.record("A child that reads only 1024 bytes cannot accept the complete message.")
         return

@@ -69,6 +69,9 @@ public struct CodexAppServerStdioConfiguration: Equatable, Sendable {
   public var versionProbeArguments: [String]
   /// Positive finite probe deadline, at most 60 seconds. Validation is synchronous.
   public var versionProbeTimeoutSeconds: TimeInterval
+  /// Maximum UTF-8 bytes before the line feed, including any carriage return.
+  /// Must be positive and no greater than the transport's 16 MiB ceiling.
+  public var maximumMessageBytes: Int
 
   public init(
     executableURL: URL? = nil,
@@ -78,7 +81,8 @@ public struct CodexAppServerStdioConfiguration: Equatable, Sendable {
     workingDirectoryURL: URL? = nil,
     versionRequirement: CodexAppServerStdioBinaryVersionRequirement = .disabled,
     versionProbeArguments: [String] = ["--version"],
-    versionProbeTimeoutSeconds: TimeInterval = 5
+    versionProbeTimeoutSeconds: TimeInterval = 5,
+    maximumMessageBytes: Int = 16 * 1_024 * 1_024
   ) {
     self.executableURL = executableURL
     self.executableName = executableName
@@ -88,6 +92,7 @@ public struct CodexAppServerStdioConfiguration: Equatable, Sendable {
     self.versionRequirement = versionRequirement
     self.versionProbeArguments = versionProbeArguments
     self.versionProbeTimeoutSeconds = versionProbeTimeoutSeconds
+    self.maximumMessageBytes = maximumMessageBytes
   }
 }
 

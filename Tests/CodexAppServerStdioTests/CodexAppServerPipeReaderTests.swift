@@ -24,6 +24,23 @@ struct CodexAppServerPipeReaderTests {
     #expect(try await collect(Data()).isEmpty)
   }
 
+  @Test(
+    "Lower input bounds count carriage returns and reject partial lines",
+    arguments: ["🐈\r\n", "🐈x"])
+  func configuredIncomingBound(wire: String) async throws {
+    let pipe = Pipe()
+    defer { try? pipe.fileHandleForReading.close() }
+    try pipe.fileHandleForWriting.write(contentsOf: Data(wire.utf8))
+    try pipe.fileHandleForWriting.close()
+    await #expect(
+      throws: CodexAppServerConnectionFoundation.FoundationError.messageTooLarge(limitBytes: 4)
+    ) {
+      try await CodexAppServerPipeReader.readLines(
+        from: pipe.fileHandleForReading, maximumMessageBytes: 4
+      ) { _ in Issue.record("An oversized frame must not be emitted.") }
+    }
+  }
+
   @Test("A short line is delivered while its writer waits for a reply")
   func deliversBeforeWriterEOF() async throws {
     let pipe = Pipe()

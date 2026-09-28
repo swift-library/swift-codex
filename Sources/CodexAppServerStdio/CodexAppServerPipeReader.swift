@@ -5,9 +5,11 @@ import _CodexProcess
 enum CodexAppServerPipeReader {
   static func readLines(
     from handle: FileHandle,
+    maximumMessageBytes: Int = CodexAppServerBufferLimits.bytes,
     onLine: (String) async throws -> Void
   ) async throws {
-    var codec = CodexAppServerConnectionFoundation.StdioFrameCodec()
+    var codec = CodexAppServerConnectionFoundation.StdioFrameCodec(
+      maximumFrameBytes: maximumMessageBytes)
     while !Task.isCancelled {
       guard let chunk = try await CodexProcessPipe.readChunk(from: handle) else {
         if codec.hasPendingPartialLine {

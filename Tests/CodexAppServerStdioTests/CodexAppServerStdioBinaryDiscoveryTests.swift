@@ -5,6 +5,19 @@ import Testing
 
 @Suite("CodexAppServerStdio Binary Discovery")
 struct CodexAppServerStdioBinaryDiscoveryTests {
+  @Test(
+    "Invalid frame bounds fail before executable discovery",
+    arguments: [Int.min, 0, 16 * 1_024 * 1_024 + 1, Int.max])
+  func invalidFrameBound(limit: Int) throws {
+    #expect(
+      throws: CodexAppServerStdioError.invalidConfiguration(
+        "Maximum message bytes must be positive and no greater than 16 MiB.")
+    ) {
+      _ = try CodexAppServerStdioTransport(
+        configuration: .init(executableName: "", maximumMessageBytes: limit))
+    }
+  }
+
   @Test("Binary discovery resolves explicit executable URL before PATH")
   func binaryDiscoveryResolvesExplicitExecutableURLBeforePATH() throws {
     let temporaryDirectory = try makeTemporaryDirectory(named: "appserver-binary-explicit")

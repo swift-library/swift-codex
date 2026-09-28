@@ -34,7 +34,18 @@ an observer does not terminate the process. The method throws when native cleanu
 cannot be confirmed. Framing/read failures remain on `inboundLines`, independently
 of successful process cleanup. Use `close()` to request termination.
 
-Frames are limited to 16 MiB before the newline. The inbound queue and the
+`finishInput()` stops new writes, drains already accepted writes and delivers
+stdin EOF without terminating the child or closing its output. Concurrent and
+cancelled callers join the same input closure. It can remain blocked if the child
+does not read input; callers with a shutdown deadline use `close()` to terminate
+the process and join the blocked operations. Use `waitForExit()` to observe the
+child's completion after EOF. Writes rejected after input closure do not interrupt
+the child's remaining work.
+
+Frames are limited to 16 MiB before the newline. Set `maximumMessageBytes` to a
+positive value no larger than this ceiling to enforce a smaller incoming and
+outgoing frame bound. The count includes any carriage return before the line feed.
+Invalid bounds fail before executable discovery or process launch. The inbound queue and the
 combined queued/in-flight stdin writes each admit at most 256 messages and
 16 MiB of payload. Incoming overflow terminates the owned process and joins its
 readers. An outgoing admission failure leaves that frame unsent and preserves

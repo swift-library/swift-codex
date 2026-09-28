@@ -25,5 +25,9 @@ then require those exact objects to be signalled. They check short pipe messages
 blocked stdin, inherited descendant handles, independent concurrent invocations,
 Unicode/empty/quoted arguments, exact environment and working directory, stdin
 EOF, exit-code bits, and bounded output with explicit omitted-byte metadata.
+Graceful input finish must preserve final output and pending work after EOF;
+late writes must be rejected without terminating that work. Forced close must
+join a blocked finish. Caller-lowered frame limits apply before native writes
+and while reading unterminated frames, within the existing transport ceiling.
 Version-probe and inbound/outbound-buffer failures must reclaim the exact owned
 process handles.

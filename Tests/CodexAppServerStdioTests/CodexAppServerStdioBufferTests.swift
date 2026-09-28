@@ -9,6 +9,103 @@ import Testing
 
   @Suite("Stdio buffer ownership", .timeLimit(.minutes(1)))
   struct CodexAppServerStdioBufferTests {
+    @Test("Input EOF drains in-flight and queued writes and rejects new admission")
+    func finishDrainsAcceptedInput() async throws {
+      let pipe = Pipe()
+      defer { try? pipe.fileHandleForReading.close() }
+      let writer = CodexAppServerFileHandleLineWriter(handle: pipe.fileHandleForWriting)
+      let line = String(repeating: "x", count: 2_000_000)
+      let sending = Task { try await writer.write(line) }
+      let prefix = try await Task.detached {
+        try pipe.fileHandleForReading.read(upToCount: 1_024) ?? Data()
+      }.value
+      #expect(prefix.count == 1_024)
+      let queued = AsyncStream<Result<Void, Error>>.makeStream(bufferingPolicy: .bufferingNewest(1))
+      writer.write("queued") {
+        queued.continuation.yield($0)
+        queued.continuation.finish()
+      }
+      let first = writer.finish()
+      let second = writer.finish()
+      await #expect(throws: CodexAppServerStdioError.closed) {
+        try await writer.write("late")
+      }
+      let remaining = try await Task.detached {
+        try pipe.fileHandleForReading.readToEnd() ?? Data()
+      }.value
+      try await sending.value
+      try await first.value
+      try await second.value
+      var completion = queued.stream.makeAsyncIterator()
+      let queuedResult = try #require(await completion.next())
+      try queuedResult.get()
+      #expect(prefix + remaining == Data((line + "\nqueued\n").utf8))
+      await writer.close()
+    }
+
+    @Test("Input EOF preserves final output and late writes do not terminate the child")
+    func finishPreservesFinalWork() async throws {
+      let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+        UUID().uuidString)
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: directory) }
+      let release = directory.appendingPathComponent("release")
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(
+          executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
+          arguments: [
+            "-e",
+            "$|=1; alarm 10; while (<STDIN>) { print }; print \"eof\\n\"; while (!-e $ARGV[0]) { select undef, undef, undef, 0.01 }; exit 23;",
+            release.path,
+          ], environment: [:]))
+      do {
+        var messages = transport.inboundLines.makeAsyncIterator()
+        for line in ["", "汉字 🐈", String(repeating: "x", count: 65_536)] {
+          try await transport.sendLine(line)
+          #expect(try await messages.next() == line)
+        }
+        let finishing = Task { try await transport.finishInput() }
+        finishing.cancel()
+        try await finishing.value
+        try await transport.finishInput()
+        #expect(try await messages.next() == "eof")
+        await #expect(throws: CodexAppServerStdioError.closed) {
+          try await transport.sendLine("late")
+        }
+        #expect(kill(transport.processIdentifier, 0) == 0)
+        try Data().write(to: release)
+        #expect(try await transport.waitForExit() == .exited(23))
+        #expect(try await messages.next() == nil)
+        await transport.close()
+      } catch {
+        await transport.close()
+        throw error
+      }
+    }
+
+    @Test("A lower outgoing frame bound rejects UTF-8 bytes before writing")
+    func configuredOutgoingBound() async throws {
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(
+          executableURL: URL(fileURLWithPath: "/bin/cat"), arguments: [], environment: [:],
+          maximumMessageBytes: 4))
+      do {
+        var messages = transport.inboundLines.makeAsyncIterator()
+        await #expect(
+          throws: CodexAppServerConnectionFoundation.FoundationError.messageTooLarge(limitBytes: 4)
+        ) { try await transport.sendLine("🐈x") }
+        try await transport.sendLine("🐈")
+        #expect(try await messages.next() == "🐈")
+        try await transport.finishInput()
+        #expect(try await transport.waitForExit() == .exited(0))
+        #expect(try await messages.next() == nil)
+        await transport.close()
+      } catch {
+        await transport.close()
+        throw error
+      }
+    }
+
     @Test("Exit observers share native identity and cancellation does not terminate the child")
     func joinedTerminationObservers() async throws {
       let transport = try CodexAppServerStdioTransport(
@@ -88,8 +185,10 @@ import Testing
       #expect(joinedByFailure)
     }
 
-    @Test("Oversized incoming frames terminate and join the owned child")
-    func oversizedFrameClosesProcess() async throws {
+    @Test(
+      "Oversized incoming frames terminate and join the owned child",
+      arguments: [64, 16 * 1_024 * 1_024])
+    func oversizedFrameClosesProcess(limit: Int) async throws {
       let transport = try CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
@@ -97,7 +196,7 @@ import Testing
             "-e",
             "$|=1; alarm 10; print \"$$\\n\"; scalar <STDIN>; print 'x' x 17000000; sleep 20;",
           ],
-          environment: [:]))
+          environment: [:], maximumMessageBytes: limit))
       var incoming = transport.inboundLines.makeAsyncIterator()
       let pidText = try #require(await incoming.next())
       let pid = try #require(Int32(pidText))
@@ -105,7 +204,7 @@ import Testing
       try await transport.sendLine("start")
       await #expect(
         throws: CodexAppServerConnectionFoundation.FoundationError.messageTooLarge(
-          limitBytes: CodexAppServerBufferLimits.bytes)
+          limitBytes: limit)
       ) {
         try await incoming.next()
       }

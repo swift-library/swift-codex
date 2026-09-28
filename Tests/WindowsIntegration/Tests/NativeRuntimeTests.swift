@@ -9,6 +9,94 @@ import Testing
 
   @Suite("Windows native Codex consumers", .timeLimit(.minutes(1)))
   struct NativeRuntimeTests {
+    @Test("Input EOF preserves final output and late writes do not terminate the child")
+    func finishPreservesFinalWork() async throws {
+      let directory = try temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      try await withTransport(mode: "input-finish", directory: directory) { transport in
+        var messages = transport.inboundLines.makeAsyncIterator()
+        for line in ["", "汉字 🐈", String(repeating: "x", count: 65_536)] {
+          try await transport.sendLine(line)
+          #expect(try await messages.next() == line)
+        }
+        let root = try observe("main", in: directory)
+        let finishing = Task { try await transport.finishInput() }
+        finishing.cancel()
+        try await finishing.value
+        try await transport.finishInput()
+        #expect(try await messages.next() == "eof")
+        await #expect(throws: CodexAppServerStdioError.closed) {
+          try await transport.sendLine("late")
+        }
+        #expect(!root.hasExited)
+        try Data().write(to: directory.appendingPathComponent("release"))
+        #expect(try await transport.waitForExit() == .exited(23))
+        #expect(root.hasExited)
+        #expect(try await messages.next() == nil)
+      }
+    }
+
+    @Test("A lower outgoing frame bound rejects UTF-8 bytes before native writing")
+    func configuredOutgoingBound() async throws {
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(
+          executableURL: fixture, environment: environment(mode: "lines"), maximumMessageBytes: 4))
+      do {
+        var messages = transport.inboundLines.makeAsyncIterator()
+        await #expect(
+          throws: CodexAppServerConnectionFoundation.FoundationError.messageTooLarge(limitBytes: 4)
+        ) { try await transport.sendLine("🐈x") }
+        try await transport.sendLine("🐈")
+        #expect(try await messages.next() == "🐈")
+        try await transport.finishInput()
+        #expect(try await transport.waitForExit() == .exited(0))
+        #expect(try await messages.next() == nil)
+        await transport.close()
+      } catch {
+        await transport.close()
+        throw error
+      }
+    }
+
+    @Test("A lower incoming frame bound terminates and joins the exact child")
+    func configuredIncomingBound() async throws {
+      let directory = try temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(
+          executableURL: fixture,
+          environment: environment(mode: "oversized-frame", directory: directory),
+          maximumMessageBytes: 64))
+      do {
+        var messages = transport.inboundLines.makeAsyncIterator()
+        #expect(try await messages.next() == "ready")
+        let root = try observe("root", in: directory)
+        try await transport.sendLine("start")
+        await #expect(
+          throws: CodexAppServerConnectionFoundation.FoundationError.messageTooLarge(limitBytes: 64)
+        ) { try await messages.next() }
+        _ = try await transport.waitForExit()
+        #expect(root.hasExited)
+        await transport.close()
+      } catch {
+        await transport.close()
+        throw error
+      }
+    }
+
+    @Test(
+      "Invalid message bounds fail before native launch",
+      arguments: [0, -1, 16 * 1_024 * 1_024 + 1, Int.max])
+    func invalidFrameBound(limit: Int) throws {
+      #expect(
+        throws: CodexAppServerStdioError.invalidConfiguration(
+          "Maximum message bytes must be positive and no greater than 16 MiB.")
+      ) {
+        _ = try CodexAppServerStdioTransport(
+          configuration: .init(executableName: "", maximumMessageBytes: limit))
+      }
+    }
+
     @Test(
       "Stdio exit observation preserves native exit-code bits", arguments: [0, 23, 3_221_225_477])
     func stdioTerminationCode(code: UInt32) async throws {
@@ -354,10 +442,12 @@ import Testing
           try await transport.sendLine(String(repeating: "x", count: 15_000_000))
         }
         #expect(!root.hasExited)
+        let finishing = Task { try await transport.finishInput() }
         async let first: Void = transport.close()
         async let second: Void = transport.close()
         await first
         await second
+        try await finishing.value
         guard case .failure = await sending.result else {
           Issue.record("Incomplete input was accepted")
           return

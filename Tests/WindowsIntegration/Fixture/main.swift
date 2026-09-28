@@ -32,18 +32,23 @@ import Foundation
         ]
         try FileHandle.standardOutput.write(
           contentsOf: JSONSerialization.data(withJSONObject: value) + Data([10]))
-      case "lines":
+      case "lines", "input-finish":
         if !directory.isEmpty { try record("main", in: directory) }
         var bytes = [UInt8](repeating: 0, count: 16_384)
         while true {
           var count: DWORD = 0
           guard ReadFile(GetStdHandle(STD_INPUT_HANDLE), &bytes, DWORD(bytes.count), &count, nil)
           else {
-            if GetLastError() == ERROR_BROKEN_PIPE { return }
+            if GetLastError() == ERROR_BROKEN_PIPE { break }
             ExitProcess(6)
           }
-          if count == 0 { return }
+          if count == 0 { break }
           try FileHandle.standardOutput.write(contentsOf: Data(bytes.prefix(Int(count))))
+        }
+        if mode == "input-finish" {
+          try output("eof\n")
+          try await waitFor("release", in: directory)
+          ExitProcess(23)
         }
       case "closed-input":
         try record("root", in: directory)
