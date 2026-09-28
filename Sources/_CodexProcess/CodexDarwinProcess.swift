@@ -23,6 +23,8 @@
 
     var cancellationWasRequested: Bool { lock.withLock { cancelled } }
 
+    var processIdentifier: Int32 { pid }
+
     func cancel() {
       let requested = lock.withLock {
         guard !reaped, !cancelled else { return false }

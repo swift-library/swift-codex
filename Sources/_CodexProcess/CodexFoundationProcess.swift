@@ -36,6 +36,8 @@
 
     var cancellationWasRequested: Bool { lock.withLock { cancelled } }
 
+    var processIdentifier: Int32 { process.processIdentifier }
+
     func cancel() {
       let shouldTerminate = lock.withLock {
         guard !exited, !cancelled else { return false }

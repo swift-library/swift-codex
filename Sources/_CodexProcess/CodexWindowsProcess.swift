@@ -53,6 +53,8 @@
 
     var cancellationWasRequested: Bool { job.cancellationWasRequested }
 
+    var processIdentifier: Int32 { Int32(bitPattern: handles.identifier) }
+
     func cancel() {
       job.stop(
         WaitForSingleObject(handles.process, 0) == DWORD(WAIT_OBJECT_0) ? .exited : .cancelled)
@@ -154,7 +156,8 @@
         }
         guard launched else { throw Self.error("CreateProcessW") }
       }
-      return CodexWindowsProcessHandles(process: created.hProcess!, thread: created.hThread!)
+      return CodexWindowsProcessHandles(
+        process: created.hProcess!, thread: created.hThread!, identifier: created.dwProcessId)
     }
 
     private static func quote(_ argument: String) -> String {
@@ -185,10 +188,12 @@
   private final class CodexWindowsProcessHandles: @unchecked Sendable {
     let process: HANDLE
     let thread: HANDLE
+    let identifier: DWORD
 
-    init(process: HANDLE, thread: HANDLE) {
+    init(process: HANDLE, thread: HANDLE, identifier: DWORD) {
       self.process = process
       self.thread = thread
+      self.identifier = identifier
     }
 
     deinit {

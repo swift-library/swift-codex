@@ -9,6 +9,51 @@ import Testing
 
   @Suite("Windows native Codex consumers", .timeLimit(.minutes(1)))
   struct NativeRuntimeTests {
+    @Test(
+      "Stdio exit observation preserves native exit-code bits", arguments: [0, 23, 3_221_225_477])
+    func stdioTerminationCode(code: UInt32) async throws {
+      var env = environment(mode: "exit")
+      env["CODEX_FIXTURE_EXIT"] = String(code)
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(executableURL: fixture, environment: env))
+      do {
+        #expect(try await transport.waitForExit() == .exited(Int32(bitPattern: code)))
+        await transport.close()
+      } catch {
+        await transport.close()
+        throw error
+      }
+    }
+
+    @Test("Cancelled exit observers retain the shared owner until explicit close")
+    func joinedTerminationObservers() async throws {
+      let directory = try temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      try await withTransport(mode: "lines", directory: directory) { transport in
+        let first = Task { try await transport.waitForExit() }
+        let second = Task { try await transport.waitForExit() }
+        first.cancel()
+        do {
+          var lines = transport.inboundLines.makeAsyncIterator()
+          try await transport.sendLine("still owned")
+          #expect(try await lines.next() == "still owned")
+          let root = try observe("main", in: directory)
+          #expect(UInt32(bitPattern: transport.processIdentifier) == root.processIdentifier)
+          #expect(!root.hasExited)
+          await transport.close()
+          let result = try await first.value
+          #expect(try await second.value == result)
+          #expect(try await transport.waitForExit() == result)
+          #expect(root.hasExited)
+        } catch {
+          await transport.close()
+          _ = await first.result
+          _ = await second.result
+          throw error
+        }
+      }
+    }
+
     @Test("Version probes drain both streams and deliver stdin EOF before main launch")
     func boundedVersionProbe() async throws {
       let transport = try CodexAppServerStdioTransport(
@@ -268,6 +313,7 @@ import Testing
           ? .messageTooLarge(limitBytes: 16 * 1_024 * 1_024)
           : .bufferLimitExceeded(maximumMessages: 256, maximumBytes: 16 * 1_024 * 1_024)
         await #expect(throws: failure) { try await incoming.next() }
+        _ = try await transport.waitForExit()
         await transport.close()
         #expect(root.hasExited)
       }
@@ -282,6 +328,7 @@ import Testing
         #expect(try await incoming.next() == "ready")
         let root = try observe("root", in: directory)
         await #expect(throws: (any Error).self) { try await transport.sendLine("request") }
+        _ = try await transport.waitForExit()
         let joinedByFailure = root.hasExited
         await transport.close()
         #expect(joinedByFailure)
@@ -331,11 +378,13 @@ import Testing
         var incoming = transport.inboundLines.makeAsyncIterator()
         #expect(try await incoming.next() == "ready")
         let members = try ["root", "branch", "leaf"].map { try observe($0, in: directory) }
+        #expect(UInt32(bitPattern: transport.processIdentifier) == members[0].processIdentifier)
         if rootExits {
           try Data().write(to: directory.appendingPathComponent("release"))
           #expect(try await incoming.next() == nil)
         }
         await transport.close()
+        _ = try await transport.waitForExit()
         #expect(members.allSatisfy { $0.hasExited })
       }
     }
@@ -568,6 +617,7 @@ import Testing
     private let handle: HANDLE
     init(handle: HANDLE) { self.handle = handle }
     deinit { CloseHandle(handle) }
+    var processIdentifier: DWORD { GetProcessId(handle) }
     var hasExited: Bool { WaitForSingleObject(handle, 0) == DWORD(WAIT_OBJECT_0) }
   }
 #endif

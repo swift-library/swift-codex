@@ -72,6 +72,8 @@ package final class CodexProcess: Sendable {
 
   deinit { lifetime.cancel() }
 
+  package var processIdentifier: Int32 { lifetime.processIdentifier }
+
   package var cancellationWasRequested: Bool { lifetime.cancellationWasRequested }
 
   package func cancel() { lifetime.cancel() }

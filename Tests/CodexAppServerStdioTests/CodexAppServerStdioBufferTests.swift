@@ -9,6 +9,36 @@ import Testing
 
   @Suite("Stdio buffer ownership", .timeLimit(.minutes(1)))
   struct CodexAppServerStdioBufferTests {
+    @Test("Exit observers share native identity and cancellation does not terminate the child")
+    func joinedTerminationObservers() async throws {
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(
+          executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
+          arguments: ["-e", "$|=1; alarm 10; print \"$$\\n\"; scalar <STDIN>; exit 23;"],
+          environment: [:]))
+      let first = Task { try await transport.waitForExit() }
+      let second = Task { try await transport.waitForExit() }
+      first.cancel()
+      do {
+        var lines = transport.inboundLines.makeAsyncIterator()
+        let text = try #require(await lines.next())
+        let pid = try #require(Int32(text))
+        #expect(transport.processIdentifier == pid)
+        #expect(kill(pid, 0) == 0)
+        try await transport.sendLine("finish")
+        #expect(try await first.value == .exited(23))
+        #expect(try await second.value == .exited(23))
+        #expect(kill(pid, 0) == -1 && errno == ESRCH)
+        await transport.close()
+        #expect(try await transport.waitForExit() == .exited(23))
+      } catch {
+        await transport.close()
+        _ = await first.result
+        _ = await second.result
+        throw error
+      }
+    }
+
     @Test(
       "Blocked writes occupy bounded admission until their syscall finishes",
       arguments: [true, false])
@@ -50,7 +80,9 @@ import Testing
       var incoming = transport.inboundLines.makeAsyncIterator()
       let pidText = try #require(await incoming.next())
       let pid = try #require(Int32(pidText))
+      #expect(transport.processIdentifier == pid)
       await #expect(throws: (any Error).self) { try await transport.sendLine("request") }
+      _ = try await transport.waitForExit()
       let joinedByFailure = kill(pid, 0) == -1 && errno == ESRCH
       await transport.close()
       #expect(joinedByFailure)
@@ -69,6 +101,7 @@ import Testing
       var incoming = transport.inboundLines.makeAsyncIterator()
       let pidText = try #require(await incoming.next())
       let pid = try #require(Int32(pidText))
+      #expect(transport.processIdentifier == pid)
       try await transport.sendLine("start")
       await #expect(
         throws: CodexAppServerConnectionFoundation.FoundationError.messageTooLarge(
@@ -77,6 +110,7 @@ import Testing
         try await incoming.next()
       }
       await transport.close()
+      _ = try await transport.waitForExit()
       #expect(kill(pid, 0) == -1 && errno == ESRCH)
     }
   }

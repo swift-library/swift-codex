@@ -3,11 +3,23 @@ import Foundation
 import _CodexProcess
 
 public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
+  /// The root process's native termination after owned cleanup and pipe operations finish.
+  public enum Termination: Equatable, Sendable {
+    /// A native exit code. Windows preserves the unsigned DWORD's bit pattern.
+    case exited(Int32)
+    /// The POSIX signal that terminated the process.
+    case signalled(Int32)
+  }
+
   public let inboundLines: AsyncThrowingStream<String, Error>
+
+  /// The launched process ID for diagnostics. Windows preserves its DWORD bit pattern.
+  /// A numeric ID is not authority to signal or adopt a process after this lifetime ends.
+  public var processIdentifier: Int32 { process.processIdentifier }
 
   private let process: CodexProcess
   private let writer: CodexAppServerFileHandleLineWriter
-  private let lifecycle: Task<Void, Never>
+  private let lifecycle: Task<Result<CodexProcessExit, Error>, Never>
 
   public init(configuration: CodexAppServerStdioConfiguration = .init()) throws {
     let compatibility = try configuration.validateBinaryCompatibility()
@@ -58,6 +70,7 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
       } catch {
         inboundChannel.finish(throwing: error)
       }
+      return exit
     }
   }
 
@@ -74,7 +87,7 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
       throw error
     } catch {
       process.cancel()
-      await lifecycle.value
+      _ = await lifecycle.value
       throw error
     }
   }
@@ -82,7 +95,15 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
   public func close() async {
     writer.closeAdmission()
     process.cancel()
-    await lifecycle.value
+    _ = await lifecycle.value
+  }
+
+  /// Waits for native cleanup and every owned pipe operation without consuming messages.
+  /// Concurrent or cancelled waiters observe the same lifetime; they do not terminate it.
+  /// Native cleanup failure throws. Framing and read failures remain on `inboundLines`.
+  public func waitForExit() async throws -> Termination {
+    let result = try await lifecycle.value.get()
+    return result.wasSignalled ? .signalled(result.status) : .exited(result.status)
   }
 }
 

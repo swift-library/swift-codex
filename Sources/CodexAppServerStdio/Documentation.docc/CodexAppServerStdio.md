@@ -26,6 +26,14 @@ start in an owned process group. Root exit, close and cancellation terminate
 remaining job or group members and join the original pipe operations. Cleanup
 failures are reported by the inbound stream.
 
+`processIdentifier` identifies the launched root for diagnostics; it is not a
+capability to adopt or signal a later process with the same numeric ID.
+`waitForExit()` joins native cleanup and all pipe operations, returning the root's
+exit code or POSIX signal. Concurrent observers share this lifetime, and cancelling
+an observer does not terminate the process. The method throws when native cleanup
+cannot be confirmed. Framing/read failures remain on `inboundLines`, independently
+of successful process cleanup. Use `close()` to request termination.
+
 Frames are limited to 16 MiB before the newline. The inbound queue and the
 combined queued/in-flight stdin writes each admit at most 256 messages and
 16 MiB of payload. Incoming overflow terminates the owned process and joins its
