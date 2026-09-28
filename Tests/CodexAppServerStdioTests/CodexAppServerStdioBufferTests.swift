@@ -40,6 +40,22 @@ import Testing
       }
     }
 
+    @Test("A native stdin failure joins a still-running child")
+    func stdinFailureClosesProcess() async throws {
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(
+          executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
+          arguments: ["-e", "$|=1; alarm 10; close STDIN; print \"$$\\n\"; sleep 20;"],
+          environment: [:]))
+      var incoming = transport.inboundLines.makeAsyncIterator()
+      let pidText = try #require(await incoming.next())
+      let pid = try #require(Int32(pidText))
+      await #expect(throws: (any Error).self) { try await transport.sendLine("request") }
+      let joinedByFailure = kill(pid, 0) == -1 && errno == ESRCH
+      await transport.close()
+      #expect(joinedByFailure)
+    }
+
     @Test("Oversized incoming frames terminate and join the owned child")
     func oversizedFrameClosesProcess() async throws {
       let transport = try CodexAppServerStdioTransport(

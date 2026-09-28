@@ -273,6 +273,21 @@ import Testing
       }
     }
 
+    @Test("Native stdin failure joins the exact child handle before returning")
+    func stdinFailureClosesProcess() async throws {
+      let directory = try temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      try await withTransport(mode: "closed-input", directory: directory) { transport in
+        var incoming = transport.inboundLines.makeAsyncIterator()
+        #expect(try await incoming.next() == "ready")
+        let root = try observe("root", in: directory)
+        await #expect(throws: (any Error).self) { try await transport.sendLine("request") }
+        let joinedByFailure = root.hasExited
+        await transport.close()
+        #expect(joinedByFailure)
+      }
+    }
+
     @Test("Stdio close unblocks a full stdin pipe and joins the root")
     func blockedInputClose() async throws {
       let directory = try temporaryDirectory()
@@ -291,6 +306,7 @@ import Testing
         ) {
           try await transport.sendLine(String(repeating: "x", count: 15_000_000))
         }
+        #expect(!root.hasExited)
         async let first: Void = transport.close()
         async let second: Void = transport.close()
         await first

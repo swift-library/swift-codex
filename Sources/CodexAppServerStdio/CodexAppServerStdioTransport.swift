@@ -66,7 +66,18 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
     process.cancel()
   }
 
-  public func sendLine(_ line: String) async throws { try await writer.write(line) }
+  public func sendLine(_ line: String) async throws {
+    do {
+      try await writer.write(line)
+    } catch let error as CodexAppServerConnectionFoundation.FoundationError {
+      // These failures reject an unsent frame before native IO begins.
+      throw error
+    } catch {
+      process.cancel()
+      await lifecycle.value
+      throw error
+    }
+  }
 
   public func close() async {
     writer.closeAdmission()

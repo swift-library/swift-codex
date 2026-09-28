@@ -10,6 +10,7 @@ package enum CodexAppServerConnectionStateError: Error, Equatable, Sendable {
 package actor CodexAppServerConnectionState {
   private var nextRequestID: Int64 = 1
   private var isClosed = false
+  private var retainedIdentifierBytes = 0
   private var pending:
     [CodexAppServerConnectionFoundation.RequestID: CodexAppServerPendingResponse] = [:]
   private var cancelledPendingResponses: Set<CodexAppServerConnectionFoundation.RequestID> = []
@@ -41,21 +42,24 @@ package actor CodexAppServerConnectionState {
       throw CodexAppServerConnectionStateError.closed
     }
 
-    guard pending[id] == nil else {
+    guard pending[id] == nil, !cancelledPendingResponses.contains(id) else {
       throw CodexAppServerConnectionStateError.duplicatePendingResponse(id: id)
     }
 
+    try reserveIdentifier(id)
     pending[id] = pendingResponse
   }
 
   package func takePending(
     id: CodexAppServerConnectionFoundation.RequestID
   ) -> CodexAppServerPendingResponse? {
-    pending.removeValue(forKey: id)
+    guard let response = pending.removeValue(forKey: id) else { return nil }
+    retainedIdentifierBytes -= identifierBytes(id)
+    return response
   }
 
   package func removePending(id: CodexAppServerConnectionFoundation.RequestID) {
-    pending.removeValue(forKey: id)
+    _ = takePending(id: id)
   }
 
   package func cancelPending(id: CodexAppServerConnectionFoundation.RequestID, error: Error) {
@@ -63,6 +67,8 @@ package actor CodexAppServerConnectionState {
       return
     }
 
+    // Cancellation transfers the reservation to its late-response tombstone.
+    // Reusing this ID early could correlate an old reply with new work.
     cancelledPendingResponses.insert(id)
     pendingResponse.fail(error)
   }
@@ -70,7 +76,9 @@ package actor CodexAppServerConnectionState {
   package func consumeCancelledResponse(
     id: CodexAppServerConnectionFoundation.RequestID
   ) -> Bool {
-    cancelledPendingResponses.remove(id) != nil
+    guard cancelledPendingResponses.remove(id) != nil else { return false }
+    retainedIdentifierBytes -= identifierBytes(id)
+    return true
   }
 
   @discardableResult
@@ -82,6 +90,7 @@ package actor CodexAppServerConnectionState {
       throw CodexAppServerConnectionStateError.duplicateServerRequest(id: id)
     }
 
+    try reserveIdentifier(id)
     let token = UUID()
     activeServerRequests[id] = token
     return token
@@ -95,6 +104,7 @@ package actor CodexAppServerConnectionState {
       throw CodexAppServerConnectionStateError.serverRequestAlreadyCompleted(id: id)
     }
     activeServerRequests.removeValue(forKey: id)
+    retainedIdentifierBytes -= identifierBytes(id)
   }
 
   /// Only the caller that closes admission receives the pending replies.
@@ -108,7 +118,28 @@ package actor CodexAppServerConnectionState {
     cancelledPendingResponses.removeAll()
     let pendingResponses = Array(pending.values)
     pending.removeAll()
+    retainedIdentifierBytes = 0
     return pendingResponses
+  }
+
+  private func reserveIdentifier(_ id: CodexAppServerConnectionFoundation.RequestID) throws {
+    let count = pending.count + cancelledPendingResponses.count + activeServerRequests.count
+    let bytes = identifierBytes(id)
+    guard count < CodexAppServerBufferLimits.messages,
+      bytes <= CodexAppServerBufferLimits.bytes - retainedIdentifierBytes
+    else {
+      throw CodexAppServerConnectionFoundation.FoundationError.bufferLimitExceeded(
+        maximumMessages: CodexAppServerBufferLimits.messages,
+        maximumBytes: CodexAppServerBufferLimits.bytes)
+    }
+    retainedIdentifierBytes += bytes
+  }
+
+  private func identifierBytes(_ id: CodexAppServerConnectionFoundation.RequestID) -> Int {
+    switch id {
+    case .integer: return MemoryLayout<Int64>.size
+    case .string(let value): return value.utf8.count
+    }
   }
 }
 

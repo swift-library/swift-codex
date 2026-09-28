@@ -30,7 +30,8 @@ Frames are limited to 16 MiB before the newline. The inbound queue and the
 combined queued/in-flight stdin writes each admit at most 256 messages and
 16 MiB of payload. Incoming overflow terminates the owned process and joins its
 readers. An outgoing admission failure leaves that frame unsent and preserves
-already admitted work. Close rejects further admission, unblocks the current
+already admitted work. A native stdin failure terminates and joins the owned
+process before returning the error. Close rejects further admission, unblocks the current
 native write through process termination and joins every admitted writer.
 Call `close()` when finished with the transport, including after cancelling a
 stream consumer.

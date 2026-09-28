@@ -54,7 +54,7 @@
     },
     {
       "api_sha256_by_swift_minor": {
-        "6.3": "be7f8ac8ce4ff6d973b32999ce53f5014fc7f82a8bb9c9cccf0733f4f5380ad6",
+        "6.3": "0152f9ed465d3c262a0844138704bdbe2c348b944d4d43ed89b1099d7677c4e6",
         "6.4": "c09f93c9cbc8a3178bf1a3d0858742fb7c26f95cdbb8d18564ae186b2e99b7f1"
       },
       "name": "CodexAppServerRuntime",

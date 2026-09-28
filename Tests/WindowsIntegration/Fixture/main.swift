@@ -45,6 +45,12 @@ import Foundation
           if count == 0 { return }
           try FileHandle.standardOutput.write(contentsOf: Data(bytes.prefix(Int(count))))
         }
+      case "closed-input":
+        try record("root", in: directory)
+        guard CloseHandle(GetStdHandle(STD_INPUT_HANDLE)) else { ExitProcess(4) }
+        _ = SetStdHandle(STD_INPUT_HANDLE, nil)
+        try output("ready\n")
+        try await Task.sleep(for: .seconds(60))
       case "oversized-frame", "flood-lines":
         try record("root", in: directory)
         try output("ready\n")

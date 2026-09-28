@@ -25,6 +25,14 @@ messages larger than 16 MiB fail before JSON decoding. Use metadata and paged
 history requests for long threads. Call `close()` when the connection is no
 longer needed.
 
+Pending client requests, cancelled requests awaiting a late reply, and active
+server requests share a separate budget of 256 identifiers and 16 MiB of ID
+storage. Cancelling a request preserves its ID reservation until the late reply
+is consumed or the connection closes. Reusing a reserved explicit ID fails before
+sending. A new client request that exceeds this budget is rejected without
+sending or cancelling existing work; a server request overflow fails the
+connection. Responses and request completion release their reservations.
+
 ## Topics
 
 ### Connections
