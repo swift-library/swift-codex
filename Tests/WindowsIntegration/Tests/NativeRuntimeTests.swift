@@ -8,6 +8,77 @@ import Testing
 
   @Suite("Windows native Codex consumers", .timeLimit(.minutes(1)))
   struct NativeRuntimeTests {
+    @Test("Version probes drain both streams and deliver stdin EOF before main launch")
+    func boundedVersionProbe() async throws {
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(
+          executableURL: fixture, environment: environment(mode: "lines"),
+          versionRequirement: .outputContains("codex-probe"),
+          versionProbeArguments: ["probe-version"], versionProbeTimeoutSeconds: 2))
+      do {
+        var lines = transport.inboundLines.makeAsyncIterator()
+        try await transport.sendLine("after probe")
+        #expect(try await lines.next() == "after probe")
+        await transport.close()
+      } catch {
+        await transport.close()
+        throw error
+      }
+    }
+
+    @Test("Excess probe output fails explicitly without admitting the main process")
+    func versionProbeOverflow() throws {
+      let directory = try temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      #expect(
+        throws: CodexAppServerStdioError.executableVersionProbeOutputLimitExceeded(
+          executable: fixture.path, limitBytes: 65_536)
+      ) {
+        _ = try CodexAppServerStdioTransport(
+          configuration: .init(
+            executableURL: fixture, environment: environment(mode: "lines", directory: directory),
+            versionRequirement: .outputContains("codex-probe"),
+            versionProbeArguments: ["probe-overflow"], versionProbeTimeoutSeconds: 2))
+      }
+      #expect(
+        !FileManager.default.fileExists(atPath: directory.appendingPathComponent("main").path))
+    }
+
+    @Test("Probe timeout joins the exact root and descendant process handles")
+    func versionProbeTimeout() async throws {
+      let directory = try temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      let configuration = CodexAppServerStdioConfiguration(
+        executableURL: fixture, environment: environment(mode: "lines", directory: directory),
+        versionRequirement: .outputContains("codex-probe"),
+        versionProbeArguments: ["probe-timeout"], versionProbeTimeoutSeconds: 2)
+      let probing = Task.detached { try CodexAppServerStdioTransport(configuration: configuration) }
+      do {
+        let marker = directory.appendingPathComponent("root").path
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while !FileManager.default.fileExists(atPath: marker) {
+          guard ContinuousClock.now < deadline else { throw FixtureTimeout() }
+          try await Task.sleep(for: .milliseconds(10))
+        }
+        let members = try ["root", "branch", "leaf"].map { try observe($0, in: directory) }
+        do {
+          let transport = try await probing.value
+          await transport.close()
+          Issue.record("Expected probe timeout")
+        } catch CodexAppServerStdioError.executableVersionProbeTimedOut(let executable, let seconds)
+        {
+          #expect(executable == fixture.path)
+          #expect(seconds == 2)
+        }
+        #expect(members.allSatisfy { $0.hasExited })
+      } catch {
+        if case .success(let transport) = await probing.result { await transport.close() }
+        throw error
+      }
+    }
+
+    private struct FixtureTimeout: Error {}
+
     @Test(
       "Stdio discovers native executables in an explicit Windows PATH",
       arguments: ["codex", "codex.EXE"])

@@ -23,6 +23,8 @@ package final class CodexProcess: Sendable {
 
   #if os(Windows)
     private let lifetime: CodexWindowsProcess
+  #elseif canImport(Darwin)
+    private let lifetime: CodexDarwinProcess
   #else
     private let lifetime: CodexFoundationProcess
   #endif
@@ -55,6 +57,11 @@ package final class CodexProcess: Sendable {
         executableURL: executableURL, arguments: arguments, environment: environment,
         workingDirectory: workingDirectory, input: input.fileHandleForReading,
         output: output.fileHandleForWriting, error: error.fileHandleForWriting)
+    #elseif canImport(Darwin)
+      lifetime = try CodexDarwinProcess(
+        executableURL: executableURL, arguments: arguments, environment: environment,
+        workingDirectory: workingDirectory, input: input.fileHandleForReading,
+        output: output.fileHandleForWriting, error: error.fileHandleForWriting)
     #else
       lifetime = try CodexFoundationProcess(
         executableURL: executableURL, arguments: arguments, environment: environment,
@@ -71,5 +78,9 @@ package final class CodexProcess: Sendable {
 
   package func waitForExit() async throws -> CodexProcessExit {
     try await lifetime.waitForExit()
+  }
+
+  package func waitForExit(until deadline: DispatchTime) throws -> CodexProcessExit? {
+    try lifetime.waitForExit(until: deadline)
   }
 }

@@ -19,6 +19,11 @@ package tools, not public executable products. `CodexAppServerTestingSupport`
 is a package test-support target, not a product. `_CodexProcess` is private to
 the package and owns native child-process and pipe lifetimes shared by Exec and
 Stdio. It has no protocol models, host policy, or public product.
+Native completion supports asynchronous callers and synchronous version probes
+without depending on the caller's executor. Windows uses suspended Job Object
+admission; macOS uses a separate process group and retains the unreaped root PID
+until group termination is confirmed. Stdio owns the version-probe deadline,
+output budget and public failure mapping.
 
 Dependency direction:
 

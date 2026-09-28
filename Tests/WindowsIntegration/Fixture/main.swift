@@ -9,10 +9,17 @@ import Foundation
       let environment = ProcessInfo.processInfo.environment
       let requested = CommandLine.arguments.dropFirst().first ?? ""
       let mode =
-        ["branch", "leaf"].contains(requested)
+        ["branch", "leaf", "probe-version", "probe-overflow", "probe-timeout"].contains(requested)
         ? requested : environment["CODEX_FIXTURE_MODE"] ?? "echo"
       let directory = environment["CODEX_FIXTURE_DIRECTORY"] ?? ""
       switch mode {
+      case "probe-version":
+        let input = try FileHandle.standardInput.readToEnd() ?? Data()
+        guard input.isEmpty else { ExitProcess(7) }
+        try output("codex-probe" + String(repeating: "x", count: 48_000))
+        try FileHandle.standardError.write(contentsOf: Data(repeating: 121, count: 48_000))
+      case "probe-overflow":
+        try output("codex-probe" + String(repeating: "x", count: 2_000_000))
       case "echo":
         let input = try FileHandle.standardInput.readToEnd() ?? Data()
         let value: [String: Any] = [
@@ -26,6 +33,7 @@ import Foundation
         try FileHandle.standardOutput.write(
           contentsOf: JSONSerialization.data(withJSONObject: value) + Data([10]))
       case "lines":
+        if !directory.isEmpty { try record("main", in: directory) }
         var bytes = [UInt8](repeating: 0, count: 16_384)
         while true {
           var count: DWORD = 0
@@ -47,7 +55,7 @@ import Foundation
         else { ExitProcess(4) }
         try output("receiving\n")
         try await Task.sleep(for: .seconds(60))
-      case "tree", "tree-exit", "branch", "leaf":
+      case "tree", "tree-exit", "branch", "leaf", "probe-timeout":
         if mode != "leaf" {
           let child = Process()
           child.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])

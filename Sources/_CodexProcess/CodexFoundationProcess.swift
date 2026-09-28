@@ -1,4 +1,4 @@
-#if !os(Windows)
+#if !os(Windows) && !canImport(Darwin)
   import Foundation
 
   final class CodexFoundationProcess: @unchecked Sendable {
@@ -26,9 +26,10 @@
       process.terminationHandler = { [weak self] process in
         if let self { self.lock.withLock { self.exited = true } }
         completion.finish(
-          .init(
-            status: process.terminationStatus,
-            wasSignalled: process.terminationReason == .uncaughtSignal))
+          .success(
+            .init(
+              status: process.terminationStatus,
+              wasSignalled: process.terminationReason == .uncaughtSignal)))
       }
       try process.run()
     }
@@ -44,35 +45,11 @@
       if shouldTerminate, process.isRunning { process.terminate() }
     }
 
-    func waitForExit() async throws -> CodexProcessExit { await completion.wait() }
-  }
+    func waitForExit() async throws -> CodexProcessExit { try await completion.wait() }
 
-  /// Exit waiters remain owned until the original process callback settles them.
-  private final class CodexProcessCompletion: @unchecked Sendable {
-    private let lock = NSLock()
-    private var result: CodexProcessExit?
-    private var waiters: [CheckedContinuation<CodexProcessExit, Never>] = []
-
-    func wait() async -> CodexProcessExit {
-      await withCheckedContinuation { continuation in
-        let completed: CodexProcessExit? = lock.withLock {
-          if let result = self.result { return result }
-          waiters.append(continuation)
-          return nil
-        }
-        if let completed { continuation.resume(returning: completed) }
-      }
-    }
-
-    func finish(_ result: CodexProcessExit) {
-      let pending: [CheckedContinuation<CodexProcessExit, Never>] = lock.withLock {
-        guard self.result == nil else { return [] }
-        self.result = result
-        let pending = waiters
-        waiters.removeAll()
-        return pending
-      }
-      for waiter in pending { waiter.resume(returning: result) }
+    func waitForExit(until deadline: DispatchTime) throws -> CodexProcessExit? {
+      try completion.wait(until: deadline)
     }
   }
+
 #endif

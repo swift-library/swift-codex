@@ -5,7 +5,7 @@
   final class CodexWindowsProcess: Sendable {
     private let handles: CodexWindowsProcessHandles
     private let job: CodexWindowsJob
-    private let completion: Task<CodexProcessExit, Error>
+    private let completion = CodexProcessCompletion()
 
     init(
       executableURL: URL, arguments: [String], environment: [String: String],
@@ -27,28 +27,27 @@
       }
       self.handles = handles
       self.job = job
-      // Cancellation belongs to the process owner. Caller task cancellation may
-      // request termination but cannot cancel or abandon this cleanup task.
-      completion = Task.detached {
-        while true {
-          switch WaitForSingleObject(handles.process, 0) {
-          case DWORD(WAIT_OBJECT_0):
-            job.stop(.exited)
-            try await job.confirmCleanup()
-            var code: DWORD = 0
-            guard GetExitCodeProcess(handles.process, &code) else {
-              throw Self.error("GetExitCodeProcess")
-            }
-            return CodexProcessExit(status: Int32(bitPattern: code), wasSignalled: false)
-          case DWORD(WAIT_TIMEOUT):
-            try await Task.sleep(for: .milliseconds(10))
-          default:
+      let completion = self.completion
+      // This native waiter progresses even while a synchronous version probe
+      // occupies its caller's Swift cooperative worker.
+      DispatchQueue.global(qos: .utility).async {
+        let result: Result<CodexProcessExit, Error>
+        do {
+          guard WaitForSingleObject(handles.process, DWORD(INFINITE)) == DWORD(WAIT_OBJECT_0) else {
             let failure = Self.error("WaitForSingleObject")
             job.stop(.failed)
-            try await job.confirmCleanup()
+            try job.confirmCleanup()
             throw failure
           }
-        }
+          job.stop(.exited)
+          try job.confirmCleanup()
+          var code: DWORD = 0
+          guard GetExitCodeProcess(handles.process, &code) else {
+            throw Self.error("GetExitCodeProcess")
+          }
+          result = .success(.init(status: Int32(bitPattern: code), wasSignalled: false))
+        } catch { result = .failure(error) }
+        completion.finish(result)
       }
     }
 
@@ -59,7 +58,11 @@
         WaitForSingleObject(handles.process, 0) == DWORD(WAIT_OBJECT_0) ? .exited : .cancelled)
     }
 
-    func waitForExit() async throws -> CodexProcessExit { try await completion.value }
+    func waitForExit() async throws -> CodexProcessExit { try await completion.wait() }
+
+    func waitForExit(until deadline: DispatchTime) throws -> CodexProcessExit? {
+      try completion.wait(until: deadline)
+    }
 
     private static func launch(
       executableURL: URL, arguments: [String], environment: [String: String],

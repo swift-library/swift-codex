@@ -74,7 +74,7 @@
     }
 
     /// A successful termination request alone does not prove that descendants have exited.
-    func confirmCleanup() async throws {
+    func confirmCleanup() throws {
       let deadline = ContinuousClock.now.advanced(by: .seconds(5))
       while true {
         let complete = try state.withLock { state in
@@ -101,7 +101,7 @@
             description:
               "Codex process descendant cleanup could not be confirmed.")
         }
-        try await Task.sleep(for: .milliseconds(10))
+        Thread.sleep(forTimeInterval: 0.01)
       }
     }
 

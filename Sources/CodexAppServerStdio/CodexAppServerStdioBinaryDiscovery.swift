@@ -59,9 +59,11 @@ extension CodexAppServerStdioConfiguration {
           "Version probe arguments must not be empty when version checking is enabled."
         )
       }
-      guard versionProbeTimeoutSeconds > 0 else {
+      guard versionProbeTimeoutSeconds.isFinite, versionProbeTimeoutSeconds > 0,
+        versionProbeTimeoutSeconds <= 60
+      else {
         throw CodexAppServerStdioError.invalidConfiguration(
-          "Version probe timeout must be greater than zero."
+          "Version probe timeout must be finite, greater than zero and at most 60 seconds."
         )
       }
 
@@ -118,57 +120,25 @@ extension CodexAppServerStdioConfiguration {
     executableURL: URL,
     environment effectiveEnvironment: [String: String]
   ) throws -> CodexAppServerStdioBinaryVersionProbe {
-    let process = Process()
-    let stdoutPipe = Pipe()
-    let stderrPipe = Pipe()
-
-    process.executableURL = executableURL
-    process.arguments = versionProbeArguments
-    process.environment = effectiveEnvironment
-    process.currentDirectoryURL = workingDirectoryURL
-    process.standardOutput = stdoutPipe
-    process.standardError = stderrPipe
-
+    let result: CodexProcessProbeResult
     do {
-      try process.run()
+      result = try CodexProcessProbe.run(
+        executableURL: executableURL, arguments: versionProbeArguments,
+        environment: effectiveEnvironment, workingDirectory: workingDirectoryURL,
+        timeoutSeconds: versionProbeTimeoutSeconds, outputLimit: 65_536)
+    } catch CodexProcessProbeError.timedOut {
+      throw CodexAppServerStdioError.executableVersionProbeTimedOut(
+        executable: executableURL.path, timeoutSeconds: versionProbeTimeoutSeconds)
+    } catch CodexProcessProbeError.outputLimitExceeded {
+      throw CodexAppServerStdioError.executableVersionProbeOutputLimitExceeded(
+        executable: executableURL.path, limitBytes: 65_536)
     } catch {
       throw CodexAppServerStdioError.launchFailure(error.localizedDescription)
     }
-
-    if !waitForVersionProbeExit(process) {
-      process.terminate()
-      process.waitUntilExit()
-      throw CodexAppServerStdioError.executableVersionProbeTimedOut(
-        executable: executableURL.path,
-        timeoutSeconds: versionProbeTimeoutSeconds
-      )
-    }
-
-    let stdoutText = String(
-      decoding: stdoutPipe.fileHandleForReading.readDataToEndOfFile(),
-      as: UTF8.self
-    )
-    let stderrText = String(
-      decoding: stderrPipe.fileHandleForReading.readDataToEndOfFile(),
-      as: UTF8.self
-    )
-
     return CodexAppServerStdioBinaryVersionProbe(
       arguments: versionProbeArguments,
-      stdoutText: stdoutText,
-      stderrText: stderrText,
-      exitStatus: process.terminationStatus
-    )
-  }
-
-  private func waitForVersionProbeExit(_ process: Process) -> Bool {
-    let deadline = Date().addingTimeInterval(versionProbeTimeoutSeconds)
-    while process.isRunning {
-      if Date() >= deadline {
-        return false
-      }
-      Thread.sleep(forTimeInterval: 0.01)
-    }
-    return true
+      stdoutText: String(decoding: result.stdout, as: UTF8.self),
+      stderrText: String(decoding: result.stderr, as: UTF8.self),
+      exitStatus: result.exit.status)
   }
 }

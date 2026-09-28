@@ -67,6 +67,7 @@ public struct CodexAppServerStdioConfiguration: Equatable, Sendable {
   public var workingDirectoryURL: URL?
   public var versionRequirement: CodexAppServerStdioBinaryVersionRequirement
   public var versionProbeArguments: [String]
+  /// Positive finite probe deadline, at most 60 seconds. Validation is synchronous.
   public var versionProbeTimeoutSeconds: TimeInterval
 
   public init(
@@ -96,6 +97,7 @@ public enum CodexAppServerStdioError: Error, Equatable, Sendable {
   case invalidConfiguration(String)
   case executableVersionProbeFailed(executable: String, exitStatus: Int32, stderr: String)
   case executableVersionProbeTimedOut(executable: String, timeoutSeconds: Double)
+  case executableVersionProbeOutputLimitExceeded(executable: String, limitBytes: Int)
   case executableVersionMismatch(expectedSubstring: String, actualOutput: String)
   case launchFailure(String)
   case closed
