@@ -1,3 +1,4 @@
+import CodexAppServerRuntime
 import CodexAppServerStdio
 import CodexExec
 import Foundation
@@ -144,7 +145,7 @@ import Testing
 
     @Test(
       "Invalid Windows environment names fail before child admission",
-      arguments: ["duplicate", "equals", "nul", "empty"])
+      arguments: ["duplicate", "equals", "nul", "empty", "drive"])
     func invalidEnvironment(kind: String) async throws {
       let directory = try temporaryDirectory()
       defer { try? FileManager.default.removeItem(at: directory) }
@@ -153,6 +154,7 @@ import Testing
       case "duplicate": env["PATH"] = "duplicate"
       case "equals": env["BAD=NAME"] = "fixture"
       case "nul": env["VALUE"] = "bad\u{0}value"
+      case "drive": env["=1:"] = "fixture"
       default: env[""] = "fixture"
       }
       do {
@@ -164,6 +166,26 @@ import Testing
       } catch CodexAppServerStdioError.launchFailure(let description) {
         #expect(!description.isEmpty)
       }
+      #expect(
+        !FileManager.default.fileExists(atPath: directory.appendingPathComponent("root").path))
+    }
+
+    @Test("An API key override cannot hide a NUL-containing environment name")
+    func invalidAPIKeyName() async throws {
+      let directory = try temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      var env = environment(mode: "blocked-input", directory: directory)
+      env["codex_api_key\u{0}suffix"] = "fixture-invalid-key"
+      let client = CodexExecClient(
+        configuration: .init(
+          executableURL: fixture, environmentOverride: env, apiKey: "fixture-configured-key"))
+      do {
+        let handle = try await client.run(.init(promptInput: .text("invalid environment")))
+        let waiting = Task { try await handle.waitForTermination() }
+        waiting.cancel()
+        _ = await waiting.result
+        Issue.record("A malformed environment unexpectedly launched")
+      } catch {}
       #expect(
         !FileManager.default.fileExists(atPath: directory.appendingPathComponent("root").path))
     }
@@ -208,7 +230,10 @@ import Testing
         configuration: .init(
           executableURL: URL(fileURLWithPath: root).appendingPathComponent("System32/cmd.exe"),
           arguments: ["/d", "/c", "echo %PATH%"],
-          environment: setsPath ? ["pAtH": "fixture-path"] : [:]))
+          environment: setsPath
+            ? ["SystemRoot": root, "pAtH": "fixture-path"] : ["SystemRoot": root],
+          versionRequirement: .outputContains(setsPath ? "fixture-path" : "%PATH%"),
+          versionProbeArguments: ["/d", "/c", "echo %PATH%"]))
       do {
         var incoming = transport.inboundLines.makeAsyncIterator()
         let received = try await incoming.next()
@@ -218,6 +243,33 @@ import Testing
       } catch {
         await transport.close()
         throw error
+      }
+    }
+
+    @Test(
+      "Incoming overflow joins the native process", arguments: ["oversized-frame", "flood-lines"])
+    func incomingOverflow(mode: String) async throws {
+      let directory = try temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      try await withTransport(mode: mode, directory: directory) { transport in
+        var incoming = transport.inboundLines.makeAsyncIterator()
+        #expect(try await incoming.next() == "ready")
+        let root = try observe("root", in: directory)
+        try await transport.sendLine("start")
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while !root.hasExited && ContinuousClock.now < deadline {
+          try await Task.sleep(for: .milliseconds(10))
+        }
+        let joinedByOverflow = root.hasExited
+        if !joinedByOverflow { await transport.close() }
+        #expect(joinedByOverflow)
+        let failure: CodexAppServerConnectionFoundation.FoundationError =
+          mode == "oversized-frame"
+          ? .messageTooLarge(limitBytes: 16 * 1_024 * 1_024)
+          : .bufferLimitExceeded(maximumMessages: 256, maximumBytes: 16 * 1_024 * 1_024)
+        await #expect(throws: failure) { try await incoming.next() }
+        await transport.close()
+        #expect(root.hasExited)
       }
     }
 
@@ -233,6 +285,12 @@ import Testing
           try await transport.sendLine(String(repeating: "x", count: 2_000_000))
         }
         #expect(try await incoming.next() == "receiving")
+        await #expect(
+          throws: CodexAppServerConnectionFoundation.FoundationError.bufferLimitExceeded(
+            maximumMessages: 256, maximumBytes: 16 * 1_024 * 1_024)
+        ) {
+          try await transport.sendLine(String(repeating: "x", count: 15_000_000))
+        }
         async let first: Void = transport.close()
         async let second: Void = transport.close()
         await first

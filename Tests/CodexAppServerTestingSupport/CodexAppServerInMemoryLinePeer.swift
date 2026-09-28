@@ -20,7 +20,9 @@ public final class CodexAppServerInMemoryLinePeer: CodexAppServerLinePeer, @unch
   }
 
   public func receiveLine(_ line: String) {
-    inboundChannel.yield(line)
+    do { try inboundChannel.yield(line, byteCount: line.utf8.count) } catch {
+      inboundChannel.finish(throwing: error)
+    }
   }
 
   public func finishInbound() {

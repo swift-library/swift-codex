@@ -232,7 +232,9 @@ private final class RuntimeMessageTransport: CodexAppServerMessageTransport, @un
   }
 
   func receiveMessage(_ message: String) {
-    inboundChannel.yield(message)
+    do { try inboundChannel.yield(message, byteCount: message.utf8.count) } catch {
+      inboundChannel.finish(throwing: error)
+    }
   }
 
   func nextSentMessage() async -> String {
@@ -259,7 +261,9 @@ private final class RuntimeLinePeer: CodexAppServerLinePeer, @unchecked Sendable
   }
 
   func receiveLine(_ line: String) {
-    inboundChannel.yield(line)
+    do { try inboundChannel.yield(line, byteCount: line.utf8.count) } catch {
+      inboundChannel.finish(throwing: error)
+    }
   }
 
   func nextSentLine() async -> String {

@@ -12,5 +12,6 @@ let package = Package(
       dependencies: [
         .product(name: "CodexExec", package: "swift-codex"),
         .product(name: "CodexAppServerStdio", package: "swift-codex"),
+        .product(name: "CodexAppServerRuntime", package: "swift-codex"),
       ], path: "Tests"),
   ])

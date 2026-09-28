@@ -112,9 +112,9 @@ public final class CodexAppServerHummingbirdWebSocketTransport:
     try await webSocket.receiveMessages { message in
       switch message {
       case .text(let text):
-        inboundChannel.yield(text)
+        try inboundChannel.yield(text, byteCount: text.utf8.count)
       case .binary(let buffer):
-        inboundChannel.yield(try string(from: buffer))
+        try inboundChannel.yield(try string(from: buffer), byteCount: buffer.readableBytes)
       }
     }
 

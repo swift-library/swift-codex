@@ -8,19 +8,40 @@ public enum CodexAppServerConnectionFoundation {
     case invalidUTF8
     case invalidJSON(String)
     case invalidEnvelope
+    case messageTooLarge(limitBytes: Int)
+    case bufferLimitExceeded(maximumMessages: Int, maximumBytes: Int)
   }
 
   public struct StdioFrameCodec: Sendable {
     private var bufferedBytes = Data()
     private var scannedByteCount = 0
+    private var partialFrameByteCount = 0
+    private let maximumFrameBytes: Int
 
-    public init() {}
+    public init() { maximumFrameBytes = CodexAppServerBufferLimits.bytes }
+
+    package init(maximumFrameBytes: Int) {
+      precondition(maximumFrameBytes > 0)
+      self.maximumFrameBytes = maximumFrameBytes
+    }
 
     public var hasPendingPartialLine: Bool {
       !bufferedBytes.isEmpty
     }
 
     public mutating func appendIncoming(_ chunk: Data) throws -> [String] {
+      // Validate only new bytes before copying them into the owned buffer.
+      // A chunk may contain many individually bounded frames.
+      var partialCount = partialFrameByteCount
+      var cursor = chunk.startIndex
+      while let newline = chunk[cursor...].firstIndex(of: 0x0A) {
+        try checkFrameSize(chunk.distance(from: cursor, to: newline), after: partialCount)
+        partialCount = 0
+        cursor = chunk.index(after: newline)
+      }
+      let tailCount = chunk.distance(from: cursor, to: chunk.endIndex)
+      try checkFrameSize(tailCount, after: partialCount)
+      partialFrameByteCount = partialCount + tailCount
       bufferedBytes.append(chunk)
 
       var lines: [String] = []
@@ -58,7 +79,19 @@ public enum CodexAppServerConnectionFoundation {
         throw FoundationError.embeddedNewline
       }
 
+      guard line.utf8.count <= maximumFrameBytes else {
+        throw FoundationError.messageTooLarge(limitBytes: maximumFrameBytes)
+      }
       return Data((line + "\n").utf8)
+    }
+
+    private mutating func checkFrameSize(_ count: Int, after partialCount: Int) throws {
+      guard count <= maximumFrameBytes - partialCount else {
+        bufferedBytes.removeAll(keepingCapacity: false)
+        scannedByteCount = 0
+        partialFrameByteCount = 0
+        throw FoundationError.messageTooLarge(limitBytes: maximumFrameBytes)
+      }
     }
   }
 

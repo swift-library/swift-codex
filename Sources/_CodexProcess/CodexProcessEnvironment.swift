@@ -27,9 +27,12 @@ package enum CodexProcessEnvironment {
   /// Matches native environment-name identity, including Windows ordinal case rules.
   static func compareNames(_ left: String, _ right: String) throws -> Int {
     #if os(Windows)
+      guard let leftCount = Int32(exactly: left.utf16.count),
+        let rightCount = Int32(exactly: right.utf16.count)
+      else { throw CodexProcessFailure(description: "Process environment name is too long.") }
       let result = left.withCString(encodedAs: UTF16.self) { left in
         right.withCString(encodedAs: UTF16.self) { right in
-          CompareStringOrdinal(left, -1, right, -1, true)
+          CompareStringOrdinal(left, leftCount, right, rightCount, true)
         }
       }
       guard result != 0 else { throw CodexWindowsProcess.error("CompareStringOrdinal") }

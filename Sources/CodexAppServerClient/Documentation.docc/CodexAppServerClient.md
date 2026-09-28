@@ -15,6 +15,16 @@ client continues to own handshake, correlation, cancellation, and once-only
 server-request responses. The default `.typed` mode retains the pinned stable
 protocol contract. Consume each selected stream once.
 
+Each selected inbound stream retains at most 256 messages and 16 MiB of original
+wire payload. A slow consumer that exceeds either budget receives an explicit
+`CodexAppServerConnectionFoundation.FoundationError.bufferLimitExceeded` failure.
+The connection fails pending replies, releases its backlog and closes its
+transport. Reading notifications never suspends the protocol reader behind a
+full queue, so replies cannot deadlock on notification consumption. Individual
+messages larger than 16 MiB fail before JSON decoding. Use metadata and paged
+history requests for long threads. Call `close()` when the connection is no
+longer needed.
+
 ## Topics
 
 ### Connections

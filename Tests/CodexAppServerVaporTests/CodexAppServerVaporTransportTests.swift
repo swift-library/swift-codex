@@ -62,6 +62,24 @@ struct CodexAppServerVaporTransportTests {
     }
   }
 
+  @Test("A callback flood fails once and closes the socket")
+  func callbackOverflow() async throws {
+    let webSocket = FakeVaporWebSocket()
+    let transport = CodexAppServerVaporWebSocketTransport(webSocket: webSocket)
+    for _ in 0..<1_000 { webSocket.yieldText("message") }
+    var iterator = transport.inboundMessages.makeAsyncIterator()
+    await #expect(
+      throws: CodexAppServerConnectionFoundation.FoundationError.bufferLimitExceeded(
+        maximumMessages: 256, maximumBytes: 16 * 1_024 * 1_024)
+    ) { try await iterator.next() }
+    try await webSocket.onClose.get()
+    #expect(await webSocket.isClosed)
+    await #expect(throws: CodexAppServerVaporError.closed) {
+      try await transport.sendMessage("late")
+    }
+    await transport.close()
+  }
+
   @Test("transport close closes websocket and finishes inbound stream")
   func closeClosesWebSocketAndFinishesInboundStream() async throws {
     let webSocket = FakeVaporWebSocket()

@@ -83,7 +83,10 @@
       }
       var previousKey: String?
       for (key, value) in entries {
-        let driveKey = key.utf16.count == 3 && key.hasPrefix("=") && key.hasSuffix(":")
+        let units = Array(key.utf16)
+        let driveKey =
+          units.count == 3 && units[0] == 0x3D && units[2] == 0x3A
+          && ((0x41...0x5A).contains(units[1]) || (0x61...0x7A).contains(units[1]))
         guard !key.isEmpty, !key.utf16.contains(0), !value.utf16.contains(0),
           !key.contains("=") || driveKey
         else { throw CodexProcessFailure(description: "Invalid Codex process environment entry.") }

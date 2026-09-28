@@ -95,6 +95,8 @@ public final class CodexAppServerNIOTransport: CodexAppServerMessageTransport,
         inboundChannel.finish()
       } catch {
         inboundChannel.finish(throwing: error)
+        await state.markClosed()
+        await webSocket.close()
       }
     }
   }
@@ -122,7 +124,7 @@ public final class CodexAppServerNIOTransport: CodexAppServerMessageTransport,
     for try await frame in webSocket.inboundFrames {
       switch frame.opcode {
       case .text, .binary:
-        inboundChannel.yield(try string(from: frame))
+        try inboundChannel.yield(try string(from: frame), byteCount: frame.data.readableBytes)
       case .ping:
         try await webSocket.sendFrame(WebSocketFrame(fin: true, opcode: .pong, data: frame.data))
       case .pong:
@@ -341,7 +343,7 @@ private final class CodexAppServerNIONIOWebSocket:
         try await asyncChannel.executeThenClose { inbound, writer in
           await outbound.activate(writer)
           for try await frame in inbound {
-            inboundChannel.yield(frame)
+            try inboundChannel.yield(frame, byteCount: frame.data.readableBytes)
           }
         }
         inboundChannel.finish()

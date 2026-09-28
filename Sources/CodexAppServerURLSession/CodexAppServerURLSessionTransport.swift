@@ -54,6 +54,7 @@ public final class CodexAppServerURLSessionTransport: CodexAppServerMessageTrans
       } catch {
         await state.markClosed()
         inboundChannel.finish(throwing: error)
+        webSocketTask.cancel(with: .goingAway, reason: nil)
       }
     }
 
@@ -82,12 +83,12 @@ public final class CodexAppServerURLSessionTransport: CodexAppServerMessageTrans
     while !Task.isCancelled {
       switch try await webSocketTask.receive() {
       case .string(let message):
-        inboundChannel.yield(message)
+        try inboundChannel.yield(message, byteCount: message.utf8.count)
       case .data(let data):
         guard let message = String(data: data, encoding: .utf8) else {
           throw CodexAppServerURLSessionError.invalidUTF8
         }
-        inboundChannel.yield(message)
+        try inboundChannel.yield(message, byteCount: message.utf8.count)
       @unknown default:
         throw CodexAppServerURLSessionError.unsupportedMessage
       }

@@ -140,11 +140,15 @@ private final class FakeHummingbirdWebSocket: CodexAppServerHummingbirdWebSocket
   }
 
   func yieldText(_ text: String) {
-    inboundChannel.yield(.text(text))
+    do { try inboundChannel.yield(.text(text), byteCount: text.utf8.count) } catch {
+      inboundChannel.finish(throwing: error)
+    }
   }
 
   func yieldBinary(_ buffer: ByteBuffer) {
-    inboundChannel.yield(.binary(buffer))
+    do { try inboundChannel.yield(.binary(buffer), byteCount: buffer.readableBytes) } catch {
+      inboundChannel.finish(throwing: error)
+    }
   }
 }
 

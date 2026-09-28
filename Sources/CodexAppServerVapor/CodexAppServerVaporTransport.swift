@@ -66,35 +66,35 @@ public final class CodexAppServerVaporWebSocketTransport: CodexAppServerMessageT
     self.state = state
     self.inboundMessages = inboundChannel.stream
 
-    webSocket.setTextHandler { _, text in
-      inboundChannel.yield(text)
+    webSocket.setTextHandler { webSocket, text in
+      do {
+        try inboundChannel.yield(text, byteCount: text.utf8.count)
+      } catch {
+        inboundChannel.finish(throwing: error)
+        if state.close() { Task { await webSocket.closeSocket() } }
+      }
     }
     webSocket.setBinaryHandler { webSocket, buffer in
       do {
-        inboundChannel.yield(try Self.string(from: buffer))
+        try inboundChannel.yield(try Self.string(from: buffer), byteCount: buffer.readableBytes)
       } catch {
         inboundChannel.finish(throwing: error)
-        Task {
-          await state.markClosed()
-          await webSocket.closeSocket()
-        }
+        if state.close() { Task { await webSocket.closeSocket() } }
       }
     }
     webSocket.onClose.whenComplete { _ in
       inboundChannel.finish()
-      Task {
-        await state.markClosed()
-      }
+      state.markClosed()
     }
   }
 
   public func sendMessage(_ message: String) async throws {
-    try await state.checkOpen()
+    try state.checkOpen()
     try await webSocket.sendText(message)
   }
 
   public func close() async {
-    guard await state.close() else {
+    guard state.close() else {
       return
     }
 
@@ -149,25 +149,23 @@ extension WebSocket: CodexAppServerVaporWebSocket {
   }
 }
 
-private actor CodexAppServerVaporTransportState {
+private final class CodexAppServerVaporTransportState: @unchecked Sendable {
+  private let lock = NSLock()
   private var isClosed = false
 
   func checkOpen() throws {
-    if isClosed {
-      throw CodexAppServerVaporError.closed
+    try lock.withLock {
+      if isClosed { throw CodexAppServerVaporError.closed }
     }
   }
 
   func close() -> Bool {
-    if isClosed {
-      return false
+    lock.withLock {
+      guard !isClosed else { return false }
+      isClosed = true
+      return true
     }
-
-    isClosed = true
-    return true
   }
 
-  func markClosed() {
-    isClosed = true
-  }
+  func markClosed() { lock.withLock { isClosed = true } }
 }

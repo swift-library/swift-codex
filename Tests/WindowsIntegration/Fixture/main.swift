@@ -45,6 +45,20 @@ import Foundation
           if count == 0 { return }
           try FileHandle.standardOutput.write(contentsOf: Data(bytes.prefix(Int(count))))
         }
+      case "oversized-frame", "flood-lines":
+        try record("root", in: directory)
+        try output("ready\n")
+        var byte: UInt8 = 0
+        var count: DWORD = 0
+        guard ReadFile(GetStdHandle(STD_INPUT_HANDLE), &byte, 1, &count, nil), count == 1 else {
+          ExitProcess(4)
+        }
+        if mode == "oversized-frame" {
+          try FileHandle.standardOutput.write(contentsOf: Data(repeating: 120, count: 17_000_000))
+        } else {
+          try output(String(repeating: "message\n", count: 257))
+        }
+        try await Task.sleep(for: .seconds(60))
       case "blocked-input":
         try record("root", in: directory)
         try output("ready\n")

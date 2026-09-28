@@ -108,6 +108,7 @@ extension CodexAppServerConnection {
         state: state,
         channels: channels
       )
+      await transport.close()
     }
   }
 
@@ -116,6 +117,11 @@ extension CodexAppServerConnection {
     state: CodexAppServerConnectionState,
     channels: CodexAppServerInboundChannels
   ) async throws {
+    let byteCount = line.utf8.count
+    guard byteCount <= CodexAppServerBufferLimits.bytes else {
+      throw CodexAppServerConnectionFoundation.FoundationError.messageTooLarge(
+        limitBytes: CodexAppServerBufferLimits.bytes)
+    }
     let envelope: CodexAppServerConnectionFoundation.RawEnvelope
     do {
       envelope = try CodexAppServerConnectionFoundation.decodeLine(line)
@@ -174,9 +180,9 @@ extension CodexAppServerConnection {
           method: method, params: params.map(stableJSONValue),
           payload: try decodeStableLine(CodexAppServerProtocol.Stable.JSONValue.self, from: line))
         if channels.mode == .rawOrdered {
-          channels.rawInboundMessages.yield(.notification(notification))
+          try channels.rawInboundMessages.yield(.notification(notification), byteCount: byteCount)
         } else {
-          channels.rawNotifications.yield(notification)
+          try channels.rawNotifications.yield(notification, byteCount: byteCount)
         }
         return
       }
@@ -192,7 +198,7 @@ extension CodexAppServerConnection {
             + error.localizedDescription
         )
       }
-      channels.notifications.yield(notification)
+      try channels.notifications.yield(notification, byteCount: byteCount)
 
     case .request(let id, let method, let params):
       if channels.mode != .typed {
@@ -204,9 +210,9 @@ extension CodexAppServerConnection {
           id: stableRequestID(id), method: method, params: params.map(stableJSONValue),
           payload: payload, connectionID: channels.connectionID, requestToken: token)
         if channels.mode == .rawOrdered {
-          channels.rawInboundMessages.yield(.serverRequest(request))
+          try channels.rawInboundMessages.yield(.serverRequest(request), byteCount: byteCount)
         } else {
-          channels.rawServerRequests.yield(request)
+          try channels.rawServerRequests.yield(request, byteCount: byteCount)
         }
         return
       }
@@ -224,8 +230,8 @@ extension CodexAppServerConnection {
       _ = try await mapRuntimeStateError {
         try await state.addServerRequest(id: runtimeRequestID(serverRequest.id))
       }
-      channels.typedServerRequests.yield(
-        CodexAppServerTypedServerRequest(serverRequest: serverRequest)
+      try channels.typedServerRequests.yield(
+        CodexAppServerTypedServerRequest(serverRequest: serverRequest), byteCount: byteCount
       )
     }
   }

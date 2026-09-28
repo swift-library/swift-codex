@@ -55,15 +55,15 @@
     {
       "api_sha256_by_swift_minor": {
         "6.3": "be7f8ac8ce4ff6d973b32999ce53f5014fc7f82a8bb9c9cccf0733f4f5380ad6",
-        "6.4": "0d81c8ec00700a8a0fb8a9807320e65d67001ef23a67beb7d32c3bc2ac2004d5"
+        "6.4": "c09f93c9cbc8a3178bf1a3d0858742fb7c26f95cdbb8d18564ae186b2e99b7f1"
       },
       "name": "CodexAppServerRuntime",
-      "relationship_count": 109,
-      "symbol_count": 66
+      "relationship_count": 111,
+      "symbol_count": 68
     },
     {
       "api_sha256_by_swift_minor": {
-        "6.3": "3dbdb4d0629bc5b73c9fae7d8c4dfad5eee15185b25ae772dc77ebd59c26c569",
+        "6.3": "9fd118d9cb0ee0744867a4486627081b25ae539cfd81dd0b67ac1e397772ffb2",
         "6.4": "19e381f619df56e744ffcf2735cfa4984ec38553ce2aa6568f6be4b2c1a908a3"
       },
       "name": "CodexAppServerStdio",

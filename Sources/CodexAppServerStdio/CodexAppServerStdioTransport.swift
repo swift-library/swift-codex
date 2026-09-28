@@ -28,7 +28,9 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
     let stdoutReader = Task.detached(priority: nil) {
       defer { try? stdout.close() }
       do {
-        try await CodexAppServerPipeReader.readLines(from: stdout) { inboundChannel.yield($0) }
+        try await CodexAppServerPipeReader.readLines(from: stdout) {
+          try inboundChannel.yield($0, byteCount: $0.utf8.count)
+        }
       } catch {
         process.cancel()
         throw error
@@ -73,31 +75,65 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
   }
 }
 
-private final class CodexAppServerFileHandleLineWriter: @unchecked Sendable {
+final class CodexAppServerFileHandleLineWriter: @unchecked Sendable {
   // Admission and queue submission share a lock. Only the serial queue writes or
   // closes the handle, so closing cannot race with a syscall or interleave frames.
   private let lock = NSLock()
   private var isOpen = true
+  private var admittedMessages = 0
+  private var admittedBytes = 0
+  private let maximumMessages: Int
+  private let maximumBytes: Int
   private let queue = DispatchQueue(label: "swift-codex.app-server.stdin", qos: .utility)
   private let handle: FileHandle
 
-  init(handle: FileHandle) { self.handle = handle }
+  init(
+    handle: FileHandle,
+    maximumMessages: Int = CodexAppServerBufferLimits.messages,
+    maximumBytes: Int = CodexAppServerBufferLimits.bytes
+  ) {
+    precondition(maximumMessages > 0 && maximumBytes > 0)
+    self.handle = handle
+    self.maximumMessages = maximumMessages
+    self.maximumBytes = maximumBytes
+  }
 
   func write(_ line: String) async throws {
-    let data = try CodexAppServerConnectionFoundation.StdioFrameCodec().encodeOutgoingLine(line)
+    let byteCount = line.utf8.count
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
       lock.withLock {
         guard isOpen else {
           continuation.resume(throwing: CodexAppServerStdioError.closed)
           return
         }
+        guard admittedMessages < maximumMessages, byteCount <= maximumBytes - admittedBytes else {
+          continuation.resume(
+            throwing: CodexAppServerConnectionFoundation.FoundationError.bufferLimitExceeded(
+              maximumMessages: maximumMessages, maximumBytes: maximumBytes))
+          return
+        }
+        let data: Data
+        do {
+          data = try CodexAppServerConnectionFoundation.StdioFrameCodec().encodeOutgoingLine(line)
+        } catch {
+          continuation.resume(throwing: error)
+          return
+        }
+        admittedMessages += 1
+        admittedBytes += byteCount
         queue.async {
-          do {
+          let result: Result<Void, Error> = Result {
+            guard self.lock.withLock({ self.isOpen }) else {
+              throw CodexAppServerStdioError.closed
+            }
             try self.handle.write(contentsOf: data)
-            continuation.resume()
-          } catch {
-            continuation.resume(throwing: error)
           }
+          self.lock.withLock {
+            self.admittedMessages -= 1
+            self.admittedBytes -= byteCount
+            if case .failure = result { self.isOpen = false }
+          }
+          continuation.resume(with: result)
         }
       }
     }

@@ -26,6 +26,15 @@ start in an owned process group. Root exit, close and cancellation terminate
 remaining job or group members and join the original pipe operations. Cleanup
 failures are reported by the inbound stream.
 
+Frames are limited to 16 MiB before the newline. The inbound queue and the
+combined queued/in-flight stdin writes each admit at most 256 messages and
+16 MiB of payload. Incoming overflow terminates the owned process and joins its
+readers. An outgoing admission failure leaves that frame unsent and preserves
+already admitted work. Close rejects further admission, unblocks the current
+native write through process termination and joins every admitted writer.
+Call `close()` when finished with the transport, including after cancelling a
+stream consumer.
+
 ## Topics
 
 ### Transport and configuration

@@ -185,7 +185,9 @@ private final class FakeWebSocket: CodexAppServerNIOWebSocket, @unchecked Sendab
   }
 
   func yield(_ frame: WebSocketFrame) {
-    inboundChannel.yield(frame)
+    do { try inboundChannel.yield(frame, byteCount: frame.data.readableBytes) } catch {
+      inboundChannel.finish(throwing: error)
+    }
   }
 
   func finish(throwing error: Error) {
