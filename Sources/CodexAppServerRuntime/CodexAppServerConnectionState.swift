@@ -46,7 +46,7 @@ package actor CodexAppServerConnectionState {
       throw CodexAppServerConnectionStateError.duplicatePendingResponse(id: id)
     }
 
-    try reserveIdentifier(id)
+    try reserveIdentifier(id, count: pending.count + cancelledPendingResponses.count)
     pending[id] = pendingResponse
   }
 
@@ -90,7 +90,7 @@ package actor CodexAppServerConnectionState {
       throw CodexAppServerConnectionStateError.duplicateServerRequest(id: id)
     }
 
-    try reserveIdentifier(id)
+    try reserveIdentifier(id, count: activeServerRequests.count)
     let token = UUID()
     activeServerRequests[id] = token
     return token
@@ -122,8 +122,11 @@ package actor CodexAppServerConnectionState {
     return pendingResponses
   }
 
-  private func reserveIdentifier(_ id: CodexAppServerConnectionFoundation.RequestID) throws {
-    let count = pending.count + cancelledPendingResponses.count + activeServerRequests.count
+  // Callback occupancy cannot consume the client slots needed to control those callbacks.
+  // Both directions still share the identifier byte budget.
+  private func reserveIdentifier(
+    _ id: CodexAppServerConnectionFoundation.RequestID, count: Int
+  ) throws {
     let bytes = identifierBytes(id)
     guard count < CodexAppServerBufferLimits.messages,
       bytes <= CodexAppServerBufferLimits.bytes - retainedIdentifierBytes

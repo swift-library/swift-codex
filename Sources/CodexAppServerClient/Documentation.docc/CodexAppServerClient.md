@@ -25,13 +25,19 @@ messages larger than 16 MiB fail before JSON decoding. Use metadata and paged
 history requests for long threads. Call `close()` when the connection is no
 longer needed.
 
-Pending client requests, cancelled requests awaiting a late reply, and active
-server requests share a separate budget of 256 identifiers and 16 MiB of ID
-storage. Cancelling a request preserves its ID reservation until the late reply
-is consumed or the connection closes. Reusing a reserved explicit ID fails before
-sending. A new client request that exceeds this budget is rejected without
-sending or cancelling existing work; a server request overflow fails the
-connection. Responses and request completion release their reservations.
+Pending client requests and cancelled requests awaiting a late reply share a
+budget of 256 identifiers. Active server requests have an independent 256-slot
+budget so full callback occupancy cannot consume client control slots. Both
+directions share a total 16 MiB limit for retained identifier bytes. Cancelling
+a request preserves its ID reservation until its late reply is consumed or the
+connection closes; reusing that explicit ID fails before sending.
+
+A client request that exceeds its budget fails without sending or cancelling
+existing work. An otherwise valid server request exceeding its budget receives
+a JSON-RPC error with code -32000 and acquires no ownership token. Admitted
+callbacks and response correlation remain intact. Failure to send the rejection,
+duplicate active server IDs and inbound stream overflow still fail the connection.
+Responses and request completion release their reservations.
 
 ## Topics
 

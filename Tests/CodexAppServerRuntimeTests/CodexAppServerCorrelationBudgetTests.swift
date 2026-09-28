@@ -23,24 +23,29 @@ struct CodexAppServerCorrelationBudgetTests {
     #expect(await state.takePending(id: id) == nil)
   }
 
-  @Test("Client requests, cancellations and server requests share one count budget")
-  func sharedCountBudget() async throws {
+  @Test("Client and server admission have independent bounded counts without evicting owners")
+  func directionalCountBudgets() async throws {
     let state = CodexAppServerConnectionState()
-    for id in 0..<128 {
+    for id in 0..<256 {
+      try await state.addServerRequest(id: .integer(Int64(id)))
+    }
+    // A full callback set must leave capacity for client control requests.
+    for id in 0..<256 {
       try await state.addPending(id: .integer(Int64(id)), pendingResponse: .init())
     }
-    for id in 0..<128 { try await state.addServerRequest(id: .integer(Int64(id))) }
     await state.cancelPending(id: .integer(0), error: CancellationError())
     await #expect(throws: overflow) {
-      try await state.addPending(id: .integer(128), pendingResponse: .init())
+      try await state.addPending(id: .integer(256), pendingResponse: .init())
     }
+    await #expect(throws: overflow) { try await state.addServerRequest(id: .integer(256)) }
     #expect(await state.consumeCancelledResponse(id: .integer(0)))
-    try await state.addPending(id: .integer(129), pendingResponse: .init())
-    await #expect(throws: overflow) { try await state.addServerRequest(id: .integer(128)) }
+    try await state.addPending(id: .integer(257), pendingResponse: .init())
+    // Freeing the client slot does not widen server admission.
+    await #expect(throws: overflow) { try await state.addServerRequest(id: .integer(256)) }
     try await state.completeServerRequest(id: .integer(0))
-    try await state.addServerRequest(id: .integer(129))
+    try await state.addServerRequest(id: .integer(257))
     let pending = await state.close()
-    #expect(pending?.count == 128)
+    #expect(pending?.count == 256)
     #expect(await state.close() == nil)
     #expect(!(await state.consumeCancelledResponse(id: .integer(0))))
   }

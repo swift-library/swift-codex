@@ -87,6 +87,7 @@ extension CodexAppServerConnection {
       for try await line in transport.inboundMessages {
         try await handleInboundMessage(
           line,
+          transport: transport,
           state: state,
           channels: channels
         )
@@ -114,6 +115,7 @@ extension CodexAppServerConnection {
 
   private static func handleInboundMessage(
     _ line: String,
+    transport: any CodexAppServerMessageTransport,
     state: CodexAppServerConnectionState,
     channels: CodexAppServerInboundChannels
   ) async throws {
@@ -203,9 +205,8 @@ extension CodexAppServerConnection {
     case .request(let id, let method, let params):
       if channels.mode != .typed {
         let payload = try decodeStableLine(CodexAppServerProtocol.Stable.JSONValue.self, from: line)
-        let token = try await mapRuntimeStateError {
-          try await state.addServerRequest(id: id)
-        }
+        guard let token = try await admitServerRequest(id: id, state: state, transport: transport)
+        else { return }
         let request = CodexAppServerRawServerRequest(
           id: stableRequestID(id), method: method, params: params.map(stableJSONValue),
           payload: payload, connectionID: channels.connectionID, requestToken: token)
@@ -227,12 +228,31 @@ extension CodexAppServerConnection {
       }
 
       let serverRequest = CodexAppServerServerRequest(request: request)
-      _ = try await mapRuntimeStateError {
-        try await state.addServerRequest(id: runtimeRequestID(serverRequest.id))
+      guard try await admitServerRequest(id: id, state: state, transport: transport) != nil else {
+        return
       }
       try channels.typedServerRequests.yield(
         CodexAppServerTypedServerRequest(serverRequest: serverRequest), byteCount: byteCount
       )
+    }
+  }
+
+  private static func admitServerRequest(
+    id: CodexAppServerConnectionFoundation.RequestID,
+    state: CodexAppServerConnectionState,
+    transport: any CodexAppServerMessageTransport
+  ) async throws -> UUID? {
+    do {
+      return try await mapRuntimeStateError { try await state.addServerRequest(id: id) }
+    } catch CodexAppServerConnectionFoundation.FoundationError.bufferLimitExceeded(_, _) {
+      // This request acquired no ownership token. Reject it directly while retaining
+      // all admitted callbacks and allowing responses/control traffic to make progress.
+      let rejection = CodexAppServerProtocol.Stable.JSONRPCError(
+        error: .init(
+          code: -32_000, data: nil, message: "The pending server-request capacity is reached."),
+        id: stableRequestID(id))
+      try await transport.sendMessage(encodeStableLine(rejection))
+      return nil
     }
   }
 
