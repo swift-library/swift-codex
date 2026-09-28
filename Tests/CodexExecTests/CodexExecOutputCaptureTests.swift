@@ -137,7 +137,7 @@ struct CodexExecOutputCaptureTests {
     #expect(await launcher.recordedLaunches().isEmpty)
   }
 
-  @Test("Cancellation waits for real process cleanup and preserves stderr truncation")
+  @Test("Forced cancellation joins real pipe readers and preserves exact stderr truncation")
   func cancellationRetainsCaptureMetadata() async throws {
     let directory = try makeTemporaryDirectory()
     defer { try? FileManager.default.removeItem(at: directory) }
@@ -146,7 +146,7 @@ struct CodexExecOutputCaptureTests {
       contents: #"""
         #!/usr/bin/perl
         $| = 1;
-        $SIG{TERM} = sub { print STDERR "terminated"; exit 0 };
+        $SIG{TERM} = 'IGNORE';
         print STDERR "y" x 2097152;
         print "ready\n";
         sleep 30;
@@ -167,7 +167,8 @@ struct CodexExecOutputCaptureTests {
     } catch CodexExecError.cancelled(let observation) {
       #expect(observation?.finalMessageText == "ready")
       #expect(observation?.stderrText.utf8.count == 32)
-      #expect(observation?.outputCapture.stderrDroppedBytes == 2_097_130)
+      // Only bytes written before readiness are guaranteed when termination escalates.
+      #expect(observation?.outputCapture.stderrDroppedBytes == 2_097_120)
     }
   }
 }
