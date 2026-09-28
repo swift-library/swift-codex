@@ -78,7 +78,14 @@ try {
     if (!$started) { throw 'HTTP fixture failed to start' }
     $startup = [System.Diagnostics.Stopwatch]::StartNew()
     while (!(Test-Path $ready)) {
-        if ($server.HasExited -or $startup.Elapsed.TotalSeconds -gt 10) { throw 'HTTP fixture was not ready' }
+        if ($server.HasExited -or $startup.Elapsed.TotalSeconds -gt 10) {
+            [pscustomobject]@{
+                hasExited = $server.HasExited
+                exitCode = $(if ($server.HasExited) { $server.ExitCode } else { $null })
+                elapsedMilliseconds = $startup.ElapsedMilliseconds
+            } | ConvertTo-Json | Set-Content (Join-Path $evidence 'http-startup-failure.json')
+            throw 'HTTP fixture was not ready'
+        }
         Start-Sleep -Milliseconds 20
     }
     $env:MCP_HTTP_FIXTURE_ENDPOINT = Get-Content $ready -Raw
