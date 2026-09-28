@@ -13,6 +13,7 @@ internal actor CodexMCPProcessTransport: Transport {
   nonisolated let logger: Logger
 
   private let baseTransport: StdioTransport
+  private let descriptors: CodexMCPStdioDescriptors?
   private let requestedProtocolVersion: String
   private let subprocess: CodexMCPManagedSubprocess
   private var inboundObserver: (@Sendable (Data) async -> Void)?
@@ -28,9 +29,11 @@ internal actor CodexMCPProcessTransport: Transport {
     baseTransport: StdioTransport,
     requestedProtocolVersion: String,
     subprocess: CodexMCPManagedSubprocess,
+    descriptors: CodexMCPStdioDescriptors? = nil,
     logger: Logger? = nil
   ) {
     self.baseTransport = baseTransport
+    self.descriptors = descriptors
     self.requestedProtocolVersion = requestedProtocolVersion
     self.subprocess = subprocess
     self.logger = logger ?? Logger(label: "swift-codex.codexmcp.transport")
@@ -40,20 +43,15 @@ internal actor CodexMCPProcessTransport: Transport {
     subprocess: CodexMCPManagedSubprocess,
     requestedProtocolVersion: String
   ) throws -> Self {
-    guard
-      let standardInput = subprocess.standardInput,
-      let standardOutput = subprocess.standardOutput
-    else {
+    guard let input = subprocess.output, let output = subprocess.input else {
       throw CodexMCPError.transportFailure
     }
-
-    let input = FileDescriptor(rawValue: standardOutput.fileHandleForReading.fileDescriptor)
-    let output = FileDescriptor(rawValue: standardInput.fileHandleForWriting.fileDescriptor)
-
+    let descriptors = try CodexMCPStdioDescriptors(input: input, output: output)
     return Self(
-      baseTransport: StdioTransport(input: input, output: output),
+      baseTransport: StdioTransport(input: descriptors.input, output: descriptors.output),
       requestedProtocolVersion: requestedProtocolVersion,
-      subprocess: subprocess
+      subprocess: subprocess,
+      descriptors: descriptors
     )
   }
 

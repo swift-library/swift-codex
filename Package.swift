@@ -196,6 +196,7 @@ let package = Package(
     .target(
       name: "CodexMCP",
       dependencies: [
+        "_CodexProcess",
         .product(name: "MCP", package: "swift-sdk"),
         .product(name: "SystemPackage", package: "swift-system"),
       ],

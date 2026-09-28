@@ -1,4 +1,3 @@
-import Darwin
 import Foundation
 
 /// Lifecycle state for a `codex mcp-server` client.
@@ -69,7 +68,7 @@ public actor CodexMCPClient {
     Task {
       await protocolAdapter?.stop()
       try? await subprocess?.terminate()
-      subprocess?.closeIO()
+      await subprocess?.closeIO()
     }
   }
 }

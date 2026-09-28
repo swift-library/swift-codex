@@ -1,4 +1,5 @@
 import Foundation
+import _CodexProcess
 
 extension CodexMCPClient {
   /// Starts the upstream `codex mcp-server` process and initializes MCP.
@@ -42,7 +43,7 @@ extension CodexMCPClient {
         await protocolAdapter?.stop()
         let subprocessToStop = subprocess
         try await subprocessToStop?.terminate()
-        subprocessToStop?.closeIO()
+        await subprocessToStop?.closeIO()
         subprocess = nil
         protocolAdapter = nil
         startupMetadata = nil
@@ -66,7 +67,7 @@ extension CodexMCPClient {
     case .failed:
       await protocolAdapter?.stop()
       try? await subprocess?.terminate()
-      subprocess?.closeIO()
+      await subprocess?.closeIO()
       subprocess = nil
       protocolAdapter = nil
       startupMetadata = nil
@@ -76,7 +77,7 @@ extension CodexMCPClient {
 }
 
 extension CodexMCPClient {
-  func launchConfiguration() -> CodexMCPSubprocessLaunchConfiguration {
+  func launchConfiguration() throws -> CodexMCPSubprocessLaunchConfiguration {
     let executableURL: URL
     let arguments: [String]
 
@@ -84,8 +85,18 @@ extension CodexMCPClient {
       executableURL = overrideExecutableURL
       arguments = ["mcp-server"]
     } else {
-      executableURL = URL(fileURLWithPath: "/usr/bin/env")
-      arguments = ["codex", "mcp-server"]
+      #if os(Windows)
+        let environment = try CodexMCPSubprocessLauncher.environment(
+          overrides: launchOptions.environment)
+        guard
+          let resolved = try CodexExecutableDiscovery.find(named: "codex", environment: environment)
+        else { throw CodexMCPError.startupFailure }
+        executableURL = resolved.executable
+        arguments = ["mcp-server"]
+      #else
+        executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        arguments = ["codex", "mcp-server"]
+      #endif
     }
 
     return CodexMCPSubprocessLaunchConfiguration(
@@ -104,7 +115,7 @@ extension CodexMCPClient {
     var launchedSubprocess: CodexMCPManagedSubprocess?
     do {
       let startedSubprocess = try await subprocessLauncher.launch(
-        launchConfiguration()
+        try launchConfiguration()
       )
       launchedSubprocess = startedSubprocess
       try ensureStartCanContinue()
@@ -172,7 +183,7 @@ extension CodexMCPClient {
     protocolAdapter = nil
     subprocess = nil
     try? await launchedSubprocess?.terminate()
-    launchedSubprocess?.closeIO()
+    await launchedSubprocess?.closeIO()
   }
 }
 

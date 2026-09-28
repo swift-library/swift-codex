@@ -25,10 +25,16 @@ context.
 
 ## Ownership
 
-The client launches one owned subprocess, continuously drains stderr, adapts
+The client launches one owned subprocess through the package-private native
+process owner, continuously drains stderr, adapts
 the SDK stdio transport, correlates outbound requests and inbound events, and
 completes pending routes and approvals exactly once on success, cancellation,
 transport close, process exit, or stop.
+
+Shutdown joins the native process tree and stderr reader before releasing pipe
+endpoints. Windows resolves a native `codex.exe` through the effective PATH and
+bridges owned handle duplicates to MCP's CRT descriptor API. It never treats a
+Win32 handle value as a descriptor. Environment overrides use native name identity.
 
 `CodexMCP` does not own App Server RPCs, Exec JSONL, arbitrary MCP resources or
 prompts, a generic raw request API, or a shared cross-product runtime.

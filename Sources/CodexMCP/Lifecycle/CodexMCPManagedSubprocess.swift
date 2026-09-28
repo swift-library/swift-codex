@@ -1,51 +1,78 @@
 import Foundation
+import _CodexProcess
 
-/// Internal process owner for the `CodexMCP` child process.
+/// Owns the subprocess endpoints until native exit and every stderr read complete.
 internal final class CodexMCPManagedSubprocess: @unchecked Sendable {
-  let standardInput: Pipe?
-  let standardOutput: Pipe?
-  let standardError: Pipe?
-
+  let input: FileHandle?
+  let output: FileHandle?
+  let error: FileHandle?
+  private let fixturePeerEndpoints: [FileHandle]
+  private let process: CodexProcess?
   private let terminateHandler: @Sendable () async throws -> Void
   private let stderrCapture = CodexMCPStderrCapture()
+  private let lock = NSLock()
+  private var cleanup: Task<Void, Never>?
 
+  init(process: CodexProcess) {
+    input = process.standardInput
+    output = process.standardOutput
+    error = process.standardError
+    self.process = process
+    fixturePeerEndpoints = []
+    terminateHandler = {
+      process.cancel()
+      _ = try await process.waitForExit()
+    }
+  }
+
+  /// The injected fixture owns both pipe ends; live children retain only their ends.
   init(
     standardInput: Pipe? = nil,
     standardOutput: Pipe? = nil,
     standardError: Pipe? = nil,
-    terminateHandler: @escaping @Sendable () async throws -> Void,
+    terminateHandler: @escaping @Sendable () async throws -> Void
   ) {
-    self.standardInput = standardInput
-    self.standardOutput = standardOutput
-    self.standardError = standardError
+    input = standardInput?.fileHandleForWriting
+    output = standardOutput?.fileHandleForReading
+    error = standardError?.fileHandleForReading
+    fixturePeerEndpoints = [
+      standardInput?.fileHandleForReading, standardOutput?.fileHandleForWriting,
+      standardError?.fileHandleForWriting,
+    ].compactMap { $0 }
+    process = nil
     self.terminateHandler = terminateHandler
   }
+
+  deinit { process?.cancel() }
 
   func terminate() async throws {
     try await terminateHandler()
   }
 
   func startDrainingStderr() async {
-    guard let standardError else {
-      return
-    }
-    await stderrCapture.start(fileHandle: standardError.fileHandleForReading)
+    if let error { await stderrCapture.start(fileHandle: error) }
   }
 
   func stderrContext() async -> String? {
     await stderrCapture.snapshot()
   }
 
-  func closeIO() {
-    Task {
-      await stderrCapture.stop()
+  /// Called after transport disconnect and process exit, before descriptor reuse.
+  func closeIO() async {
+    let task = lock.withLock {
+      if let cleanup { return cleanup }
+      let task = Task { [input, output, error, fixturePeerEndpoints, stderrCapture] in
+        // Fixture writers must also close to let their blocked stderr reader finish.
+        for endpoint in fixturePeerEndpoints { try? endpoint.close() }
+        await stderrCapture.finish()
+        try? input?.close()
+        try? output?.close()
+        try? error?.close()
+      }
+      cleanup = task
+      return task
     }
-    standardInput?.fileHandleForReading.closeFile()
-    standardInput?.fileHandleForWriting.closeFile()
-    standardOutput?.fileHandleForReading.closeFile()
-    standardOutput?.fileHandleForWriting.closeFile()
-    standardError?.fileHandleForReading.closeFile()
-    standardError?.fileHandleForWriting.closeFile()
+    await task.value
   }
 }
 
@@ -61,18 +88,19 @@ private actor CodexMCPStderrCapture {
     }
 
     task = Task.detached {
-      while !Task.isCancelled {
-        let data = fileHandle.availableData
-        guard !data.isEmpty else {
-          return
-        }
-        await self.append(data)
+      while true {
+        do {
+          guard let data = try await CodexProcessPipe.readChunk(from: fileHandle) else { return }
+          await self.append(data)
+        } catch { return }
       }
     }
   }
 
-  func stop() {
-    task?.cancel()
+  func finish() async {
+    let reading = task
+    // The process has exited and all peer writers are closed; retain its final diagnostics.
+    await reading?.value
     task = nil
   }
 

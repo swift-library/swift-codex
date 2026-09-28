@@ -108,3 +108,32 @@ if (Test-Path (Join-Path $source 'Package.resolved')) {
     Copy-Item (Join-Path $source 'Package.resolved') (Join-Path $evidence 'upstream-Package.resolved')
 }
 if ($results.Where({ $_.testExitCode -ne 0 }).Count -gt 0) { exit 1 }
+
+# Validate the complete owning product against the accepted dependency candidate.
+# The published dependency lock remains unchanged; this is an isolated editable checkout.
+$sdkRevision = git -C $repository rev-parse HEAD
+if ($LASTEXITCODE -ne 0) { throw 'Cannot identify CodexMCP candidate source' }
+Copy-Item (Join-Path $repository 'Package.resolved') (Join-Path $evidence 'sdk-shipping-Package.resolved')
+swift package --package-path $repository resolve *> (Join-Path $evidence 'sdk-resolve.log')
+if ($LASTEXITCODE -ne 0) { throw 'SDK dependency resolution failed' }
+swift package --package-path $repository edit swift-sdk --path $source *> (Join-Path $evidence 'sdk-edit-mcp.log')
+if ($LASTEXITCODE -ne 0) { throw 'SDK MCP editable candidate admission failed' }
+$ownerResults = @()
+foreach ($configuration in @('debug', 'release')) {
+    $log = Join-Path $evidence "codex-mcp-$configuration-build.log"
+    swift build --package-path $repository --target CodexMCP -c $configuration *> $log
+    $code = $LASTEXITCODE
+    Get-Content $log -Tail 60
+    $ownerResults += [pscustomobject]@{ configuration = $configuration; buildExitCode = $code }
+    [pscustomobject]@{
+        sdkRevision = $sdkRevision
+        mcpCandidate = $metadata
+        results = $ownerResults
+        evidenceClass = 'complete-native-product-build-with-explicit-dependency-candidate'
+        runtimeAcceptance = $false
+        authenticatedModel = $false
+    } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $evidence 'codex-mcp-build-results.json')
+}
+git -C $repository diff --exit-code -- Package.resolved
+if ($LASTEXITCODE -ne 0) { throw 'SDK shipping dependency lock changed' }
+if ($ownerResults.Where({ $_.buildExitCode -ne 0 }).Count -gt 0) { exit 1 }
