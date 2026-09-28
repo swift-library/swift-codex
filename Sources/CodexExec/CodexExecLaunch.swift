@@ -49,13 +49,12 @@ struct CodexExecExecutableResolver {
     }
 
     let environment = configuration.environmentOverride ?? ProcessInfo.processInfo.environment
-    let pathValue = environment["PATH"] ?? ""
-
-    for directory in pathValue.split(separator: ":") {
-      let candidate = URL(fileURLWithPath: String(directory)).appendingPathComponent("codex")
-      if FileManager.default.isExecutableFile(atPath: candidate.path) {
-        return candidate
+    do {
+      if let result = try CodexExecutableDiscovery.find(named: "codex", environment: environment) {
+        return result.executable
       }
+    } catch {
+      throw CodexExecError.launchFailure(description: error.localizedDescription)
     }
 
     throw CodexExecError.launchFailure(

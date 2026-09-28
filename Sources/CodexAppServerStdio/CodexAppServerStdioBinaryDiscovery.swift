@@ -1,4 +1,5 @@
 import Foundation
+import _CodexProcess
 
 extension CodexAppServerStdioConfiguration {
   package func resolveExecutable(
@@ -14,24 +15,24 @@ extension CodexAppServerStdioConfiguration {
       )
     }
 
-    guard !executableName.contains("/") else {
+    guard CodexExecutableDiscovery.isBareName(executableName) else {
       throw CodexAppServerStdioError.invalidConfiguration(
         "Executable name must be a bare command name; use executableURL for paths."
       )
     }
 
     let effectiveEnvironment = environment ?? inheritedEnvironment
-    let pathValue = effectiveEnvironment["PATH"] ?? ""
-    for rawDirectory in pathValue.split(separator: ":") {
-      let directory = String(rawDirectory)
-      let candidate = URL(fileURLWithPath: directory, isDirectory: true)
-        .appendingPathComponent(executableName)
-      if FileManager.default.isExecutableFile(atPath: candidate.path) {
+    do {
+      if let result = try CodexExecutableDiscovery.find(
+        named: executableName, environment: effectiveEnvironment)
+      {
         return CodexAppServerStdioBinaryResolution(
-          executableURL: candidate,
-          source: .pathSearch(directory: directory)
+          executableURL: result.executable,
+          source: .pathSearch(directory: result.directory)
         )
       }
+    } catch {
+      throw CodexAppServerStdioError.invalidConfiguration(error.localizedDescription)
     }
 
     throw CodexAppServerStdioError.executableNotFound(

@@ -1,4 +1,5 @@
 import Foundation
+import _CodexProcess
 
 extension CodexExecClient {
   func makePreparedLaunch(for kind: CodexExecLaunchKind) throws -> CodexExecPreparedLaunch {
@@ -13,7 +14,12 @@ extension CodexExecClient {
     var environment = configuration.environmentOverride ?? ProcessInfo.processInfo.environment
 
     if let apiKey = configuration.apiKey {
-      environment["CODEX_API_KEY"] = apiKey
+      do {
+        environment = try CodexProcessEnvironment.setting(
+          apiKey, for: "CODEX_API_KEY", in: environment)
+      } catch {
+        throw CodexExecError.launchFailure(description: error.localizedDescription)
+      }
     }
 
     let workingDirectory = effectiveWorkingDirectory(for: kind)

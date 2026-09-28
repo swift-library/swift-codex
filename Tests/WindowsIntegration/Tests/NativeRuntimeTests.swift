@@ -9,6 +9,69 @@ import Testing
   @Suite("Windows native Codex consumers", .timeLimit(.minutes(1)))
   struct NativeRuntimeTests {
     @Test(
+      "Stdio discovers native executables in an explicit Windows PATH",
+      arguments: ["codex", "codex.EXE"])
+    func stdioDiscovery(name: String) async throws {
+      let directory = try temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      try FileManager.default.copyItem(
+        at: fixture, to: directory.appendingPathComponent("codex.exe"))
+      try Data("exit /b 99\r\n".utf8).write(to: directory.appendingPathComponent("codex.cmd"))
+      var env = environment(mode: "lines")
+      env["pAtH"] = ";\"\(directory.path)\";;" + (env["pAtH"] ?? "")
+      env["PATHEXT"] = ".CMD;.EXE"
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(executableName: name, environment: env))
+      do {
+        var lines = transport.inboundLines.makeAsyncIterator()
+        try await transport.sendLine("discovered 汉字")
+        #expect(try await lines.next() == "discovered 汉字")
+        await transport.close()
+      } catch {
+        await transport.close()
+        throw error
+      }
+    }
+
+    @Test(
+      "Windows discovery rejects path-shaped command names",
+      arguments: ["dir\\codex", "C:codex", "codex\u{0}"])
+    func invalidExecutableName(name: String) throws {
+      do {
+        _ = try CodexAppServerStdioTransport(configuration: .init(executableName: name))
+        Issue.record("Invalid bare command name was accepted")
+      } catch CodexAppServerStdioError.invalidConfiguration {}
+    }
+
+    @Test("Windows discovery rejects ambiguous PATH names before spawning")
+    func ambiguousPath() throws {
+      var env = environment(mode: "lines")
+      env["PATH"] = "duplicate"
+      do {
+        _ = try CodexAppServerStdioTransport(configuration: .init(environment: env))
+        Issue.record("Ambiguous PATH was accepted")
+      } catch CodexAppServerStdioError.invalidConfiguration {}
+    }
+
+    @Test("Exec uses native PATH discovery and replaces case-insensitive API key overrides")
+    func execDiscovery() async throws {
+      let directory = try temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      try FileManager.default.copyItem(
+        at: fixture, to: directory.appendingPathComponent("codex.exe"))
+      var env = environment(mode: "echo")
+      env["pAtH"] = "\(directory.path);" + (env["pAtH"] ?? "")
+      env["codex_api_key"] = "fixture-old-key"
+      let client = CodexExecClient(
+        configuration: .init(environmentOverride: env, apiKey: "fixture-configured-key"))
+      let handle = try await client.run(.init(promptInput: .text("discovery")))
+      let echo = try await readEcho(handle)
+      #expect(echo.arguments.last == "discovery")
+      #expect(echo.configuredKeyMatches)
+      #expect(echo.hostOnly.isEmpty)
+    }
+
+    @Test(
       "Invalid Windows environment names fail before child admission",
       arguments: ["duplicate", "equals", "nul", "empty"])
     func invalidEnvironment(kind: String) async throws {
@@ -264,6 +327,7 @@ import Testing
       let value: String
       let hostOnly: String
       let input: String
+      let configuredKeyMatches: Bool
     }
 
     private func readEcho(_ handle: CodexExecProcessHandle) async throws -> Echo {

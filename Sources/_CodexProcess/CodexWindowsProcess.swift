@@ -75,14 +75,16 @@
         throw CodexProcessFailure(
           description: "Codex command line exceeds the Windows launch limit.")
       }
-      let entries = try environment.sorted { try compareEnvironmentKeys($0.key, $1.key) < 0 }
+      let entries = try environment.sorted {
+        try CodexProcessEnvironment.compareNames($0.key, $1.key) < 0
+      }
       var previousKey: String?
       for (key, value) in entries {
         let driveKey = key.utf16.count == 3 && key.hasPrefix("=") && key.hasSuffix(":")
         guard !key.isEmpty, !key.utf16.contains(0), !value.utf16.contains(0),
           !key.contains("=") || driveKey
         else { throw CodexProcessFailure(description: "Invalid Codex process environment entry.") }
-        if let previousKey, try compareEnvironmentKeys(previousKey, key) == 0 {
+        if let previousKey, try CodexProcessEnvironment.compareNames(previousKey, key) == 0 {
           throw CodexProcessFailure(
             description: "Codex process environment contains duplicate Windows names.")
         }
@@ -147,17 +149,6 @@
         guard launched else { throw Self.error("CreateProcessW") }
       }
       return CodexWindowsProcessHandles(process: created.hProcess!, thread: created.hThread!)
-    }
-
-    /// Windows environment names use ordinal, case-insensitive comparison.
-    private static func compareEnvironmentKeys(_ left: String, _ right: String) throws -> Int {
-      let result = left.withCString(encodedAs: UTF16.self) { left in
-        right.withCString(encodedAs: UTF16.self) { right in
-          CompareStringOrdinal(left, -1, right, -1, true)
-        }
-      }
-      guard result != 0 else { throw error("CompareStringOrdinal") }
-      return Int(result) - Int(CSTR_EQUAL)
     }
 
     private static func quote(_ argument: String) -> String {

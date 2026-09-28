@@ -21,6 +21,7 @@ import Foundation
           "value": environment["VALUE"] ?? "",
           "hostOnly": environment["SWIFT_CODEX_HOST_ONLY"] ?? "",
           "input": String(decoding: input, as: UTF8.self),
+          "configuredKeyMatches": environment["CODEX_API_KEY"] == "fixture-configured-key",
         ]
         try FileHandle.standardOutput.write(
           contentsOf: JSONSerialization.data(withJSONObject: value) + Data([10]))
