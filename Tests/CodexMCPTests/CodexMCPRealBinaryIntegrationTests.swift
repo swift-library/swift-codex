@@ -3,8 +3,12 @@ import Testing
 
 @testable import CodexMCP
 
-@Suite("CodexMCP Real Binary Integration")
+@Suite("CodexMCP Real Binary Integration", .timeLimit(.minutes(1)))
 struct CodexMCPRealBinaryIntegrationTests {
+  private static let clientInfo = CodexMCPClientInfo(
+    name: "swift-codex-real-binary-tests", version: "0.1.0",
+    requestedProtocolVersion: "2025-03-26")
+
   @Test(
     "Optional real-binary smoke coverage verifies startup, ping, and tools/list against a real codex binary",
     .enabled(if: CodexMCPRealBinaryIntegrationConfig.isEnabledForCurrentEnvironment)
@@ -12,7 +16,7 @@ struct CodexMCPRealBinaryIntegrationTests {
   func realBinarySmokeCoverageVerifiesStartupPingAndListTools() async throws {
     let config = try #require(CodexMCPRealBinaryIntegrationConfig.makeIfEnabled())
     let client = CodexMCPClient(
-      clientInfo: testMCPClientInfo,
+      clientInfo: Self.clientInfo,
       launchOptions: config.launchOptions
     )
 
@@ -41,7 +45,7 @@ struct CodexMCPRealBinaryIntegrationTests {
   func realBinarySmokeCoverageVerifiesDeterministicStop() async throws {
     let config = try #require(CodexMCPRealBinaryIntegrationConfig.makeIfEnabled())
     let client = CodexMCPClient(
-      clientInfo: testMCPClientInfo,
+      clientInfo: Self.clientInfo,
       launchOptions: config.launchOptions
     )
 
@@ -71,7 +75,7 @@ private struct CodexMCPRealBinaryIntegrationConfig {
   let launchOptions: CodexMCPLaunchOptions
 
   static var isEnabledForCurrentEnvironment: Bool {
-    makeIfEnabled() != nil
+    isEnabled(ProcessInfo.processInfo.environment[enableEnvironmentVariable])
   }
 
   static func makeIfEnabled() -> Self? {
@@ -81,7 +85,14 @@ private struct CodexMCPRealBinaryIntegrationConfig {
       return nil
     }
 
-    let mergedPath = environment["PATH"] ?? ""
+    #if os(Windows)
+      let mergedPath =
+        environment.first {
+          $0.key.caseInsensitiveCompare("PATH") == .orderedSame
+        }?.value ?? ""
+    #else
+      let mergedPath = environment["PATH"] ?? ""
+    #endif
     let preservedEnvironment = mergedPath.isEmpty ? [:] : ["PATH": mergedPath]
 
     if let configuredPath = environment[pathEnvironmentVariable], !configuredPath.isEmpty {
@@ -125,10 +136,16 @@ private struct CodexMCPRealBinaryIntegrationConfig {
     named executableName: String,
     searchPath: String
   ) -> String? {
-    let directories = searchPath.split(separator: ":")
+    #if os(Windows)
+      let directories = searchPath.split(separator: ";")
+      let nativeName = executableName + ".exe"
+    #else
+      let directories = searchPath.split(separator: ":")
+      let nativeName = executableName
+    #endif
     for directory in directories {
       let candidatePath = URL(fileURLWithPath: String(directory))
-        .appendingPathComponent(executableName)
+        .appendingPathComponent(nativeName)
         .path
       if FileManager.default.isExecutableFile(atPath: candidatePath) {
         return candidatePath

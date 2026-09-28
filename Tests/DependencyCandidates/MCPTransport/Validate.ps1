@@ -116,31 +116,90 @@ if (Test-Path (Join-Path $source 'Package.resolved')) {
 }
 if ($results.Where({ $_.testExitCode -ne 0 }).Count -gt 0) { exit 1 }
 
-# Validate the complete owning product against the accepted dependency candidate.
-# The published dependency lock remains unchanged; this is an isolated editable checkout.
+# Archive the complete exact SDK source into a disposable candidate tree.
+# SwiftPM may update this consumer's lock for local packages; the shipping lock is untouched.
 $sdkRevision = git -C $repository rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Cannot identify CodexMCP candidate source' }
-Copy-Item (Join-Path $repository 'Package.resolved') (Join-Path $evidence 'sdk-shipping-Package.resolved')
-swift package --package-path $repository resolve *> (Join-Path $evidence 'sdk-resolve.log')
-if ($LASTEXITCODE -ne 0) { throw 'SDK dependency resolution failed' }
-swift package --package-path $repository edit swift-sdk --path $source *> (Join-Path $evidence 'sdk-edit-mcp.log')
-if ($LASTEXITCODE -ne 0) { throw 'SDK MCP editable candidate admission failed' }
-$ownerResults = @()
-foreach ($configuration in @('debug', 'release')) {
-    $log = Join-Path $evidence "codex-mcp-$configuration-build.log"
-    swift build --package-path $repository --target CodexMCP -c $configuration *> $log
-    $code = $LASTEXITCODE
-    Get-Content $log -Tail 60
-    $ownerResults += [pscustomobject]@{ configuration = $configuration; buildExitCode = $code }
-    [pscustomobject]@{
-        sdkRevision = $sdkRevision
-        mcpCandidate = $metadata
-        results = $ownerResults
-        evidenceClass = 'complete-native-product-build-with-explicit-dependency-candidate'
-        runtimeAcceptance = $false
-        authenticatedModel = $false
-    } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $evidence 'codex-mcp-build-results.json')
+$sdkSource = Join-Path $output 'sdk-source'
+$ownerConsumer = Join-Path $output 'codex-mcp-consumer'
+New-Item -ItemType Directory -Path $sdkSource, $ownerConsumer | Out-Null
+$sdkArchive = Join-Path $output 'sdk-source.tar'
+git -C $repository archive --format=tar --output=$sdkArchive $sdkRevision
+if ($LASTEXITCODE -ne 0) { throw 'SDK source archive failed' }
+tar -xf $sdkArchive -C $sdkSource
+if ($LASTEXITCODE -ne 0) { throw 'SDK source extraction failed' }
+$shippingLock = Join-Path $repository 'Package.resolved'
+$shippingLockHash = (Get-FileHash $shippingLock -Algorithm SHA256).Hash
+Copy-Item $shippingLock (Join-Path $evidence 'sdk-shipping-Package.resolved')
+Copy-Item $shippingLock (Join-Path $ownerConsumer 'Package.resolved')
+Copy-Item (Join-Path $PSScriptRoot 'CodexMCPPackage.swift.template') (Join-Path $ownerConsumer 'Package.swift')
+$ownerTests = Join-Path $ownerConsumer 'Tests'
+New-Item -ItemType Directory -Path $ownerTests | Out-Null
+$testSource = Join-Path $sdkSource 'Tests/CodexMCPTests/CodexMCPRealBinaryIntegrationTests.swift'
+$testCopy = Join-Path $ownerTests 'CodexMCPRealBinaryIntegrationTests.swift'
+Copy-Item $testSource $testCopy
+$testHash = (Get-FileHash $testSource -Algorithm SHA256).Hash.ToLowerInvariant()
+if ((Get-FileHash $testCopy -Algorithm SHA256).Hash.ToLowerInvariant() -ne $testHash) {
+    throw 'CodexMCP real-binary test source changed'
 }
-git -C $repository diff --exit-code -- Package.resolved
-if ($LASTEXITCODE -ne 0) { throw 'SDK shipping dependency lock changed' }
-if ($ownerResults.Where({ $_.buildExitCode -ne 0 }).Count -gt 0) { exit 1 }
+
+$binaryMetadataPath = Join-Path $PSScriptRoot 'codex-windows-binary.json'
+$binaryMetadata = Get-Content $binaryMetadataPath -Raw | ConvertFrom-Json
+Copy-Item $binaryMetadataPath $evidence
+$binaryDirectory = Join-Path $output 'codex-binary'
+New-Item -ItemType Directory -Path $binaryDirectory | Out-Null
+$binaryArchive = Join-Path $binaryDirectory 'codex.zip'
+Invoke-WebRequest -Uri $binaryMetadata.archiveURL -OutFile $binaryArchive
+if ((Get-FileHash $binaryArchive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $binaryMetadata.archiveSHA256) {
+    throw 'Codex release archive checksum mismatch'
+}
+Expand-Archive -Path $binaryArchive -DestinationPath $binaryDirectory
+$binary = Join-Path $binaryDirectory $binaryMetadata.executable
+if ((Get-FileHash $binary -Algorithm SHA256).Hash.ToLowerInvariant() -ne $binaryMetadata.executableSHA256) {
+    throw 'Codex native binary checksum mismatch'
+}
+$version = & $binary --version
+if ($LASTEXITCODE -ne 0 -or $version -ne "codex-cli $($binaryMetadata.version)") {
+    throw 'Unexpected native Codex version'
+}
+$version | Set-Content (Join-Path $evidence 'codex-version.txt')
+& $binary mcp-server --help *> (Join-Path $evidence 'codex-mcp-help.txt')
+if ($LASTEXITCODE -ne 0) { throw 'Pinned Codex does not expose mcp-server' }
+
+$previousEnabled = $env:SWIFT_CODEX_REAL_BINARY_TESTS
+$previousBinary = $env:SWIFT_CODEX_REAL_BINARY_PATH
+$env:SWIFT_CODEX_REAL_BINARY_TESTS = '1'
+$env:SWIFT_CODEX_REAL_BINARY_PATH = $binary
+$env:PATH = "$testing;$xctest;$previousPath"
+$ownerResults = @()
+try {
+    foreach ($configuration in @('debug', 'release')) {
+        $log = Join-Path $evidence "codex-mcp-$configuration-tests.log"
+        # Preserve the owning tests' internal startup-metadata assertions in this external consumer.
+        swift test --package-path $ownerConsumer --no-parallel -c $configuration -Xswiftc -enable-testing *> $log
+        $code = $LASTEXITCODE
+        Get-Content $log -Tail 60
+        $ownerResults += [pscustomobject]@{ configuration = $configuration; testExitCode = $code }
+        [pscustomobject]@{
+            sdkRevision = $sdkRevision
+            sdkSourceArchiveSHA256 = (Get-FileHash $sdkArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+            mcpCandidate = $metadata
+            binary = $binaryMetadata
+            testSource = 'Tests/CodexMCPTests/CodexMCPRealBinaryIntegrationTests.swift'
+            testSourceSHA256 = $testHash
+            results = $ownerResults
+            evidenceClass = 'complete-native-product-real-cli-protocol-lifecycle'
+            authenticatedModel = $false
+        } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $evidence 'codex-mcp-runtime-results.json')
+    }
+} finally {
+    $env:SWIFT_CODEX_REAL_BINARY_TESTS = $previousEnabled
+    $env:SWIFT_CODEX_REAL_BINARY_PATH = $previousBinary
+    $env:PATH = $previousPath
+    $candidateLock = Join-Path $ownerConsumer 'Package.resolved'
+    if (Test-Path $candidateLock) { Copy-Item $candidateLock (Join-Path $evidence 'codex-mcp-consumer-Package.resolved') }
+    if ((Get-FileHash $shippingLock -Algorithm SHA256).Hash -ne $shippingLockHash) {
+        throw 'SDK shipping dependency lock changed'
+    }
+}
+if ($ownerResults.Where({ $_.testExitCode -ne 0 }).Count -gt 0) { exit 1 }

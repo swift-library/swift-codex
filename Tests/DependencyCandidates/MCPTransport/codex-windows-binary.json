@@ -1,0 +1,8 @@
+{
+  "version": "0.139.0",
+  "releaseURL": "https://github.com/openai/codex/releases/tag/rust-v0.139.0",
+  "archiveURL": "https://github.com/openai/codex/releases/download/rust-v0.139.0/codex-x86_64-pc-windows-msvc.exe.zip",
+  "archiveSHA256": "1f76f5e211e36a204883b2975b39bf3f5ad106d7b7a84d45e9a1c062983e0902",
+  "executable": "codex-x86_64-pc-windows-msvc.exe",
+  "executableSHA256": "77a84f8078400467ade4301d827b8bcea2d29b6838c9cd162bf3573b7ef97e10"
+}

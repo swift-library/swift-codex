@@ -25,6 +25,15 @@ source/test hashes, dependency locks and native results under
 `.build/mcp-transport-candidate/evidence`. Native stdio tests use actual Windows
 pipes. They do not establish authenticated model or host private-IPC acceptance.
 
+After transport acceptance, the script archives the exact SDK commit into a
+separate source tree and compiles a consumer of the complete `CodexMCP` product
+with the explicit MCP candidate. The unchanged owning real-binary tests run
+against the pinned native Windows CLI in `codex-windows-binary.json`. Archive and
+executable hashes are verified before execution. Startup, ping, tools/list and
+idempotent stop run in debug and release; no login or model call is performed.
+Source/test hashes and each candidate lock are retained separately from the
+shipping lock, which must remain byte-identical.
+
 This candidate does not change shipping dependency resolution or the independent
 audit of all eleven SDK products. A release must explicitly adopt an upstream
 fix or reviewed dependency distribution before claiming the Windows path.
