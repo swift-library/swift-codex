@@ -5,6 +5,27 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## [Unreleased]
 
+### Added
+
+- Native Windows process and pipe ownership for Exec, App Server stdio and
+  CodexMCP, with native executable/environment resolution and joined descendant
+  cleanup.
+- App Server stdio input completion, bounded frame configuration and joined
+  process termination observations.
+
+### Changed
+
+- Adopt the exact versioned `computer-mcp/swift-sdk` transport fork for native
+  Windows MCP stdio and complete POSIX frame serialization. Protocol authority
+  remains in the upstream-aligned SDK products.
+
+### Fixed
+
+- Bound App Server and MCP buffering and request correlation while preserving
+  duplex progress at callback capacity.
+- Join version probes, failed native writes, process termination and transport
+  retirement without retaining blocked pipe readers or request owners.
+
 ## [0.3.0] - 2026-09-27
 
 ### Added

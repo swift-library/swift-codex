@@ -63,8 +63,8 @@ let package = Package(
       from: "1.0.0"
     ),
     .package(
-      url: "https://github.com/modelcontextprotocol/swift-sdk.git",
-      .upToNextMinor(from: "0.12.0")
+      url: "https://github.com/computer-mcp/swift-sdk.git",
+      exact: "0.13.0-computer-mcp.1"
     ),
     .package(
       url: "https://github.com/apple/swift-nio.git",

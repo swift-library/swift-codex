@@ -44,3 +44,13 @@ wait on its own task.
 
 `CodexMCP` does not own App Server RPCs, Exec JSONL, arbitrary MCP resources or
 prompts, a generic raw request API, or a shared cross-product runtime.
+
+## Transport Dependency
+
+The maintained MCP transport package is released from
+[`computer-mcp/swift-sdk`](https://github.com/computer-mcp/swift-sdk).
+`Package.swift` declares its exact release version and `Package.resolved`
+records the source commit. The fork owns native Windows stdio and serialized
+POSIX frame writes; Codex protocol and process ownership remain in this package.
+Native Windows CodexMCP validation is documented in
+[`Tests/WindowsMCP`](../../Tests/WindowsMCP/README.md).

@@ -1,18 +1,23 @@
-name: Dependency Candidates
+name: Windows CodexMCP
 
 on:
   push:
     paths:
-      - 'Tests/DependencyCandidates/MCPTransport/**'
-      - '.github/workflows/dependency-candidates.yml'
+      - 'Package.swift'
+      - 'Package.resolved'
+      - 'Sources/CodexMCP/**'
+      - 'Sources/_CodexProcess/**'
+      - 'Tests/CodexMCPTests/**'
+      - 'Tests/WindowsMCP/**'
+      - '.github/workflows/windows-mcp.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  mcp-transport:
-    name: Windows MCP transport candidate
+  codex-mcp:
+    name: Native Windows CodexMCP
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
@@ -25,15 +30,15 @@ jobs:
           swift-version: swift-6.2.3-release
           swift-build: 6.2.3-RELEASE
 
-      - name: Validate complete MCP library and native transport tests
+      - name: Validate shipping dependencies with the native Codex CLI
         shell: pwsh
-        run: ./Tests/DependencyCandidates/MCPTransport/Validate.ps1
+        run: ./Tests/WindowsMCP/Validate.ps1
 
-      - name: Preserve dependency candidate evidence
+      - name: Preserve native CodexMCP evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: mcp-transport-candidate-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .build/mcp-transport-candidate/evidence/
+          name: windows-codex-mcp-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .build/windows-mcp/evidence/
           include-hidden-files: true
           if-no-files-found: error

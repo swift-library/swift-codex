@@ -6,7 +6,6 @@ let package = Package(
   platforms: [.macOS(.v14)],
   dependencies: [
     .package(name: "swift-codex", path: "../sdk-source"),
-    .package(name: "swift-sdk", path: "../swift-sdk"),
   ],
   targets: [
     .testTarget(

@@ -538,15 +538,15 @@
       "license_files": [
         "LICENSE"
       ],
-      "location": "https://github.com/modelcontextprotocol/swift-sdk.git",
+      "location": "https://github.com/computer-mcp/swift-sdk.git",
       "required_by": [
         "swift-sdk"
       ],
-      "revision": "6132fd4b5b4217ce4717c4775e4607f5c3120129",
+      "revision": "c3c41439b218672a810597e59d66c3e6b1ed2156",
       "roles": [
         "runtime"
       ],
-      "version": "0.12.0"
+      "version": "0.13.0-computer-mcp.1"
     },
     {
       "direct": false,
