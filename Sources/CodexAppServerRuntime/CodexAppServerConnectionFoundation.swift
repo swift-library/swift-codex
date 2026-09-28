@@ -12,6 +12,7 @@ public enum CodexAppServerConnectionFoundation {
 
   public struct StdioFrameCodec: Sendable {
     private var bufferedBytes = Data()
+    private var scannedByteCount = 0
 
     public init() {}
 
@@ -23,21 +24,32 @@ public enum CodexAppServerConnectionFoundation {
       bufferedBytes.append(chunk)
 
       var lines: [String] = []
-      while let newlineIndex = bufferedBytes.firstIndex(of: 0x0A) {
-        var lineBytes = bufferedBytes[..<newlineIndex]
-        bufferedBytes.removeSubrange(...newlineIndex)
+      var lineStart = bufferedBytes.startIndex
+      // The retained prefix has no newline; only newly appended bytes need scanning.
+      var searchStart = bufferedBytes.index(lineStart, offsetBy: scannedByteCount)
+      while let newlineIndex = bufferedBytes[searchStart...].firstIndex(of: 0x0A) {
+        let nextLineStart = bufferedBytes.index(after: newlineIndex)
+        var lineBytes = bufferedBytes[lineStart..<newlineIndex]
 
         if lineBytes.last == 0x0D {
           lineBytes = lineBytes.dropLast()
         }
 
         guard let line = String(data: lineBytes, encoding: .utf8) else {
+          bufferedBytes.removeSubrange(..<nextLineStart)
+          scannedByteCount = 0
           throw FoundationError.invalidUTF8
         }
 
         lines.append(line)
+        lineStart = nextLineStart
+        searchStart = nextLineStart
       }
 
+      if lineStart != bufferedBytes.startIndex {
+        bufferedBytes.removeSubrange(..<lineStart)
+      }
+      scannedByteCount = bufferedBytes.count
       return lines
     }
 

@@ -1,5 +1,4 @@
 import CodexAppServerRuntime
-import Darwin
 import Foundation
 
 public final class CodexAppServerStdioTransport: CodexAppServerLinePeer, @unchecked Sendable {
@@ -46,8 +45,9 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer, @unchec
     self.writer = writer
     self.inboundChannel = inboundChannel
     self.stdoutReaderTask = Task.detached(priority: nil) {
+      defer { try? stdoutPipe.fileHandleForReading.close() }
       do {
-        try await CodexAppServerStdioTransport.readLines(
+        try await CodexAppServerPipeReader.readLines(
           from: stdoutPipe.fileHandleForReading
         ) { line in
           inboundChannel.yield(line)
@@ -58,7 +58,8 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer, @unchec
       }
     }
     self.stderrReaderTask = Task.detached(priority: nil) {
-      _ = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+      defer { try? stderrPipe.fileHandleForReading.close() }
+      await CodexAppServerPipeReader.discard(from: stderrPipe.fileHandleForReading)
     }
   }
 
@@ -74,52 +75,6 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer, @unchec
     inboundChannel.finish()
   }
 
-  private static func readLines(
-    from handle: FileHandle,
-    onLine: (String) async throws -> Void
-  ) async throws {
-    let duplicatedFD = dup(handle.fileDescriptor)
-    guard duplicatedFD >= 0 else {
-      throw CodexAppServerStdioError.launchFailure("Unable to duplicate stdout file descriptor.")
-    }
-
-    guard let file = fdopen(duplicatedFD, "r") else {
-      Darwin.close(duplicatedFD)
-      throw CodexAppServerStdioError.launchFailure("Unable to open stdout stream.")
-    }
-
-    defer {
-      fclose(file)
-    }
-
-    var linePointer: UnsafeMutablePointer<CChar>?
-    var lineCapacity: Int = 0
-    defer {
-      free(linePointer)
-    }
-
-    while true {
-      if Task.isCancelled {
-        break
-      }
-
-      let readCount = getline(&linePointer, &lineCapacity, file)
-      if readCount == -1 {
-        break
-      }
-
-      guard let linePointer else {
-        continue
-      }
-
-      var line = String(cString: linePointer)
-      while line.hasSuffix("\n") || line.hasSuffix("\r") {
-        line.removeLast()
-      }
-
-      try await onLine(line)
-    }
-  }
 }
 
 private actor CodexAppServerFileHandleLineWriter {

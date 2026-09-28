@@ -9,6 +9,36 @@ import Testing
 
 @Suite("CodexAppServer Connection Foundation")
 struct CodexAppServerConnectionFoundationTests {
+  @Test(
+    "Stdio framing preserves boundaries across arbitrary byte chunks", arguments: [1, 2, 3, 7, 64])
+  func stdioFrameCodecPreservesFragmentedBytes(chunkSize: Int) throws {
+    let bytes = Data("first\r\n\n汉字\u{0}🐈\r\nlast".utf8)
+    var codec = CodexAppServerConnectionFoundation.StdioFrameCodec()
+    var lines: [String] = []
+    for offset in stride(from: 0, to: bytes.count, by: chunkSize) {
+      lines += try codec.appendIncoming(
+        bytes.subdata(in: offset..<min(offset + chunkSize, bytes.count)))
+      #expect(try codec.appendIncoming(Data()).isEmpty)
+    }
+    #expect(lines == ["first", "", "汉字\u{0}🐈"])
+    #expect(codec.hasPendingPartialLine)
+    #expect(try codec.appendIncoming(Data([0x0A])) == ["last"])
+    #expect(!codec.hasPendingPartialLine)
+  }
+
+  @Test("Invalid frames leave following complete and partial frames readable")
+  func stdioFrameCodecRetainsFollowingFramesAfterError() throws {
+    var codec = CodexAppServerConnectionFoundation.StdioFrameCodec()
+    #expect(try codec.appendIncoming(Data("prefix".utf8)).isEmpty)
+    #expect(throws: CodexAppServerConnectionFoundation.FoundationError.invalidUTF8) {
+      try codec.appendIncoming(Data([0xFF, 0x0A]) + Data("recovered\npart".utf8))
+    }
+    #expect(try codec.appendIncoming(Data()) == ["recovered"])
+    #expect(codec.hasPendingPartialLine)
+    #expect(try codec.appendIncoming(Data("ial\r\n".utf8)) == ["partial"])
+    #expect(!codec.hasPendingPartialLine)
+  }
+
   @Test("Stdio frame codec preserves newline-delimited JSON boundaries")
   func stdioFrameCodecPreservesNewlineDelimitedJSONBoundaries() throws {
     var codec = CodexAppServerConnectionFoundation.StdioFrameCodec()
