@@ -7,9 +7,6 @@ let package = Package(
   dependencies: [.package(name: "swift-codex", path: "../..")],
   targets: [
     .executableTarget(name: "CodexProcessFixture", path: "Fixture"),
-    .executableTarget(
-      name: "CodexEnvironmentFixture", path: "EnvironmentFixture",
-      linkerSettings: [.linkedLibrary("kernel32", .when(platforms: [.windows]))]),
     .testTarget(
       name: "CodexWindowsIntegrationTests",
       dependencies: [
