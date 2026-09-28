@@ -86,21 +86,24 @@ jobs:
           foreach ($configuration in @('debug', 'release')) {
             swift build --package-path Tests/WindowsIntegration --product CodexProcessFixture -c $configuration *> ".build/windows-runtime/$configuration-fixture.log"
             $fixtureCode = $LASTEXITCODE
+            swift build --package-path Tests/WindowsIntegration --product CodexEnvironmentFixture -c $configuration *> ".build/windows-runtime/$configuration-environment-fixture.log"
+            $environmentFixtureCode = $LASTEXITCODE
             $testCode = $null
-            if ($fixtureCode -eq 0) {
+            if ($fixtureCode -eq 0 -and $environmentFixtureCode -eq 0) {
               swift test --package-path Tests/WindowsIntegration --no-parallel -c $configuration *> ".build/windows-runtime/$configuration-tests.log"
               $testCode = $LASTEXITCODE
               Get-Content ".build/windows-runtime/$configuration-tests.log" -Tail 60
             } else {
               Get-Content ".build/windows-runtime/$configuration-fixture.log" -Tail 60
+              Get-Content ".build/windows-runtime/$configuration-environment-fixture.log" -Tail 60
             }
-            $results += [pscustomobject]@{ configuration = $configuration; fixtureExitCode = $fixtureCode; testExitCode = $testCode }
+            $results += [pscustomobject]@{ configuration = $configuration; fixtureExitCode = $fixtureCode; environmentFixtureExitCode = $environmentFixtureCode; testExitCode = $testCode }
             $results | ConvertTo-Json | Set-Content .build/windows-runtime/results.json
           }
           if (Test-Path Tests/WindowsIntegration/Package.resolved) {
             Copy-Item Tests/WindowsIntegration/Package.resolved .build/windows-runtime/Package.resolved
           }
-          if ($results.Where({ $_.fixtureExitCode -ne 0 -or $null -eq $_.testExitCode -or $_.testExitCode -ne 0 }).Count -gt 0) { exit 1 }
+          if ($results.Where({ $_.fixtureExitCode -ne 0 -or $_.environmentFixtureExitCode -ne 0 -or $null -eq $_.testExitCode -or $_.testExitCode -ne 0 }).Count -gt 0) { exit 1 }
 
       - name: Preserve native runtime results
         if: always()

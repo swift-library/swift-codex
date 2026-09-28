@@ -113,6 +113,25 @@ import Testing
 
     @Test("Explicit environments never fall back to the parent's PATH", arguments: [false, true])
     func explicitEnvironment(setsPath: Bool) async throws {
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(
+          executableURL: fixture.deletingLastPathComponent()
+            .appendingPathComponent("CodexEnvironmentFixture.exe"),
+          arguments: [], environment: setsPath ? ["pAtH": "fixture-path"] : [:]))
+      do {
+        var incoming = transport.inboundLines.makeAsyncIterator()
+        let received = try await incoming.next()
+        #expect(received == (setsPath ? "fixture-path" : "<missing>"))
+        #expect(try await incoming.next() == nil)
+        await transport.close()
+      } catch {
+        await transport.close()
+        throw error
+      }
+    }
+
+    @Test("The Windows command processor sees the configured PATH", arguments: [false, true])
+    func commandProcessorEnvironment(setsPath: Bool) async throws {
       let root = try #require(environmentValue("SystemRoot"))
       let transport = try CodexAppServerStdioTransport(
         configuration: .init(
@@ -121,7 +140,8 @@ import Testing
           environment: setsPath ? ["pAtH": "fixture-path"] : [:]))
       do {
         var incoming = transport.inboundLines.makeAsyncIterator()
-        #expect(try await incoming.next() == (setsPath ? "fixture-path" : "%PATH%"))
+        let received = try await incoming.next()
+        #expect(received == (setsPath ? "fixture-path" : "%PATH%"))
         #expect(try await incoming.next() == nil)
         await transport.close()
       } catch {

@@ -9,13 +9,17 @@ From the repository root on Windows, run both debug and release configurations:
 
 ```powershell
 swift build --package-path Tests/WindowsIntegration --product CodexProcessFixture -c debug
+swift build --package-path Tests/WindowsIntegration --product CodexEnvironmentFixture -c debug
 swift test --package-path Tests/WindowsIntegration --no-parallel -c debug
 swift build --package-path Tests/WindowsIntegration --product CodexProcessFixture -c release
+swift build --package-path Tests/WindowsIntegration --product CodexEnvironmentFixture -c release
 swift test --package-path Tests/WindowsIntegration --no-parallel -c release
 ```
 
-The fixture is built as a sibling executable. It is not a test-target link
-dependency, so its entry point cannot replace the test runner. Swift Testing and
+The fixtures are built as sibling executables. They are not test-target link
+dependencies, so their entry points cannot replace the test runner. The native C
+environment fixture reads PATH directly through Win32 without requiring Swift
+runtime DLL lookup or a command interpreter. Swift Testing and
 XCTest runtime DLL directories must come from the installed Swift toolchain.
 
 The tests retain native process handles before requesting exit or cancellation,
