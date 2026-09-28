@@ -3,6 +3,12 @@ import Testing
 
 @testable import _CodexProcess
 
+#if canImport(Darwin)
+  import Darwin
+#elseif canImport(Glibc)
+  import Glibc
+#endif
+
 #if !os(Windows)
   @Suite("Native Codex process ownership", .timeLimit(.minutes(1)))
   struct CodexProcessTests {
@@ -29,7 +35,7 @@ import Testing
     func cancellationJoinsExit() async throws {
       let process = try CodexProcess(
         executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
-        arguments: ["-e", "$|=1; $SIG{TERM}=sub{exit 0}; print 'ready'; sleep 30;"],
+        arguments: ["-e", "$|=1; $SIG{TERM}='DEFAULT'; print 'ready'; sleep 30;"],
         environment: [:], workingDirectory: nil)
       try process.standardInput.close()
       #expect(
@@ -38,7 +44,11 @@ import Testing
       async let second = process.waitForExit()
       process.cancel()
       let exits = try await [first, second]
-      #expect(exits.allSatisfy { $0.status == 0 && !$0.wasSignalled })
+      for exit in exits {
+        #expect(exit.status == SIGTERM || exit.status == SIGKILL)
+        #expect(exit.status == exits[0].status)
+        #expect(exit.wasSignalled)
+      }
       #expect(process.cancellationWasRequested)
       #expect(try await collect(process.standardOutput).isEmpty)
       #expect(try await collect(process.standardError).isEmpty)
