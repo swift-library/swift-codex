@@ -575,7 +575,7 @@ index 0000000..d0c6b7a
 +#endif
 diff --git a/Tests/MCPTests/WindowsStdioTransportTests.swift b/Tests/MCPTests/WindowsStdioTransportTests.swift
 new file mode 100644
-index 0000000..2ca8fe9
+index 0000000..1680993
 --- /dev/null
 +++ b/Tests/MCPTests/WindowsStdioTransportTests.swift
 @@ -0,0 +1,323 @@
@@ -600,7 +600,7 @@ index 0000000..2ca8fe9
 +        input: response.reader.descriptor, output: request.writer.descriptor)
 +      let server = Server(name: "native-pipe", version: "1", capabilities: .init(tools: .init()))
 +      await server.withMethodHandler(CallTool.self) { request in
-+        CallTool.Result(
++        try CallTool.Result(
 +          content: [],
 +          structuredContent: Value.object(["echo": request.arguments?["value"] ?? .null]))
 +      }
