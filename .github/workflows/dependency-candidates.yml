@@ -25,7 +25,7 @@ jobs:
           swift-version: swift-6.2.3-release
           swift-build: 6.2.3-RELEASE
 
-      - name: Validate complete MCP library and upstream transport tests
+      - name: Validate complete MCP library and native transport tests
         shell: pwsh
         run: ./Tests/DependencyCandidates/MCPHTTP/Validate.ps1
 

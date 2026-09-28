@@ -12,8 +12,11 @@ Run on Windows with Swift 6.2.3:
 ./Tests/DependencyCandidates/MCPHTTP/Validate.ps1
 ```
 
-The script runs unchanged upstream HTTP and in-memory transport tests in debug
-and release against the complete patched MCP library. It records source/test
+The script runs native loopback HTTP and unchanged upstream in-memory transport
+tests in debug and release against the complete patched MCP library. A Python
+standard-library peer binds an ephemeral loopback port and is joined by its
+creating run. HTTP checks cover UTF-8 bodies, headers, session acquisition and
+expiration, error propagation and disconnect. The script records source/test
 hashes, dependency locks and native logs under `.build/mcp-http-candidate/evidence`.
 These tests validate dependency behavior; they do not prove authenticated model
 execution or adapter process/IPC support. The original upstream full test suite

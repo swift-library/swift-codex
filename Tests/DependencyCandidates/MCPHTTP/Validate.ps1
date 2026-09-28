@@ -43,7 +43,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Candidate source whitespace check failed' }
 Copy-Item (Join-Path $PSScriptRoot 'Package.swift.template') (Join-Path $consumer 'Package.swift')
 $testDirectory = Join-Path $consumer 'Tests'
 New-Item -ItemType Directory -Path $testDirectory | Out-Null
-$testSources = @('HTTPClientTransportTests.swift', 'InMemoryTransportTests.swift')
+$testSources = @('InMemoryTransportTests.swift')
 $testHashes = foreach ($name in $testSources) {
     $original = Join-Path $source "Tests/MCPTests/$name"
     $copy = Join-Path $testDirectory $name
@@ -53,6 +53,7 @@ $testHashes = foreach ($name in $testSources) {
     [pscustomobject]@{ path = "Tests/MCPTests/$name"; sha256 = $hash }
 }
 $testHashes | ConvertTo-Json | Set-Content (Join-Path $evidence 'upstream-test-sources.json')
+Copy-Item (Join-Path $PSScriptRoot 'HTTPTransportTests.swift') $testDirectory
 
 $developer = Split-Path (Split-Path $env:SDKROOT.TrimEnd([char[]]'\/'))
 $testing = Join-Path $developer 'Library/Testing-6.2.3/usr/bin64'
@@ -60,15 +61,43 @@ $xctest = Join-Path $developer 'Library/XCTest-6.2.3/usr/bin64'
 if (!(Test-Path (Join-Path $testing 'Testing.dll'))) { throw 'Missing SDK Testing runtime' }
 if (!(Test-Path (Join-Path $xctest 'XCTest.dll'))) { throw 'Missing SDK XCTest runtime' }
 $env:PATH = "$testing;$xctest;$env:PATH"
+$ready = Join-Path $evidence 'http-endpoint.txt'
+$server = [System.Diagnostics.Process]::new()
+$server.StartInfo.FileName = 'python'
+$server.StartInfo.UseShellExecute = $false
+$server.StartInfo.RedirectStandardError = $true
+$server.StartInfo.ArgumentList.Add((Join-Path $PSScriptRoot 'http_fixture.py'))
+$server.StartInfo.ArgumentList.Add('--ready-file')
+$server.StartInfo.ArgumentList.Add($ready)
+$previousEndpoint = $env:MCP_HTTP_FIXTURE_ENDPOINT
 $results = @()
-foreach ($configuration in @('debug', 'release')) {
-    $log = Join-Path $evidence "$configuration-tests.log"
-    swift test --package-path $consumer --no-parallel -c $configuration *> $log
-    $testCode = $LASTEXITCODE
-    Get-Content $log -Tail 60
-    $results += [pscustomobject]@{ configuration = $configuration; testExitCode = $testCode }
-    [pscustomobject]@{ unpatchedBuildExitCode = $unpatchedExitCode; patchedResults = $results } |
-        ConvertTo-Json -Depth 5 | Set-Content (Join-Path $evidence 'results.json')
+$started = $false
+try {
+    $started = $server.Start()
+    if (!$started) { throw 'HTTP fixture failed to start' }
+    $startup = [System.Diagnostics.Stopwatch]::StartNew()
+    while (!(Test-Path $ready)) {
+        if ($server.HasExited -or $startup.Elapsed.TotalSeconds -gt 10) { throw 'HTTP fixture was not ready' }
+        Start-Sleep -Milliseconds 20
+    }
+    $env:MCP_HTTP_FIXTURE_ENDPOINT = Get-Content $ready -Raw
+    foreach ($configuration in @('debug', 'release')) {
+        $log = Join-Path $evidence "$configuration-tests.log"
+        swift test --package-path $consumer --no-parallel -c $configuration *> $log
+        $testCode = $LASTEXITCODE
+        Get-Content $log -Tail 60
+        $results += [pscustomobject]@{ configuration = $configuration; testExitCode = $testCode }
+        [pscustomobject]@{ unpatchedBuildExitCode = $unpatchedExitCode; patchedResults = $results } |
+            ConvertTo-Json -Depth 5 | Set-Content (Join-Path $evidence 'results.json')
+    }
+} finally {
+    $env:MCP_HTTP_FIXTURE_ENDPOINT = $previousEndpoint
+    if ($started -and !$server.HasExited) { $server.Kill() }
+    if ($started) {
+        if (!$server.WaitForExit(5000)) { throw 'Owned HTTP fixture did not exit' }
+        $server.StandardError.ReadToEnd() | Out-File (Join-Path $evidence 'http-server-stderr.log')
+    }
+    $server.Dispose()
 }
 if (Test-Path (Join-Path $consumer 'Package.resolved')) {
     Copy-Item (Join-Path $consumer 'Package.resolved') (Join-Path $evidence 'consumer-Package.resolved')
