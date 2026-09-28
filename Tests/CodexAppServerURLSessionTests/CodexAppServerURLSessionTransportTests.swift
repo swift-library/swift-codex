@@ -3,6 +3,10 @@ import Testing
 
 @testable import CodexAppServerURLSession
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 @Suite("CodexAppServerURLSession Transport")
 struct CodexAppServerURLSessionTransportTests {
   @Test("transport resumes websocket and emits inbound text messages")

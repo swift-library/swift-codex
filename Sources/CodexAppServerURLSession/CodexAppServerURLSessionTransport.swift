@@ -1,6 +1,10 @@
 import CodexAppServerRuntime
 import Foundation
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 public enum CodexAppServerURLSessionError: Error, Equatable, Sendable {
   case closed
   case invalidUTF8

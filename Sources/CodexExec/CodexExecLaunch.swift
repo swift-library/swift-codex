@@ -319,7 +319,11 @@ private func readPipeChunk(from handle: FileHandle) async throws -> Data? {
       var bytes = [UInt8](repeating: 0, count: 16_384)
       while true {
         let count = bytes.withUnsafeMutableBytes { buffer in
-          read(handle.fileDescriptor, buffer.baseAddress, buffer.count)
+          #if os(Windows)
+            Int(read(handle.fileDescriptor, buffer.baseAddress, UInt32(buffer.count)))
+          #else
+            read(handle.fileDescriptor, buffer.baseAddress, buffer.count)
+          #endif
         }
         if count > 0 {
           continuation.resume(returning: Data(bytes.prefix(count)))
