@@ -57,6 +57,60 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+  windows-runtime:
+    name: Windows native process runtime
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install Swift
+        uses: compnerd/gha-setup-swift@bbae8ce86bac5a3449f3992b3d88bc4ca25f2057
+        with:
+          swift-version: swift-6.2.3-release
+          swift-build: 6.2.3-RELEASE
+
+      - name: Validate public Stdio and Exec consumers
+        shell: pwsh
+        run: |
+          $developer = Split-Path (Split-Path $env:SDKROOT.TrimEnd([char[]]'\/'))
+          $testing = Join-Path $developer 'Library/Testing-6.2.3/usr/bin64'
+          $xctest = Join-Path $developer 'Library/XCTest-6.2.3/usr/bin64'
+          if (!(Test-Path (Join-Path $testing 'Testing.dll'))) { throw 'Missing SDK Testing runtime' }
+          if (!(Test-Path (Join-Path $xctest 'XCTest.dll'))) { throw 'Missing SDK XCTest runtime' }
+          $env:PATH = "$testing;$xctest;$env:PATH"
+          $env:SWIFT_CODEX_HOST_ONLY = 'host-only'
+          New-Item -ItemType Directory -Force .build/windows-runtime | Out-Null
+          $results = @()
+          foreach ($configuration in @('debug', 'release')) {
+            swift build --package-path Tests/WindowsIntegration --product CodexProcessFixture -c $configuration *> ".build/windows-runtime/$configuration-fixture.log"
+            $fixtureCode = $LASTEXITCODE
+            $testCode = $null
+            if ($fixtureCode -eq 0) {
+              swift test --package-path Tests/WindowsIntegration --no-parallel -c $configuration *> ".build/windows-runtime/$configuration-tests.log"
+              $testCode = $LASTEXITCODE
+              Get-Content ".build/windows-runtime/$configuration-tests.log" -Tail 60
+            } else {
+              Get-Content ".build/windows-runtime/$configuration-fixture.log" -Tail 60
+            }
+            $results += [pscustomobject]@{ configuration = $configuration; fixtureExitCode = $fixtureCode; testExitCode = $testCode }
+            $results | ConvertTo-Json | Set-Content .build/windows-runtime/results.json
+          }
+          if (Test-Path Tests/WindowsIntegration/Package.resolved) {
+            Copy-Item Tests/WindowsIntegration/Package.resolved .build/windows-runtime/Package.resolved
+          }
+          if ($results.Where({ $_.fixtureExitCode -ne 0 -or $null -eq $_.testExitCode -or $_.testExitCode -ne 0 }).Count -gt 0) { exit 1 }
+
+      - name: Preserve native runtime results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .build/windows-runtime/
+          include-hidden-files: true
+          if-no-files-found: error
+
   quality:
     name: Repository quality
     runs-on: macos-26

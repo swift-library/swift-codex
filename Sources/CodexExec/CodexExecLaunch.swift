@@ -1,8 +1,5 @@
 import Foundation
-
-#if os(Windows)
-  import WinSDK
-#endif
+import _CodexProcess
 
 struct CodexExecPreparedLaunch: Equatable, Sendable {
   var kind: CodexExecLaunchKind
@@ -68,31 +65,15 @@ struct CodexExecExecutableResolver {
 
 struct CodexExecSystemLauncher: CodexExecLaunching {
   func launch(_ launch: CodexExecPreparedLaunch) async throws -> CodexExecLaunchedProcess {
-    let process = Process()
-    let stdoutPipe = Pipe()
-    let stderrPipe = Pipe()
-    let stdinPipe = Pipe()
-    let processState = CodexExecProcessState(process: process)
-    let termination = CodexExecProcessTermination()
+    if Task.isCancelled { throw CodexExecLaunchCancelled() }
+    let process = try CodexProcess(
+      executableURL: launch.executableURL, arguments: launch.arguments,
+      environment: launch.environment, workingDirectory: launch.workingDirectory)
+    let stdout = process.standardOutput
+    let stderr = process.standardError
+    let stdin = process.standardInput
     let stdoutCollector = CodexExecStdoutCollector()
     let stdoutContinuationState = CodexExecStdoutContinuationState()
-    let stdoutReaderTaskBox = CodexExecTaskBox<Int64, Error>()
-    let stdinWriterTaskBox = CodexExecTaskBox<Void, Never>()
-
-    configure(
-      process,
-      for: launch,
-      stdoutPipe: stdoutPipe,
-      stderrPipe: stderrPipe,
-      stdinPipe: stdinPipe
-    )
-    process.terminationHandler = { terminatedProcess in
-      processState.markExited()
-      termination.store(
-        status: terminatedProcess.terminationStatus,
-        reason: terminatedProcess.terminationReason
-      )
-    }
 
     let stdoutLines = AsyncThrowingStream<String, Error> { continuation in
       stdoutContinuationState.set(continuation)
@@ -101,41 +82,25 @@ struct CodexExecSystemLauncher: CodexExecLaunching {
           return
         }
 
-        stdoutReaderTaskBox.cancel()
-        stdinWriterTaskBox.cancel()
-        processState.requestCancellation()
+        process.cancel()
       }
     }
 
     let stderrReaderTask = Task.detached(priority: nil) {
-      try await readStderr(
-        from: stderrPipe.fileHandleForReading, limit: launch.outputLimits.stderrBytes)
-    }
-
-    do {
-      try start(process)
-      processState.markStarted()
-    } catch {
-      stdoutContinuationState.finish(throwing: error)
-      stderrReaderTask.cancel()
-      // No child owns the pipe ends after a failed spawn. Finish the pending reader
-      // before releasing launch ownership rather than leaving a blocked read alive.
-      try? stderrPipe.fileHandleForWriting.close()
-      try? stdoutPipe.fileHandleForWriting.close()
-      try? stdinPipe.fileHandleForWriting.close()
-      _ = await stderrReaderTask.result
-      throw error
+      defer { try? stderr.close() }
+      return try await readStderr(from: stderr, limit: launch.outputLimits.stderrBytes)
     }
 
     let stdinWriterTask = Task.detached(priority: nil) {
-      await writeStandardInput(for: launch, to: stdinPipe)
+      defer { try? stdin.close() }
+      if let input = launch.standardInput { try await CodexProcessPipe.write(input, to: stdin) }
     }
-    stdinWriterTaskBox.set(stdinWriterTask)
 
     let stdoutReaderTask = Task.detached(priority: nil) {
+      defer { try? stdout.close() }
       do {
         let droppedBytes = try await readStdoutLines(
-          from: stdoutPipe.fileHandleForReading, limits: launch.outputLimits
+          from: stdout, limits: launch.outputLimits
         ) { line in
           await stdoutCollector.append(line)
           stdoutContinuationState.yield(line)
@@ -153,14 +118,12 @@ struct CodexExecSystemLauncher: CodexExecLaunching {
         throw error
       }
     }
-    stdoutReaderTaskBox.set(stdoutReaderTask)
 
     return CodexExecLaunchedProcess(
       stdoutLines: stdoutLines,
       waitForOutput: {
         try await waitForProcessOutput(
-          processState: processState,
-          termination: termination,
+          process: process,
           stdoutCollector: stdoutCollector,
           stdinWriterTask: stdinWriterTask,
           stdoutReaderTask: stdoutReaderTask,
@@ -174,118 +137,36 @@ struct CodexExecSystemLauncher: CodexExecLaunching {
   }
 }
 
-private func configure(
-  _ process: Process,
-  for launch: CodexExecPreparedLaunch,
-  stdoutPipe: Pipe,
-  stderrPipe: Pipe,
-  stdinPipe: Pipe
-) {
-  process.executableURL = launch.executableURL
-  process.arguments = launch.arguments
-  process.environment = launch.environment
-  process.currentDirectoryURL = launch.workingDirectory
-  process.standardOutput = stdoutPipe
-  process.standardError = stderrPipe
-
-  // An absent payload must produce EOF, never inherit the caller's control stream.
-  process.standardInput = stdinPipe
-}
-
-private func start(_ process: Process) throws {
-  do {
-    try process.run()
-  } catch {
-    throw CodexExecError.launchFailure(description: error.localizedDescription)
-  }
-}
-
-private func writeStandardInput(
-  for launch: CodexExecPreparedLaunch,
-  to stdinPipe: Pipe
-) async {
-  await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-    DispatchQueue.global(qos: .utility).async {
-      defer {
-        stdinPipe.fileHandleForWriting.closeFile()
-        continuation.resume(returning: ())
-      }
-      if let standardInput = launch.standardInput {
-        stdinPipe.fileHandleForWriting.write(standardInput)
-      }
-    }
-  }
-}
-
 private func waitForProcessOutput(
-  processState: CodexExecProcessState,
-  termination: CodexExecProcessTermination,
+  process: CodexProcess,
   stdoutCollector: CodexExecStdoutCollector,
-  stdinWriterTask: Task<Void, Never>,
+  stdinWriterTask: Task<Void, Error>,
   stdoutReaderTask: Task<Int64, Error>,
   stderrReaderTask: Task<CodexExecCapturedStderr, Error>
 ) async throws -> CodexExecProcessOutput {
-  let output = try await withTaskCancellationHandler {
-    let terminationResult = await termination.wait()
-    await stdinWriterTask.value
-
-    // Settle both readers even when either pipe fails.
+  try await withTaskCancellationHandler {
+    let exit: Result<CodexProcessExit, Error>
+    do { exit = .success(try await process.waitForExit()) } catch { exit = .failure(error) }
+    // Every original IO task settles before any error leaves process ownership.
+    let inputResult = await stdinWriterTask.result
     let stdoutResult = await stdoutReaderTask.result
     let stderrResult = await stderrReaderTask.result
+    let termination = try exit.get()
     let stdoutDroppedBytes = try stdoutResult.get()
     let stderr = try stderrResult.get()
     let stdoutText = await stdoutCollector.textSnapshot()
-    let processOutput = makeProcessOutput(
-      terminationResult: terminationResult,
-      standardOutput: Data(stdoutText.utf8),
-      standardError: stderr.data,
+    let output = CodexExecProcessOutput(
+      exitStatus: termination.wasSignalled ? nil : termination.status,
+      terminationSignal: termination.wasSignalled ? termination.status : nil,
+      standardOutput: Data(stdoutText.utf8), standardError: stderr.data,
       outputCapture: .init(
-        stdoutDroppedBytes: stdoutDroppedBytes, stderrDroppedBytes: stderr.droppedBytes)
-    )
-
-    if processState.cancellationWasRequested() {
-      throw CodexExecLaunchCancelled(processOutput: processOutput)
-    }
-
-    return processOutput
+        stdoutDroppedBytes: stdoutDroppedBytes, stderrDroppedBytes: stderr.droppedBytes))
+    if process.cancellationWasRequested { throw CodexExecLaunchCancelled(processOutput: output) }
+    // Native failure remains primary; a successful child cannot hide lost input.
+    if termination.status == 0, !termination.wasSignalled { try inputResult.get() }
+    return output
   } onCancel: {
-    processState.requestCancellation()
-  }
-
-  return output
-}
-
-private func makeProcessOutput(
-  terminationResult: (status: Int32, reason: Process.TerminationReason),
-  standardOutput: Data,
-  standardError: Data,
-  outputCapture: CodexExecOutputCapture
-) -> CodexExecProcessOutput {
-  switch terminationResult.reason {
-  case .exit:
-    return CodexExecProcessOutput(
-      exitStatus: terminationResult.status,
-      terminationSignal: nil,
-      standardOutput: standardOutput,
-      standardError: standardError,
-      outputCapture: outputCapture
-    )
-  case .uncaughtSignal:
-    return CodexExecProcessOutput(
-      exitStatus: nil,
-      terminationSignal: terminationResult.status,
-      standardOutput: standardOutput,
-      standardError: standardError,
-      outputCapture: outputCapture
-    )
-  @unknown default:
-    return CodexExecProcessOutput(
-      exitStatus: nil,
-      terminationSignal: nil,
-      standardOutput: standardOutput,
-      standardError: standardError,
-      outputCapture: outputCapture
-    )
+    process.cancel()
   }
 }
 
@@ -295,7 +176,7 @@ private func readStdoutLines(
   onLine: (String) async throws -> Void
 ) async throws -> Int64 {
   var parser = CodexExecBoundedLineParser(limits: limits)
-  while let chunk = try await readPipeChunk(from: handle) {
+  while let chunk = try await CodexProcessPipe.readChunk(from: handle) {
     for byte in chunk {
       if let line = parser.append(byte) { try await onLine(line) }
     }
@@ -307,55 +188,12 @@ private func readStdoutLines(
 private func readStderr(from handle: FileHandle, limit: Int) async throws -> CodexExecCapturedStderr
 {
   var capture = CodexExecCapturedStderr(data: Data(), droppedBytes: 0)
-  while let chunk = try await readPipeChunk(from: handle) {
+  while let chunk = try await CodexProcessPipe.readChunk(from: handle) {
     let retainedCount = min(chunk.count, limit - capture.data.count)
     capture.data.append(contentsOf: chunk.prefix(retainedCount))
     capture.droppedBytes += Int64(chunk.count - retainedCount)
   }
   return capture
-}
-
-private func readPipeChunk(from handle: FileHandle) async throws -> Data? {
-  // A pipe can wait for the other stream or stdin to make progress. Suspend the
-  // Swift task while blocking I/O runs outside its cooperative executor.
-  try await withCheckedThrowingContinuation { continuation in
-    DispatchQueue.global(qos: .utility).async {
-      var bytes = [UInt8](repeating: 0, count: 16_384)
-      #if os(Windows)
-        var count: DWORD = 0
-        let succeeded = bytes.withUnsafeMutableBytes { buffer in
-          ReadFile(handle._handle, buffer.baseAddress, DWORD(buffer.count), &count, nil)
-        }
-        if !succeeded {
-          let error = GetLastError()
-          if error == ERROR_BROKEN_PIPE {
-            continuation.resume(returning: nil)
-          } else {
-            continuation.resume(throwing: NSError(domain: "NSWin32ErrorDomain", code: Int(error)))
-          }
-          return
-        }
-        continuation.resume(returning: count == 0 ? nil : Data(bytes.prefix(Int(count))))
-      #else
-        while true {
-          let count = bytes.withUnsafeMutableBytes { buffer in
-            read(handle.fileDescriptor, buffer.baseAddress, buffer.count)
-          }
-          if count > 0 {
-            continuation.resume(returning: Data(bytes.prefix(count)))
-            return
-          }
-          if count == 0 {
-            continuation.resume(returning: nil)
-            return
-          }
-          if errno == EINTR { continue }
-          continuation.resume(throwing: POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO))
-          return
-        }
-      #endif
-    }
-  }
 }
 
 private actor CodexExecStdoutCollector {
@@ -405,127 +243,5 @@ private final class CodexExecStdoutContinuationState: @unchecked Sendable {
     self.continuation = nil
     lock.unlock()
     continuation?.finish(throwing: error)
-  }
-}
-
-private final class CodexExecTaskBox<Success: Sendable, Failure: Error>: @unchecked Sendable {
-  private let lock = NSLock()
-  private var task: Task<Success, Failure>?
-
-  func set(_ task: Task<Success, Failure>) {
-    lock.lock()
-    self.task = task
-    lock.unlock()
-  }
-
-  func cancel() {
-    lock.lock()
-    let task = self.task
-    lock.unlock()
-    task?.cancel()
-  }
-}
-
-private final class CodexExecProcessTermination: @unchecked Sendable {
-  private let lock = NSLock()
-  private var continuation:
-    CheckedContinuation<(status: Int32, reason: Process.TerminationReason), Never>?
-  private var storedResult: (status: Int32, reason: Process.TerminationReason)?
-
-  func wait() async -> (status: Int32, reason: Process.TerminationReason) {
-    if let storedResult = currentResult() {
-      return storedResult
-    }
-
-    return await withCheckedContinuation { continuation in
-      lock.lock()
-      if let storedResult {
-        lock.unlock()
-        continuation.resume(returning: storedResult)
-      } else {
-        self.continuation = continuation
-        lock.unlock()
-      }
-    }
-  }
-
-  func store(status: Int32, reason: Process.TerminationReason) {
-    lock.lock()
-    let result = (status: status, reason: reason)
-    if let continuation {
-      self.continuation = nil
-      storedResult = result
-      lock.unlock()
-      continuation.resume(returning: result)
-    } else {
-      storedResult = result
-      lock.unlock()
-    }
-  }
-
-  private func currentResult() -> (status: Int32, reason: Process.TerminationReason)? {
-    lock.lock()
-    defer { lock.unlock() }
-    return storedResult
-  }
-}
-
-private final class CodexExecProcessState: @unchecked Sendable {
-  private let lock = NSLock()
-  private let process: Process
-  private var didStart = false
-  private var didExit = false
-  private var didRequestCancellation = false
-
-  init(process: Process) {
-    self.process = process
-  }
-
-  func markStarted() {
-    let shouldTerminate: Bool
-    lock.lock()
-    didStart = true
-    shouldTerminate = didRequestCancellation && !didExit
-    lock.unlock()
-
-    if shouldTerminate {
-      terminateProcess()
-    }
-  }
-
-  func markExited() {
-    lock.lock()
-    didExit = true
-    lock.unlock()
-  }
-
-  func requestCancellation() {
-    let shouldTerminate: Bool
-    lock.lock()
-    if didExit {
-      lock.unlock()
-      return
-    }
-    didRequestCancellation = true
-    shouldTerminate = didStart
-    lock.unlock()
-
-    if shouldTerminate {
-      terminateProcess()
-    }
-  }
-
-  func cancellationWasRequested() -> Bool {
-    lock.lock()
-    defer { lock.unlock() }
-    return didRequestCancellation
-  }
-
-  private func terminateProcess() {
-    guard process.isRunning else {
-      return
-    }
-
-    process.terminate()
   }
 }

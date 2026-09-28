@@ -147,7 +147,7 @@ let package = Package(
     ),
     .target(
       name: "CodexAppServerStdio",
-      dependencies: ["CodexAppServerRuntime"],
+      dependencies: ["CodexAppServerRuntime", "_CodexProcess"],
       exclude: ["Documentation.docc"],
     ),
     .target(
@@ -203,7 +203,13 @@ let package = Package(
     ),
     .target(
       name: "CodexExec",
+      dependencies: ["_CodexProcess"],
       exclude: ["Documentation.docc"]
+    ),
+    .target(name: "_CodexProcess"),
+    .testTarget(
+      name: "CodexProcessTests",
+      dependencies: ["_CodexProcess"]
     ),
     .testTarget(
       name: "CodexTests",

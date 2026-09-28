@@ -16,16 +16,20 @@ The public SwiftPM products are:
 
 The schema generator executable target and its build and command plugins are
 package tools, not public executable products. `CodexAppServerTestingSupport`
-is a package test-support target, not a product.
+is a package test-support target, not a product. `_CodexProcess` is private to
+the package and owns native child-process and pipe lifetimes shared by Exec and
+Stdio. It has no protocol models, host policy, or public product.
 
 Dependency direction:
 
 ```text
 Codex -> CodexExec
+CodexExec -> _CodexProcess
 
 CodexAppServerClient -> Protocol + Runtime
 CodexAppServerProtocol -> Runtime
 Stdio / URLSession / NIO / Vapor / Hummingbird -> Runtime
+Stdio -> _CodexProcess
 
 CodexMCP -> MCP SDK + Swift System
 ```
