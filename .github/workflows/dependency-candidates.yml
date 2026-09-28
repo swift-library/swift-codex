@@ -1,0 +1,39 @@
+name: Dependency Candidates
+
+on:
+  push:
+    paths:
+      - 'Tests/DependencyCandidates/MCPHTTP/**'
+      - '.github/workflows/dependency-candidates.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-http:
+    name: Windows MCP HTTP candidate
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install Swift
+        uses: compnerd/gha-setup-swift@bbae8ce86bac5a3449f3992b3d88bc4ca25f2057
+        with:
+          swift-version: swift-6.2.3-release
+          swift-build: 6.2.3-RELEASE
+
+      - name: Validate complete MCP library and upstream transport tests
+        shell: pwsh
+        run: ./Tests/DependencyCandidates/MCPHTTP/Validate.ps1
+
+      - name: Preserve dependency candidate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: mcp-http-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .build/mcp-http-candidate/evidence/
+          include-hidden-files: true
+          if-no-files-found: error
