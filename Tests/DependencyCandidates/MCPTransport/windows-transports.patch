@@ -71,10 +71,10 @@ index 060cd13..0566720 100644
                  logger.debug("⚠️ Skipping connectToEventStream - transport not connected")
 diff --git a/Sources/MCP/Base/Transports/StdioTransport+Windows.swift b/Sources/MCP/Base/Transports/StdioTransport+Windows.swift
 new file mode 100644
-index 0000000..d97c204
+index 0000000..afbeec3
 --- /dev/null
 +++ b/Sources/MCP/Base/Transports/StdioTransport+Windows.swift
-@@ -0,0 +1,209 @@
+@@ -0,0 +1,223 @@
 +#if os(Windows)
 +  import Foundation
 +  import Logging
@@ -165,8 +165,12 @@ index 0000000..d97c204
 +
 +    public func receive() -> AsyncThrowingStream<Data, any Error> {
 +      let mailbox = mailbox
-+      return AsyncThrowingStream(unfolding: { [weak self] in
-+        try await withTaskCancellationHandler {
++      let lifetime = WindowsStdioReceiveLifetime { [weak self] in
++        Task { [weak self] in await self?.disconnect() }
++      }
++      return AsyncThrowingStream(unfolding: { [weak self, lifetime] in
++        defer { withExtendedLifetime(lifetime) {} }
++        return try await withTaskCancellationHandler {
 +          try await mailbox.next()
 +        } onCancel: { [weak self] in
 +          Task { [weak self] in await self?.disconnect() }
@@ -282,6 +286,16 @@ index 0000000..d97c204
 +        withExtendedLifetime(owned) {}
 +      }
 +    }
++  }
++
++  /// A pre-cancelled unfolding stream discards its producer without invoking it.
++  /// Producer release must retire native I/O even when its cancellation handler never ran.
++  private final class WindowsStdioReceiveLifetime: Sendable {
++    private let finish: @Sendable () -> Void
++
++    init(_ finish: @escaping @Sendable () -> Void) { self.finish = finish }
++
++    deinit { finish() }
 +  }
 +#endif
 diff --git a/Sources/MCP/Base/Transports/WindowsStdioMailbox.swift b/Sources/MCP/Base/Transports/WindowsStdioMailbox.swift
@@ -575,10 +589,10 @@ index 0000000..d0c6b7a
 +#endif
 diff --git a/Tests/MCPTests/WindowsStdioTransportTests.swift b/Tests/MCPTests/WindowsStdioTransportTests.swift
 new file mode 100644
-index 0000000..1680993
+index 0000000..97473c1
 --- /dev/null
 +++ b/Tests/MCPTests/WindowsStdioTransportTests.swift
-@@ -0,0 +1,323 @@
+@@ -0,0 +1,324 @@
 +#if os(Windows)
 +  import Foundation
 +  import Testing
@@ -777,7 +791,8 @@ index 0000000..1680993
 +        return try await iterator.next()
 +      }
 +      receiving.cancel()
-+      await #expect(throws: (any Error).self) { _ = try await receiving.value }
++      // AsyncSequence cancellation may end with nil before the producer is invoked.
++      if case .success(let value) = await receiving.result { #expect(value == nil) }
 +      try await eventually { try output.reader.peerClosed() }
 +      await transport.disconnect()
 +    }
