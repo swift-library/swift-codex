@@ -5,11 +5,57 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  windows:
+    name: Windows products
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Install Swift
+        uses: compnerd/gha-setup-swift@bbae8ce86bac5a3449f3992b3d88bc4ca25f2057
+        with:
+          swift-version: swift-6.2.3-release
+          swift-build: 6.2.3-RELEASE
+
+      - name: Build library targets independently
+        shell: pwsh
+        run: |
+          swift --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force .build/windows-products | Out-Null
+          $targets = @(
+            'CodexAppServerRuntime', 'CodexAppServerProtocol', 'CodexAppServerClient',
+            'CodexExec', 'Codex', 'CodexAppServerStdio', 'CodexMCP',
+            'CodexAppServerURLSession', 'CodexAppServerNIO',
+            'CodexAppServerVapor', 'CodexAppServerHummingbird'
+          )
+          $results = @()
+          foreach ($target in $targets) {
+            swift build --target $target *> ".build/windows-products/$target.log"
+            $code = $LASTEXITCODE
+            $results += [pscustomobject]@{ target = $target; exitCode = $code }
+            Get-Content ".build/windows-products/$target.log" -Tail 40
+          }
+          $results | ConvertTo-Json | Set-Content .build/windows-products/results.json
+          if ($results.Where({ $_.exitCode -ne 0 }).Count -gt 0) { exit 1 }
+
+      - name: Preserve native product build results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-products-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .build/windows-products/
+          include-hidden-files: true
+          if-no-files-found: error
+
   quality:
     name: Repository quality
     runs-on: macos-26
