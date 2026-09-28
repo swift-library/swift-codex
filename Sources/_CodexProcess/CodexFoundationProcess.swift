@@ -55,12 +55,12 @@
 
     func wait() async -> CodexProcessExit {
       await withCheckedContinuation { continuation in
-        let result: CodexProcessExit? = lock.withLock {
-          if let result { return result }
+        let completed: CodexProcessExit? = lock.withLock {
+          if let result = self.result { return result }
           waiters.append(continuation)
           return nil
         }
-        if let result { continuation.resume(returning: result) }
+        if let completed { continuation.resume(returning: completed) }
       }
     }
 
