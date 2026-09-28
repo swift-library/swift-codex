@@ -36,5 +36,11 @@ endpoints. Windows resolves a native `codex.exe` through the effective PATH and
 bridges owned handle duplicates to MCP's CRT descriptor API. It never treats a
 Win32 handle value as a descriptor. Environment overrides use native name identity.
 
+The transport forwards each inbound frame when its consumer requests one, without
+an intermediate forwarding queue. At most 256 outbound send correlations may be
+pending. A single retained close task settles send observers and joins the base
+transport; close callbacks run outside the MCP reader so client shutdown cannot
+wait on its own task.
+
 `CodexMCP` does not own App Server RPCs, Exec JSONL, arbitrary MCP resources or
 prompts, a generic raw request API, or a shared cross-product runtime.

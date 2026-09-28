@@ -16,11 +16,12 @@ internal actor CodexMCPProcessTransport: Transport {
   private let descriptors: CodexMCPStdioDescriptors?
   private let requestedProtocolVersion: String
   private let subprocess: CodexMCPManagedSubprocess
-  private var inboundObserver: (@Sendable (Data) async -> Void)?
+  private var inboundObserver: (@Sendable (Data) async throws -> Void)?
   private var closeObserver: (@Sendable (CodexMCPError) async -> Void)?
-  private var continuation: AsyncThrowingStream<Data, Error>.Continuation?
-  private var receiveTask: Task<Void, Never>?
+  private var closeTask: Task<Void, Never>?
+  private var closeNotification: Task<Void, Never>?
   private var isConnected = false
+  private var isClosed = false
   private var hasYieldedInbound = false
   private var sendObservations: [CodexMCPRequestID: AsyncThrowingStream<Void, Error>.Continuation] =
     [:]
@@ -55,7 +56,7 @@ internal actor CodexMCPProcessTransport: Transport {
     )
   }
 
-  func setInboundObserver(_ observer: @escaping @Sendable (Data) async -> Void) {
+  func setInboundObserver(_ observer: @escaping @Sendable (Data) async throws -> Void) {
     inboundObserver = observer
   }
 
@@ -64,50 +65,52 @@ internal actor CodexMCPProcessTransport: Transport {
   }
 
   func connect() async throws {
-    guard !isConnected else {
-      return
-    }
-
-    var streamContinuation: AsyncThrowingStream<Data, Error>.Continuation?
-    messageStream = AsyncThrowingStream<Data, Error> { continuation in
-      streamContinuation = continuation
-    }
-    continuation = streamContinuation
-
+    guard !isClosed else { throw CodexMCPError.transportFailure }
+    guard !isConnected else { return }
     do {
       try await baseTransport.connect()
-      isConnected = true
-      receiveTask = Task { [weak self] in
-        await self?.forwardInboundMessages()
+      guard !isClosed else {
+        await baseTransport.disconnect()
+        throw CodexMCPError.transportFailure
       }
+      isConnected = true
+      let input = CodexMCPInboundReader(await baseTransport.receive())
+      let lifetime = CodexMCPReceiveLifetime { [weak self] in
+        Task { [weak self] in await self?.disconnect() }
+      }
+      messageStream = AsyncThrowingStream(unfolding: { [weak self, input, lifetime] in
+        defer { withExtendedLifetime(lifetime) {} }
+        guard let self else { return nil }
+        return try await self.nextInbound(from: input)
+      })
     } catch {
-      continuation?.finish(throwing: CodexMCPError.transportFailure)
-      continuation = nil
+      await disconnect()
       throw CodexMCPError.transportFailure
     }
   }
 
   func disconnect() async {
-    guard isConnected else {
+    if let closeTask {
+      await closeTask.value
       return
     }
-
+    isClosed = true
     isConnected = false
     for observation in sendObservations.values {
       observation.finish(throwing: CodexMCPError.transportFailure)
     }
     sendObservations.removeAll()
-    receiveTask?.cancel()
-    receiveTask = nil
-    await baseTransport.disconnect()
-    continuation?.finish()
-    continuation = nil
+    let task = Task { [baseTransport] in await baseTransport.disconnect() }
+    closeTask = task
+    await task.value
   }
 
   private var messageStream: AsyncThrowingStream<Data, Error> = AsyncThrowingStream {
     continuation in
     continuation.finish()
   }
+
+  func finishCloseNotification() async { await closeNotification?.value }
 
   func receive() -> AsyncThrowingStream<Data, Error> {
     messageStream
@@ -116,7 +119,7 @@ internal actor CodexMCPProcessTransport: Transport {
   func observeRequestSend(_ requestID: CodexMCPRequestID) throws
     -> AsyncThrowingStream<Void, Error>
   {
-    guard isConnected, sendObservations[requestID] == nil else {
+    guard isConnected, sendObservations.count < 256, sendObservations[requestID] == nil else {
       throw CodexMCPError.transportFailure
     }
     let (stream, continuation) = AsyncThrowingStream<Void, Error>.makeStream()
@@ -170,43 +173,35 @@ internal actor CodexMCPProcessTransport: Transport {
     return try? Self.encodedData(from: .object(envelope))
   }
 
-  private func forwardInboundMessages() async {
+  private func nextInbound(from input: CodexMCPInboundReader) async throws -> Data? {
+    guard isConnected else { return nil }
     do {
-      let stream = await baseTransport.receive()
-      for try await data in stream {
-        if Task.isCancelled {
-          break
-        }
-        await yieldInbound(data)
+      guard let data = try await input.next() else {
+        throw await subprocessFailure(
+          fallback: hasYieldedInbound ? .transportFailure : .startupFailure,
+          stage: hasYieldedInbound ? .transport : .startup)
       }
-
-      guard isConnected else {
-        continuation?.finish()
-        return
-      }
-
-      let closeError = await subprocessFailure(
-        fallback: hasYieldedInbound ? .transportFailure : .startupFailure,
-        stage: hasYieldedInbound ? .transport : .startup
-      )
-      continuation?.finish(throwing: closeError)
-      await closeObserver?(closeError)
+      try Task.checkCancellation()
+      guard isConnected else { return nil }
+      hasYieldedInbound = true
+      try await inboundObserver?(data)
+      return isConnected ? data : nil
     } catch {
-      guard isConnected else {
-        continuation?.finish()
-        return
+      guard isConnected else { return nil }
+      let failure: CodexMCPError
+      if let error = error as? CodexMCPError {
+        failure = error
+      } else {
+        failure = await subprocessFailure(fallback: .transportFailure, stage: .transport)
       }
-
-      let closeError = await subprocessFailure(fallback: .transportFailure, stage: .transport)
-      continuation?.finish(throwing: closeError)
-      await closeObserver?(closeError)
+      await disconnect()
+      if closeNotification == nil {
+        // The MCP client joins its reader during disconnect. Notify outside that reader's task.
+        let observer = closeObserver
+        closeNotification = Task { await observer?(failure) }
+      }
+      throw failure
     }
-  }
-
-  private func yieldInbound(_ data: Data) async {
-    hasYieldedInbound = true
-    await inboundObserver?(data)
-    continuation?.yield(data)
   }
 
   private func subprocessFailure(
@@ -230,4 +225,30 @@ internal actor CodexMCPProcessTransport: Transport {
   private static func encodedData(from value: CodexMCPJSONValue) throws -> Data {
     try JSONEncoder().encode(value)
   }
+}
+
+/// The lock admits one iterator advance; no other method accesses the iterator.
+/// This narrow bridge supports macOS 14's nonisolated AsyncIterator.next API.
+private final class CodexMCPInboundReader: @unchecked Sendable {
+  private var iterator: AsyncThrowingStream<Data, Error>.Iterator
+  private let lock = NSLock()
+  private var advancing = false
+
+  init(_ stream: AsyncThrowingStream<Data, Error>) { iterator = stream.makeAsyncIterator() }
+
+  func next() async throws -> Data? {
+    try lock.withLock {
+      guard !advancing else { throw CodexMCPError.transportFailure }
+      advancing = true
+    }
+    defer { lock.withLock { advancing = false } }
+    return try await iterator.next()
+  }
+}
+
+/// Stream cancellation can release the producer without ever invoking its body.
+private final class CodexMCPReceiveLifetime: Sendable {
+  private let finish: @Sendable () -> Void
+  init(_ finish: @escaping @Sendable () -> Void) { self.finish = finish }
+  deinit { finish() }
 }

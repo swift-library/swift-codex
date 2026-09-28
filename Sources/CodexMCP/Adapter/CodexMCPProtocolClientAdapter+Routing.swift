@@ -2,7 +2,7 @@ import Foundation
 import MCP
 
 extension CodexMCPProtocolClientAdapter {
-  func observeInboundData(_ data: Data) async {
+  func observeInboundData(_ data: Data) async throws {
     guard
       let envelope = try? JSONDecoder().decode(CodexMCPJSONValue.self, from: data),
       case .object(let object) = envelope
@@ -12,7 +12,7 @@ extension CodexMCPProtocolClientAdapter {
 
     if object["method"] == nil, object["id"] != nil {
       guard let responseID = requestID(from: object["id"]) else {
-        await recordProtocolFailureAndDisconnect()
+        try recordProtocolFailure()
         return
       }
 
@@ -33,7 +33,7 @@ extension CodexMCPProtocolClientAdapter {
       }
 
       guard activeRequestIDs.contains(responseID) else {
-        await recordProtocolFailureAndDisconnect()
+        try recordProtocolFailure()
         return
       }
       return
@@ -54,15 +54,15 @@ extension CodexMCPProtocolClientAdapter {
       !approvalRequestIDsByOriginatingRequestID.values.contains(serverRequestID),
       approvalContinuations[serverRequestID] == nil
     else {
-      await recordProtocolFailureAndDisconnect()
+      try recordProtocolFailure()
       return
     }
     approvalRequestIDsByOriginatingRequestID[originatingRequestID] = serverRequestID
   }
 
-  private func recordProtocolFailureAndDisconnect() async {
+  private func recordProtocolFailure() throws {
     observedProtocolFailure = .protocolFailure
-    await disconnectAfterProtocolFailure()
+    throw CodexMCPError.protocolFailure
   }
 
   private func jsonRPCFailure(from value: CodexMCPJSONValue?) -> CodexMCPJSONRPCFailure? {

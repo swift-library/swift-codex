@@ -56,7 +56,7 @@ internal actor CodexMCPProtocolClientAdapter {
 
   func start() async throws -> CodexMCPStartupMetadata {
     await transport.setInboundObserver { [weak self] data in
-      await self?.observeInboundData(data)
+      try await self?.observeInboundData(data)
     }
     await transport.setCloseObserver { [weak self] error in
       await self?.handleTransportClose(error)
@@ -99,6 +99,7 @@ internal actor CodexMCPProtocolClientAdapter {
   func stop() async {
     await client.disconnect()
     await transport.disconnect()
+    await transport.finishCloseNotification()
     await failAllRoutes(with: CodexMCPError.transportFailure)
   }
 
