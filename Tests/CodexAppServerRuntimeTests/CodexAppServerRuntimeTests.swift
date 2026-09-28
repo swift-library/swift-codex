@@ -184,7 +184,7 @@ struct CodexAppServerRuntimeTests {
     let waiter = Task {
       try await pendingResponse.wait()
     }
-    let pending = await state.close(error: RuntimeTestError.closed)
+    let pending = try #require(await state.close())
     #expect(pending.count == 1)
     pending.first?.fail(RuntimeTestError.closed)
 
@@ -194,6 +194,17 @@ struct CodexAppServerRuntimeTests {
     await #expect(throws: CodexAppServerConnectionStateError.closed) {
       _ = try await state.allocateRequestID(nil)
     }
+    #expect(await state.close() == nil)
+  }
+
+  @Test("Concurrent close of an idle connection has one terminal-state owner")
+  func idleConnectionClosesOnce() async {
+    let state = CodexAppServerConnectionState()
+    async let first = state.close()
+    async let second = state.close()
+    let results = await [first, second]
+    #expect(results.filter { $0 != nil }.count == 1)
+    #expect(results.compactMap { $0 }.allSatisfy { $0.isEmpty })
   }
 }
 

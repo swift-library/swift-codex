@@ -52,13 +52,15 @@ public final class CodexAppServerConnection: @unchecked Sendable {
 
   /// Closes the transport and finishes every pending request and inbound stream once.
   public func close() async {
-    readTask.cancel()
-    let pending = await state.close(error: CodexAppServerClientError.closed)
-    await transport.close()
-    for pendingResponse in pending {
-      pendingResponse.fail(CodexAppServerClientError.closed)
+    if let pending = await state.close() {
+      for pendingResponse in pending {
+        pendingResponse.fail(CodexAppServerClientError.closed)
+      }
+      inboundChannels.finish()
     }
-    inboundChannels.finish()
+    readTask.cancel()
+    await transport.close()
+    await readTask.value
   }
 }
 

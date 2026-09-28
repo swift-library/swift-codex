@@ -235,7 +235,7 @@ extension CodexAppServerConnection {
     state: CodexAppServerConnectionState,
     channels: CodexAppServerInboundChannels
   ) async {
-    let pendingResponses = await state.close(error: error)
+    guard let pendingResponses = await state.close() else { return }
     for pendingResponse in pendingResponses {
       pendingResponse.fail(error)
     }

@@ -97,13 +97,15 @@ package actor CodexAppServerConnectionState {
     activeServerRequests.removeValue(forKey: id)
   }
 
-  package func close(error: Error) -> [CodexAppServerPendingResponse] {
+  /// Only the caller that closes admission receives the pending replies.
+  package func close() -> [CodexAppServerPendingResponse]? {
     if isClosed {
-      return []
+      return nil
     }
 
     isClosed = true
     activeServerRequests.removeAll()
+    cancelledPendingResponses.removeAll()
     let pendingResponses = Array(pending.values)
     pending.removeAll()
     return pendingResponses
