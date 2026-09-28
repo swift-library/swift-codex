@@ -1,4 +1,3 @@
-import CoreFoundation
 import Foundation
 
 struct CodexExecDecodedOutput: Equatable, Sendable {
@@ -77,15 +76,15 @@ public struct CodexExecJSONLDecoder: Sendable {
   }
 
   private static func decodeEvent(from line: String) throws -> CodexExecEvent {
-    let object: Any
+    let object: CodexExecJSONValue
 
     do {
-      object = try JSONSerialization.jsonObject(with: Data(line.utf8))
+      object = try JSONDecoder().decode(CodexExecJSONDocument.self, from: Data(line.utf8)).value
     } catch {
       throw CodexExecError.malformedJSONL(line: line, partialObservation: nil)
     }
 
-    guard let dictionary = object as? [String: Any] else {
+    guard case .object(let dictionary) = object else {
       return .unknown(type: "unknown", rawJSON: line)
     }
 
@@ -138,7 +137,8 @@ public struct CodexExecJSONLDecoder: Sendable {
     }
   }
 
-  private static func itemValue(forKey key: String, in dictionary: [String: Any]) -> CodexExecItem?
+  private static func itemValue(forKey key: String, in dictionary: [String: CodexExecJSONValue])
+    -> CodexExecItem?
   {
     guard let itemDictionary = nestedDictionary(forKey: key, in: dictionary) else {
       return nil
@@ -177,7 +177,7 @@ public struct CodexExecJSONLDecoder: Sendable {
         ))
     case "file_change":
       guard let id,
-        let changesArray = itemDictionary["changes"] as? [[String: Any]],
+        let changesArray = objectArray(for: itemDictionary["changes"]),
         let status = patchApplyStatus(for: itemDictionary["status"])
       else {
         return .unknown(.init(id: id, kind: kind, rawJSON: rawJSON))
@@ -191,20 +191,15 @@ public struct CodexExecJSONLDecoder: Sendable {
       guard let id,
         let server = stringValue(forKey: "server", in: itemDictionary),
         let tool = stringValue(forKey: "tool", in: itemDictionary),
-        let status = mcpToolCallStatus(for: itemDictionary["status"]),
-        let arguments = jsonValue(for: itemDictionary["arguments"] ?? NSNull())
+        let status = mcpToolCallStatus(for: itemDictionary["status"])
       else {
         return .unknown(.init(id: id, kind: kind, rawJSON: rawJSON))
       }
 
       let result: CodexExecItem.McpToolCallResult?
       if let resultDictionary = nestedDictionary(forKey: "result", in: itemDictionary) {
-        let contentValues = (resultDictionary["content"] as? [Any] ?? []).compactMap(
-          jsonValue(for:))
-        guard contentValues.count == (resultDictionary["content"] as? [Any] ?? []).count else {
-          return .unknown(.init(id: id, kind: kind, rawJSON: rawJSON))
-        }
-        let structuredContent = jsonValue(for: resultDictionary["structured_content"] ?? NSNull())
+        let contentValues = arrayValue(for: resultDictionary["content"]) ?? []
+        let structuredContent = resultDictionary["structured_content"] ?? .null
         result = .init(content: contentValues, structuredContent: structuredContent)
       } else {
         result = nil
@@ -224,7 +219,7 @@ public struct CodexExecJSONLDecoder: Sendable {
           id: id,
           server: server,
           tool: tool,
-          arguments: arguments,
+          arguments: itemDictionary["arguments"] ?? .null,
           result: result,
           error: error,
           status: status
@@ -241,9 +236,9 @@ public struct CodexExecJSONLDecoder: Sendable {
       guard let id else {
         return .unknown(.init(id: id, kind: kind, rawJSON: rawJSON))
       }
-      let items = (itemDictionary["items"] as? [[String: Any]] ?? []).compactMap(
-        todoItemValue(from:))
-      guard items.count == (itemDictionary["items"] as? [[String: Any]] ?? []).count else {
+      let itemDictionaries = objectArray(for: itemDictionary["items"]) ?? []
+      let items = itemDictionaries.compactMap(todoItemValue(from:))
+      guard items.count == itemDictionaries.count else {
         return .unknown(.init(id: id, kind: kind, rawJSON: rawJSON))
       }
       return .todoList(.init(id: id, items: items))
@@ -257,7 +252,7 @@ public struct CodexExecJSONLDecoder: Sendable {
     }
   }
 
-  private static func usageValue(from dictionary: [String: Any]) -> CodexExecUsage? {
+  private static func usageValue(from dictionary: [String: CodexExecJSONValue]) -> CodexExecUsage? {
     guard let inputTokens = intValue(for: dictionary["input_tokens"]),
       let cachedInputTokens = intValue(for: dictionary["cached_input_tokens"]),
       let outputTokens = intValue(for: dictionary["output_tokens"])
@@ -272,7 +267,8 @@ public struct CodexExecJSONLDecoder: Sendable {
     )
   }
 
-  private static func fileUpdateChangeValue(from dictionary: [String: Any]) -> CodexExecItem
+  private static func fileUpdateChangeValue(from dictionary: [String: CodexExecJSONValue])
+    -> CodexExecItem
     .FileUpdateChange?
   {
     guard let path = stringValue(forKey: "path", in: dictionary),
@@ -284,9 +280,11 @@ public struct CodexExecJSONLDecoder: Sendable {
     return .init(path: path, kind: kind)
   }
 
-  private static func todoItemValue(from dictionary: [String: Any]) -> CodexExecItem.TodoItem? {
+  private static func todoItemValue(from dictionary: [String: CodexExecJSONValue]) -> CodexExecItem
+    .TodoItem?
+  {
     guard let text = stringValue(forKey: "text", in: dictionary),
-      let completed = dictionary["completed"] as? Bool
+      case .bool(let completed) = dictionary["completed"]
     else {
       return nil
     }
@@ -294,44 +292,49 @@ public struct CodexExecJSONLDecoder: Sendable {
     return .init(text: text, completed: completed)
   }
 
-  private static func commandExecutionStatus(for value: Any?) -> CodexExecCommandExecutionStatus? {
-    guard let rawValue = value as? String else {
+  private static func commandExecutionStatus(for value: CodexExecJSONValue?)
+    -> CodexExecCommandExecutionStatus?
+  {
+    guard case .string(let rawValue) = value else {
       return nil
     }
     return CodexExecCommandExecutionStatus(rawValue: rawValue)
   }
 
-  private static func patchChangeKind(for value: Any?) -> CodexExecPatchChangeKind? {
-    guard let rawValue = value as? String else {
+  private static func patchChangeKind(for value: CodexExecJSONValue?) -> CodexExecPatchChangeKind? {
+    guard case .string(let rawValue) = value else {
       return nil
     }
     return CodexExecPatchChangeKind(rawValue: rawValue)
   }
 
-  private static func patchApplyStatus(for value: Any?) -> CodexExecPatchApplyStatus? {
-    guard let rawValue = value as? String else {
+  private static func patchApplyStatus(for value: CodexExecJSONValue?) -> CodexExecPatchApplyStatus?
+  {
+    guard case .string(let rawValue) = value else {
       return nil
     }
     return CodexExecPatchApplyStatus(rawValue: rawValue)
   }
 
-  private static func mcpToolCallStatus(for value: Any?) -> CodexExecMcpToolCallStatus? {
-    guard let rawValue = value as? String else {
+  private static func mcpToolCallStatus(for value: CodexExecJSONValue?)
+    -> CodexExecMcpToolCallStatus?
+  {
+    guard case .string(let rawValue) = value else {
       return nil
     }
     return CodexExecMcpToolCallStatus(rawValue: rawValue)
   }
 
-  private static func webSearchAction(for value: Any?) -> CodexExecWebSearchAction? {
+  private static func webSearchAction(for value: CodexExecJSONValue?) -> CodexExecWebSearchAction? {
     guard let value else {
       return .other
     }
 
-    if value is NSNull {
+    if case .null = value {
       return .other
     }
 
-    guard let dictionary = value as? [String: Any] else {
+    guard case .object(let dictionary) = value else {
       return .unknown(rawJSON: rawJSONString(for: value))
     }
 
@@ -343,7 +346,7 @@ public struct CodexExecJSONLDecoder: Sendable {
     case "search":
       return .search(
         query: stringValue(forKey: "query", in: dictionary),
-        queries: dictionary["queries"] as? [String] ?? []
+        queries: stringArray(for: dictionary["queries"]) ?? []
       )
     case "open_page":
       return .openPage(url: stringValue(forKey: "url", in: dictionary))
@@ -359,78 +362,61 @@ public struct CodexExecJSONLDecoder: Sendable {
     }
   }
 
-  private static func stringValue(forKey key: String, in dictionary: [String: Any]?) -> String? {
-    dictionary?[key] as? String
+  private static func stringValue(
+    forKey key: String, in dictionary: [String: CodexExecJSONValue]?
+  ) -> String? {
+    guard case .string(let value) = dictionary?[key] else { return nil }
+    return value
   }
 
-  private static func nestedDictionary(forKey key: String, in dictionary: [String: Any]) -> [String:
-    Any]?
-  {
-    dictionary[key] as? [String: Any]
+  private static func nestedDictionary(
+    forKey key: String, in dictionary: [String: CodexExecJSONValue]
+  ) -> [String: CodexExecJSONValue]? {
+    guard case .object(let value) = dictionary[key] else { return nil }
+    return value
   }
 
-  private static func intValue(for value: Any?) -> Int? {
-    if let value = value as? Int {
-      return value
-    }
-    if let value = value as? NSNumber {
-      return value.intValue
-    }
-    return nil
+  private static func arrayValue(for value: CodexExecJSONValue?) -> [CodexExecJSONValue]? {
+    guard case .array(let values) = value else { return nil }
+    return values
   }
 
-  private static func jsonValue(for value: Any) -> CodexExecJSONValue? {
-    switch value {
-    case is NSNull:
-      return .null
-    case let bool as Bool:
-      return .bool(bool)
-    case let number as NSNumber:
-      if CFGetTypeID(number) == CFBooleanGetTypeID() {
-        return .bool(number.boolValue)
-      }
-      switch String(cString: number.objCType) {
-      case "f", "d":
-        return .double(number.doubleValue)
-      default:
-        guard let integer = Int64(number.stringValue) else {
-          return nil
-        }
-        return .integer(integer)
-      }
-    case let string as String:
-      return .string(string)
-    case let array as [Any]:
-      let values = array.compactMap(jsonValue(for:))
-      guard values.count == array.count else {
-        return nil
-      }
-      return .array(values)
-    case let dictionary as [String: Any]:
-      var result: [String: CodexExecJSONValue] = [:]
-      for (key, child) in dictionary {
-        guard let value = jsonValue(for: child) else {
-          return nil
-        }
-        result[key] = value
-      }
-      return .object(result)
-    default:
-      return nil
+  private static func objectArray(
+    for value: CodexExecJSONValue?
+  ) -> [[String: CodexExecJSONValue]]? {
+    guard let values = arrayValue(for: value) else { return nil }
+    var objects: [[String: CodexExecJSONValue]] = []
+    for value in values {
+      guard case .object(let object) = value else { return nil }
+      objects.append(object)
     }
+    return objects
   }
 
-  private static func rawJSONString(for value: Any) -> String? {
-    guard JSONSerialization.isValidJSONObject(value) else {
-      return nil
+  private static func stringArray(for value: CodexExecJSONValue?) -> [String]? {
+    guard let values = arrayValue(for: value) else { return nil }
+    var strings: [String] = []
+    for value in values {
+      guard case .string(let string) = value else { return nil }
+      strings.append(string)
     }
+    return strings
+  }
 
-    guard let data = try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
-    else {
-      return nil
-    }
+  private static func intValue(for value: CodexExecJSONValue?) -> Int? {
+    guard case .integer(let integer) = value else { return nil }
+    return Int(exactly: integer)
+  }
 
+  private static func rawJSONString(for value: CodexExecJSONValue) -> String? {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    guard let data = try? encoder.encode(CodexExecJSONDocument(value: value)) else { return nil }
     return String(data: data, encoding: .utf8)
+  }
+
+  private static func rawJSONString(for value: [String: CodexExecJSONValue]) -> String? {
+    rawJSONString(for: .object(value))
   }
 
   private static func extractedFinalMessageText(from event: CodexExecEvent) -> String? {

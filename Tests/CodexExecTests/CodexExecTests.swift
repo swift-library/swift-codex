@@ -376,7 +376,7 @@ struct CodexExecTests {
   @Test("Exec JSON payloads preserve Int64 integers separately from floating point")
   func execJSONPayloadsPreserveNumberKinds() throws {
     let line =
-      #"{"type":"item.completed","item":{"id":"item-1","type":"mcp_tool_call","server":"fixture","tool":"numbers","arguments":{"integer":9223372036854775807,"floating":0.5,"enabled":true},"status":"completed"}}"#
+      #"{"type":"item.completed","item":{"id":"item-1","type":"mcp_tool_call","server":"fixture","tool":"numbers","arguments":{"integer":9223372036854775807,"floating":0.5,"enabled":true,"nested":[0,1,false,-9223372036854775808,9007199254740993,null]},"result":{"content":[{"zero":0,"one":1,"false":false,"true":true}],"structured_content":{"id":9007199254740993}},"status":"completed"}}"#
 
     let event = try CodexExecJSONLDecoder().decodeLine(line)
     guard case .itemCompleted(.mcpToolCall(let item)) = event else {
@@ -390,7 +390,42 @@ struct CodexExecTests {
           "integer": .integer(Int64.max),
           "floating": .double(0.5),
           "enabled": .bool(true),
+          "nested": .array([
+            .integer(0), .integer(1), .bool(false), .integer(Int64.min),
+            .integer(9_007_199_254_740_993), .null,
+          ]),
         ]))
+    #expect(
+      item.result?.content == [
+        .object([
+          "zero": .integer(0), "one": .integer(1), "false": .bool(false), "true": .bool(true),
+        ])
+      ])
+    #expect(item.result?.structuredContent == .object(["id": .integer(9_007_199_254_740_993)]))
+  }
+
+  @Test("Usage requires integer JSON values", arguments: ["true", "false", "1.5", "\"1\""])
+  func execUsageRejectsNonIntegerValues(_ value: String) throws {
+    let line =
+      "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":\(value),\"cached_input_tokens\":0,\"output_tokens\":1}}"
+    #expect(
+      try CodexExecJSONLDecoder().decodeLine(line)
+        == .unknown(type: "turn.completed", rawJSON: line))
+  }
+
+  @Test("Unknown items preserve nested JSON values")
+  func execUnknownItemPreservesJSONValues() throws {
+    let event = try CodexExecJSONLDecoder().decodeLine(
+      #"{"type":"item.completed","item":{"id":"future","type":"new_item","payload":[0,1,true,false,9223372036854775807,-9223372036854775808,0.5,null]}}"#
+    )
+    guard case .itemCompleted(.unknown(let item)) = event else {
+      Issue.record("Expected an unknown item preserving its raw JSON.")
+      return
+    }
+    #expect(
+      item.rawJSON
+        == #"{"id":"future","payload":[0,1,true,false,9223372036854775807,-9223372036854775808,0.5,null],"type":"new_item"}"#
+    )
   }
 
   @Test("Malformed JSONL fails deterministically without entering later failure semantics")
