@@ -13,7 +13,7 @@ permissions:
 jobs:
   windows:
     name: Windows products
-    runs-on: windows-2025
+    runs-on: windows-2022
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -45,6 +45,7 @@ jobs:
             Get-Content ".build/windows-products/$target.log" -Tail 40
           }
           $results | ConvertTo-Json | Set-Content .build/windows-products/results.json
+          Copy-Item Package.resolved .build/windows-products/Package.resolved
           if ($results.Where({ $_.exitCode -ne 0 }).Count -gt 0) { exit 1 }
 
       - name: Preserve native product build results
