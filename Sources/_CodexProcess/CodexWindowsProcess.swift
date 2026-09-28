@@ -68,7 +68,7 @@
       executableURL: URL, arguments: [String], environment: [String: String],
       workingDirectory: URL?, input: FileHandle, output: FileHandle, error: FileHandle
     ) throws -> CodexWindowsProcessHandles {
-      let path = executableURL.path
+      let path = executableURL.path.replacingOccurrences(of: "/", with: "\\")
       let cwd = workingDirectory?.path ?? FileManager.default.currentDirectoryPath
       guard executableURL.isFileURL, workingDirectory?.isFileURL != false,
         !([path, cwd] + arguments).contains(where: { $0.utf16.contains(0) })
