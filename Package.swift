@@ -72,7 +72,7 @@ let package = Package(
     ),
     .package(
       url: "https://github.com/apple/swift-nio-ssl.git",
-      from: "2.37.0"
+      from: "2.37.5"
     ),
     .package(
       url: "https://github.com/vapor/vapor.git",

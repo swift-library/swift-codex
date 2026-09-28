@@ -453,11 +453,11 @@
         "hummingbird-websocket",
         "vapor"
       ],
-      "revision": "5a48717e29f62cb8326d6d42e46b562ca93847a6",
+      "revision": "41449336c8ecfadac6b4b5be75f9c3c306e61ced",
       "roles": [
         "runtime"
       ],
-      "version": "1.34.0"
+      "version": "1.35.1"
     },
     {
       "direct": false,
@@ -490,11 +490,11 @@
         "swift-nio-ssl",
         "vapor"
       ],
-      "revision": "3f337058ccd7243c4cac7911477d8ad4c598d4da",
+      "revision": "322f3c2a4a21df31c84ca416bf65ee5e9059e440",
       "roles": [
         "runtime"
       ],
-      "version": "2.37.0"
+      "version": "2.37.5"
     },
     {
       "direct": false,
