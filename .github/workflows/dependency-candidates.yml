@@ -3,7 +3,7 @@ name: Dependency Candidates
 on:
   push:
     paths:
-      - 'Tests/DependencyCandidates/MCPHTTP/**'
+      - 'Tests/DependencyCandidates/MCPTransport/**'
       - '.github/workflows/dependency-candidates.yml'
   workflow_dispatch:
 
@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  mcp-http:
-    name: Windows MCP HTTP candidate
+  mcp-transport:
+    name: Windows MCP transport candidate
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
@@ -27,13 +27,13 @@ jobs:
 
       - name: Validate complete MCP library and native transport tests
         shell: pwsh
-        run: ./Tests/DependencyCandidates/MCPHTTP/Validate.ps1
+        run: ./Tests/DependencyCandidates/MCPTransport/Validate.ps1
 
       - name: Preserve dependency candidate evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: mcp-http-candidate-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .build/mcp-http-candidate/evidence/
+          name: mcp-transport-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .build/mcp-transport-candidate/evidence/
           include-hidden-files: true
           if-no-files-found: error

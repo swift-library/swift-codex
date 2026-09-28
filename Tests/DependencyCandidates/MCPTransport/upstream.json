@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/modelcontextprotocol/swift-sdk.git",
+  "version": "0.12.1",
+  "revision": "a0ae212ebf6eab5f754c3129608bc5557637e605",
+  "patchSHA256": "fc95bba237590bbdcd207494d894f6a29247c8162970d36b37283837474f2e88",
+  "scope": "Complete MCP library; Windows HTTP EventSource availability and native bounded stdio pipe ownership"
+}

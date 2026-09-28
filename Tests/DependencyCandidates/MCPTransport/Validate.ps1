@@ -1,9 +1,9 @@
-param([string]$OutputDirectory = '.build/mcp-http-candidate')
+param([string]$OutputDirectory = '.build/mcp-transport-candidate')
 
 $ErrorActionPreference = 'Stop'
 $repository = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 $metadata = Get-Content (Join-Path $PSScriptRoot 'upstream.json') -Raw | ConvertFrom-Json
-$patch = Join-Path $PSScriptRoot 'eventsource-availability.patch'
+$patch = Join-Path $PSScriptRoot 'windows-transports.patch'
 if ((Get-FileHash $patch -Algorithm SHA256).Hash.ToLowerInvariant() -ne $metadata.patchSHA256) {
     throw 'Dependency candidate patch checksum mismatch'
 }
@@ -43,7 +43,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Candidate source whitespace check failed' }
 Copy-Item (Join-Path $PSScriptRoot 'Package.swift.template') (Join-Path $consumer 'Package.swift')
 $testDirectory = Join-Path $consumer 'Tests'
 New-Item -ItemType Directory -Path $testDirectory | Out-Null
-$testSources = @('InMemoryTransportTests.swift')
+$testSources = @('InMemoryTransportTests.swift', 'WindowsStdioTransportTests.swift')
 $testHashes = foreach ($name in $testSources) {
     $original = Join-Path $source "Tests/MCPTests/$name"
     $copy = Join-Path $testDirectory $name
@@ -60,6 +60,7 @@ $testing = Join-Path $developer 'Library/Testing-6.2.3/usr/bin64'
 $xctest = Join-Path $developer 'Library/XCTest-6.2.3/usr/bin64'
 if (!(Test-Path (Join-Path $testing 'Testing.dll'))) { throw 'Missing SDK Testing runtime' }
 if (!(Test-Path (Join-Path $xctest 'XCTest.dll'))) { throw 'Missing SDK XCTest runtime' }
+$previousPath = $env:PATH
 $env:PATH = "$testing;$xctest;$env:PATH"
 $ready = Join-Path $evidence 'http-endpoint.txt'
 $server = [System.Diagnostics.Process]::new()
@@ -92,6 +93,7 @@ try {
     }
 } finally {
     $env:MCP_HTTP_FIXTURE_ENDPOINT = $previousEndpoint
+    $env:PATH = $previousPath
     if ($started -and !$server.HasExited) { $server.Kill() }
     if ($started) {
         if (!$server.WaitForExit(5000)) { throw 'Owned HTTP fixture did not exit' }
