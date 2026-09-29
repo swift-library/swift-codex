@@ -64,7 +64,8 @@ client bindings; it does not publish a `CodexAppServerGateway` product.
 
 ## Requirements
 
-- macOS 14 or newer
+- macOS 14 or newer, or Windows x86_64 for the products listed in
+  [platform support](Documentation/Architecture/CodexTargetTopology.md#platform-support)
 - Swift 6.2 or newer
 - an upstream `codex` executable on `PATH`, or an explicit executable path in
   the relevant launch options
@@ -82,7 +83,7 @@ checked into the repository.
 dependencies: [
   .package(
     url: "https://github.com/swift-library/swift-codex.git",
-    .upToNextMinor(from: "0.2.0")
+    .upToNextMinor(from: "0.4.0")
   ),
 ],
 targets: [

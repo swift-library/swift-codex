@@ -5,6 +5,8 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-29
+
 ### Added
 
 - Native Windows process and pipe ownership for Exec, App Server stdio and
@@ -15,6 +17,8 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ### Changed
 
+- The new Windows execution capability and public Stdio lifecycle APIs advance
+  the minor version during `0.x`. Existing macOS product boundaries remain.
 - Adopt the exact versioned `computer-mcp/swift-sdk` transport fork for native
   Windows MCP stdio and complete POSIX frame serialization. Protocol authority
   remains in the upstream-aligned SDK products.

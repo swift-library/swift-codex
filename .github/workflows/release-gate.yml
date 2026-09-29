@@ -39,9 +39,15 @@ jobs:
           git config gpg.ssh.allowedSignersFile .github/signing-allowed-signers
           git verify-tag "$verification_ref"
           rg -q "^## \[$version\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md
-          python3 - <<'PY'
+          python3 - "$version" <<'PY'
           from pathlib import Path
+          import re
+          import sys
 
+          versions = re.findall(r'\.upToNextMinor\(from: "([0-9]+\.[0-9]+\.[0-9]+)"\)',
+                                Path("README.md").read_text())
+          if versions != [sys.argv[1]]:
+              raise SystemExit("README dependency example must match the release tag")
           lines = Path("CHANGELOG.md").read_text().splitlines()
           start = lines.index("## [Unreleased]") + 1
           end = next(
