@@ -64,7 +64,7 @@ let package = Package(
     ),
     .package(
       url: "https://github.com/computer-mcp/swift-sdk.git",
-      exact: "0.13.0-computer-mcp.1"
+      exact: "0.13.1-computer-mcp.1"
     ),
     .package(
       url: "https://github.com/apple/swift-nio.git",
