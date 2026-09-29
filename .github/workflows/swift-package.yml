@@ -31,22 +31,24 @@ jobs:
           swift --version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force .build/windows-products | Out-Null
-          $targets = @(
+          $supportedTargets = @(
             'CodexAppServerRuntime', 'CodexAppServerProtocol', 'CodexAppServerClient',
             'CodexExec', 'Codex', 'CodexAppServerStdio', 'CodexMCP',
-            'CodexAppServerURLSession', 'CodexAppServerNIO',
-            'CodexAppServerVapor', 'CodexAppServerHummingbird'
+            'CodexAppServerURLSession'
+          )
+          $dependencyAuditTargets = @(
+            'CodexAppServerNIO', 'CodexAppServerVapor', 'CodexAppServerHummingbird'
           )
           $results = @()
-          foreach ($target in $targets) {
+          foreach ($target in ($supportedTargets + $dependencyAuditTargets)) {
             swift build --target $target *> ".build/windows-products/$target.log"
             $code = $LASTEXITCODE
-            $results += [pscustomobject]@{ target = $target; exitCode = $code }
+            $results += [pscustomobject]@{ target = $target; supported = $supportedTargets -contains $target; exitCode = $code }
             Get-Content ".build/windows-products/$target.log" -Tail 40
           }
           $results | ConvertTo-Json | Set-Content .build/windows-products/results.json
           Copy-Item Package.resolved .build/windows-products/Package.resolved
-          if ($results.Where({ $_.exitCode -ne 0 }).Count -gt 0) { exit 1 }
+          if ($results.Where({ $_.supported -and $_.exitCode -ne 0 }).Count -gt 0) { exit 1 }
 
       - name: Preserve native product build results
         if: always()

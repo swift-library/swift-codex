@@ -62,7 +62,9 @@ all dependencies available on Windows.
 | `CodexAppServerHummingbird` | Unavailable with the pinned Hummingbird environment implementation's platform boundary. |
 
 The Windows build audit includes every public product and preserves individual
-results, including unavailable dependencies. Native runtime checks in
+results, including unavailable dependencies. Every supported product must build
+for the CI gate to pass. The three unavailable networking products are recorded
+as dependency audits; their outcomes do not establish supported Windows behavior. Native runtime checks in
 [`Tests/WindowsIntegration`](../../Tests/WindowsIntegration/README.md) exercise
 App Server stdio and Exec ownership with process fixtures. The separate
 [`Tests/WindowsMCP`](../../Tests/WindowsMCP/README.md) check consumes the shipping
