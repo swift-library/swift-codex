@@ -106,6 +106,7 @@ public enum CodexAppServerStdioError: Error, Equatable, Sendable {
   case executableVersionMismatch(expectedSubstring: String, actualOutput: String)
   case launchFailure(String)
   /// A nonzero or signalled natural exit after all owned pipe operations have joined.
+  /// POSIX signals have no exit code; use waitForExit() for the native termination reason.
   /// The diagnostic retains only a bounded, line-safe, redacted stderr tail.
   case processTerminated(exitStatus: Int32?, diagnostic: String)
   case closed

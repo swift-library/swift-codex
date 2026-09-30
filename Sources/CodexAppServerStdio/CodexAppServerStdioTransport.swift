@@ -82,7 +82,8 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
           termination.wasSignalled || termination.status != 0
         {
           throw CodexAppServerStdioError.processTerminated(
-            exitStatus: termination.status, diagnostic: stderrDiagnostic.snapshot())
+            exitStatus: termination.wasSignalled ? nil : termination.status,
+            diagnostic: stderrDiagnostic.snapshot())
         }
         inboundChannel.finish()
       } catch {

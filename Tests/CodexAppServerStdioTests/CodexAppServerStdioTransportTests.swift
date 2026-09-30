@@ -41,6 +41,40 @@
       await transport.close()
     }
 
+    @Test("A natural signal has no exit code and preserves its native termination reason")
+    func signalledExitPreservesTerminationReason() async throws {
+      let executable = try makeTransportTestExecutable(
+        contents: """
+          #!/bin/sh
+          echo 'signal diagnostic' >&2
+          kill -TERM $$
+          """
+      )
+      defer { try? FileManager.default.removeItem(at: executable.deletingLastPathComponent()) }
+      let transport = try CodexAppServerStdioTransport(
+        configuration: .init(executableURL: executable, arguments: []))
+      do {
+        var iterator = transport.inboundLines.makeAsyncIterator()
+        do {
+          _ = try await iterator.next()
+          Issue.record("Expected a signalled process failure")
+        } catch let error as CodexAppServerStdioError {
+          guard case .processTerminated(let status, let diagnostic) = error else {
+            Issue.record("Expected processTerminated")
+            await transport.close()
+            return
+          }
+          #expect(status == nil)
+          #expect(diagnostic.contains("signal diagnostic"))
+        }
+        #expect(try await transport.waitForExit() == .signalled(15))
+        await transport.close()
+      } catch {
+        await transport.close()
+        throw error
+      }
+    }
+
     @Test("Explicit close finishes the inbound stream without a process failure")
     func explicitCloseFinishesInboundStreamNormally() async throws {
       let executable = try makeTransportTestExecutable(
