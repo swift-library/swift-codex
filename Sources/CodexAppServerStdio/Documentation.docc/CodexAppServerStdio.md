@@ -20,6 +20,7 @@ which must be finite, positive and at most 60 seconds. It closes stdin, drains
 stdout and stderr concurrently, and retains at most 64 KiB from each stream.
 Excess output fails explicitly rather than accepting a truncated version match.
 Timeout and output failure terminate the owned process and join both readers.
+Version-probe reports redact common credential forms before exposing output.
 
 Windows processes belong to an invocation-specific Job Object. macOS processes
 start in an owned process group. Root exit, close and cancellation terminate
@@ -52,6 +53,13 @@ readers. An outgoing admission failure leaves that frame unsent and preserves
 already admitted work. A native stdin failure terminates and joins the owned
 process before returning the error. Close rejects further admission, unblocks the current
 native write through process termination and joins every admitted writer.
+A natural nonzero or signalled exit fails `inboundLines` with `processTerminated`
+after both output readers and native cleanup finish. Its diagnostic retains at
+most 64 KiB of line-safe stderr, plus a truncation marker, and redacts common
+credential forms. An oversized line is discarded through its next newline to
+avoid exposing a credential suffix. Explicit close remains deliberate cleanup;
+`waitForExit()` continues to report the native termination independently.
+
 Call `close()` when finished with the transport, including after cancelling a
 stream consumer.
 

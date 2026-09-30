@@ -20,7 +20,10 @@ struct SwiftTypeRenderer {
 
     if let branches = schema["oneOf"] as? [Any] {
       return try unionDeclaration(
-        name: name, branches: branches, nestedDefinitions: nestedDefinitions)
+        name: name,
+        branches: commonObjectProperties(in: schema, appliedTo: branches, unionName: name),
+        nestedDefinitions: nestedDefinitions
+      )
     }
 
     if let branches = schema["anyOf"] as? [Any] {
@@ -33,7 +36,10 @@ struct SwiftTypeRenderer {
         return "public typealias \(name) = \(mapped.typeName)?"
       }
       return try unionDeclaration(
-        name: name, branches: branches, nestedDefinitions: nestedDefinitions)
+        name: name,
+        branches: commonObjectProperties(in: schema, appliedTo: branches, unionName: name),
+        nestedDefinitions: nestedDefinitions
+      )
     }
 
     if let branches = schema["allOf"] as? [Any], branches.count == 1 {
@@ -332,14 +338,20 @@ struct SwiftTypeRenderer {
       }
       let typeName = nestedTypeName(suggestedName)
       let declaration = try unionDeclaration(
-        name: typeName, branches: branches, nestedDefinitions: [:])
+        name: typeName,
+        branches: commonObjectProperties(in: schema, appliedTo: branches, unionName: typeName),
+        nestedDefinitions: [:]
+      )
       return MappedType(typeName: typeName, isOptional: false, nestedDeclarations: [declaration])
     }
 
     if let branches = schema["oneOf"] as? [Any] {
       let typeName = nestedTypeName(suggestedName)
       let declaration = try unionDeclaration(
-        name: typeName, branches: branches, nestedDefinitions: [:])
+        name: typeName,
+        branches: commonObjectProperties(in: schema, appliedTo: branches, unionName: typeName),
+        nestedDefinitions: [:]
+      )
       return MappedType(typeName: typeName, isOptional: false, nestedDeclarations: [declaration])
     }
 
@@ -474,6 +486,69 @@ struct SwiftTypeRenderer {
       values.append(contentsOf: enumValues)
     }
     return values
+  }
+
+  private func commonObjectProperties(
+    in schema: [String: Any],
+    appliedTo branches: [Any],
+    unionName: String
+  ) throws -> [Any] {
+    let commonProperties = (schema["properties"] as? [String: Any]) ?? [:]
+    let commonRequired = Set((schema["required"] as? [String]) ?? [])
+    guard !commonProperties.isEmpty || !commonRequired.isEmpty else { return branches }
+
+    if let type = schema["type"] as? String, type != "object" {
+      throw GeneratorError.invalidSchema(
+        "\(unionName) declares common object properties with non-object type '\(type)'"
+      )
+    }
+    guard schema["additionalProperties"] == nil else {
+      throw GeneratorError.invalidSchema(
+        "\(unionName) combines common union properties with additionalProperties"
+      )
+    }
+
+    return try branches.enumerated().map { index, rawBranch in
+      var branch = try SchemaNode.object(rawBranch)
+      guard branch["$ref"] == nil, branch["allOf"] == nil else {
+        throw GeneratorError.invalidSchema(
+          "\(unionName) common properties cannot be merged into referenced union branch \(index + 1)"
+        )
+      }
+      if let type = branch["type"] as? String, type != "object" {
+        throw GeneratorError.invalidSchema(
+          "\(unionName) common object properties cannot be merged into non-object branch \(index + 1)"
+        )
+      }
+      guard branch["additionalProperties"] == nil else {
+        throw GeneratorError.invalidSchema(
+          "\(unionName) common properties cannot be merged into a branch with additionalProperties"
+        )
+      }
+
+      var properties = (branch["properties"] as? [String: Any]) ?? [:]
+      for (propertyName, propertySchema) in commonProperties {
+        guard properties[propertyName] == nil else {
+          throw GeneratorError.invalidSchema(
+            "\(unionName) repeats common property '\(propertyName)' in branch \(index + 1)"
+          )
+        }
+        properties[propertyName] = propertySchema
+      }
+      branch["properties"] = properties
+
+      let branchRequired = Set((branch["required"] as? [String]) ?? [])
+      let required = branchRequired.union(commonRequired)
+      guard required.isSubset(of: Set(properties.keys)) else {
+        throw GeneratorError.invalidSchema(
+          "\(unionName) branch \(index + 1) requires fields with no property schema"
+        )
+      }
+      if !required.isEmpty {
+        branch["required"] = required.sorted()
+      }
+      return branch
+    }
   }
 
   private func branchTypeName(schema: [String: Any], fallback: String, reservedNames: Set<String>)

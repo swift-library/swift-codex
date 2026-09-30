@@ -195,10 +195,19 @@ extension CodexAppServerConnection {
           from: line
         )
       } catch {
-        throw CodexAppServerClientError.malformedInbound(
-          "notification '\(envelope.method ?? "<missing>")' decode failed: "
-            + error.localizedDescription
-        )
+        guard
+          let status = unhandledMethodStatus(
+            method, stableMethods: stableServerNotificationMethods,
+            experimentalMethods: experimentalServerNotificationMethods)
+        else {
+          throw CodexAppServerClientError.malformedInbound(
+            "notification '\(method)' decode failed: " + error.localizedDescription)
+        }
+        channels.unhandled.continuation.yield(
+          .init(
+            kind: .notification, methodStatus: status, method: method,
+            params: params, messageByteCount: byteCount))
+        return
       }
       try channels.notifications.yield(notification, byteCount: byteCount)
 
@@ -217,24 +226,67 @@ extension CodexAppServerConnection {
         }
         return
       }
-      let request: CodexAppServerProtocol.Stable.ServerRequest
-      do {
-        request = try decodeStableLine(
-          CodexAppServerProtocol.Stable.ServerRequest.self,
-          from: line
-        )
-      } catch {
-        throw CodexAppServerClientError.malformedInbound(error.localizedDescription)
-      }
-
-      let serverRequest = CodexAppServerServerRequest(request: request)
-      guard try await admitServerRequest(id: id, state: state, transport: transport) != nil else {
+      if adoptedExperimentalServerRequestMethods.contains(method), method == "currentTime/read" {
+        let request: CodexAppServerProtocol.Experimental.ServerRequest.CurrentTimeReadRequest
+        do {
+          request = try decodeStableLine(
+            CodexAppServerProtocol.Experimental.ServerRequest.CurrentTimeReadRequest.self,
+            from: line)
+        } catch {
+          throw CodexAppServerClientError.malformedInbound(
+            "server request '\(method)' decode failed: " + error.localizedDescription)
+        }
+        guard let token = try await admitServerRequest(id: id, state: state, transport: transport)
+        else { return }
+        let raw = CodexAppServerServerRequest(
+          id: stableRequestID(id), connectionID: channels.connectionID, requestToken: token)
+        let typed = CodexAppServerTypedServerRequest.currentTimeRead(
+          .init(rawRequest: raw, params: request.params))
+        try channels.typedServerRequests.yield(typed, byteCount: byteCount)
         return
       }
+      let request: CodexAppServerProtocol.Stable.ServerRequest
+      do {
+        request = try decodeStableLine(CodexAppServerProtocol.Stable.ServerRequest.self, from: line)
+      } catch {
+        guard
+          let status = unhandledMethodStatus(
+            method, stableMethods: stableServerRequestMethods,
+            experimentalMethods: experimentalServerRequestMethods)
+        else {
+          throw CodexAppServerClientError.malformedInbound(
+            "server request '\(method)' decode failed: " + error.localizedDescription)
+        }
+        guard let token = try await admitServerRequest(id: id, state: state, transport: transport)
+        else { return }
+        try await mapRuntimeStateError {
+          try await state.completeServerRequest(id: id, token: token)
+        }
+        let rejection = CodexAppServerProtocol.Stable.JSONRPCError(
+          error: .init(code: -32_601, data: nil, message: "Method not found"),
+          id: stableRequestID(id))
+        try await transport.sendMessage(encodeStableLine(rejection))
+        channels.unhandled.continuation.yield(
+          .init(
+            kind: .rejectedRequest, methodStatus: status, method: method,
+            params: params, messageByteCount: byteCount))
+        return
+      }
+      guard let token = try await admitServerRequest(id: id, state: state, transport: transport)
+      else { return }
+      let serverRequest = CodexAppServerServerRequest(
+        id: stableRequestID(id), connectionID: channels.connectionID, requestToken: token)
       try channels.typedServerRequests.yield(
-        CodexAppServerTypedServerRequest(serverRequest: serverRequest), byteCount: byteCount
-      )
+        CodexAppServerTypedServerRequest(serverRequest: serverRequest, request: request),
+        byteCount: byteCount)
     }
+  }
+
+  private static func unhandledMethodStatus(
+    _ method: String, stableMethods: Set<String>, experimentalMethods: Set<String>
+  ) -> CodexAppServerUnhandledInboundMessage.MethodStatus? {
+    guard !stableMethods.contains(method) else { return nil }
+    return experimentalMethods.contains(method) ? .experimentalOnly : .unknown
   }
 
   private static func admitServerRequest(

@@ -31,8 +31,8 @@ def load_json(path: Path) -> dict[str, object]:
     return value
 
 
-def schema_methods(surface: str) -> set[str]:
-    request_path = SCHEMA_ROOT / surface / "json" / "ClientRequest.json"
+def schema_methods(surface: str, aggregate: str = "ClientRequest") -> set[str]:
+    request_path = SCHEMA_ROOT / surface / "json" / f"{aggregate}.json"
     request = load_json(request_path)
     branches = request.get("oneOf")
     if not isinstance(branches, list):
@@ -106,6 +106,14 @@ def validate_manifest() -> tuple[dict[str, object], list[dict[str, str]]]:
         unknown = sorted(classified - schema_union)
         raise SystemExit(f"method adoption coverage mismatch: missing={missing}, unknown={unknown}")
 
+    server_adoption = manifest.get("adoptedServerRequests", {"experimental": []})
+    if not isinstance(server_adoption, dict):
+        raise SystemExit("adoptedServerRequests: expected an object")
+    server_requests = sorted_unique_strings(server_adoption.get("experimental"), "adoptedServerRequests.experimental")
+    experimental_requests = schema_methods("experimental", "ServerRequest") - schema_methods("stable", "ServerRequest")
+    if not set(server_requests) <= experimental_requests:
+        raise SystemExit("experimental server-request adoption contains a non-experimental-only method")
+
     entries = [
         {"surface": "stable", "method": method} for method in stable
     ] + [
@@ -116,7 +124,8 @@ def validate_manifest() -> tuple[dict[str, object], list[dict[str, str]]]:
 
 def inventory(manifest: dict[str, object], entries: list[dict[str, str]]) -> dict[str, object]:
     excluded = manifest["excluded"]
-    payload = {"adopted": entries, "excluded": excluded}
+    server_requests = manifest.get("adoptedServerRequests", {"experimental": []})
+    payload = {"adopted": entries, "excluded": excluded, "adoptedServerRequests": server_requests}
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -126,6 +135,7 @@ def inventory(manifest: dict[str, object], entries: list[dict[str, str]]) -> dic
         "inventorySha256": digest,
         "adopted": entries,
         "excluded": excluded,
+        "adoptedServerRequests": server_requests,
     }
 
 
@@ -133,7 +143,10 @@ def entry_keys(value: dict[str, object]) -> set[tuple[str, str]]:
     adopted = value.get("adopted", [])
     if not isinstance(adopted, list):
         raise SystemExit("API inventory adopted field must be an array")
-    return {(entry["surface"], entry["method"]) for entry in adopted}
+    keys = {(entry["surface"], entry["method"]) for entry in adopted}
+    for method in value.get("adoptedServerRequests", {}).get("experimental", []):
+        keys.add(("server/experimental", method))
+    return keys
 
 
 def make_change_report(
@@ -184,6 +197,10 @@ def documentation(current: dict[str, object], report: dict[str, object]) -> str:
         f"## Experimental-only ({len(experimental)})",
         "",
         *[f"- `{method}`" for method in experimental],
+        "",
+        "## Adopted experimental server requests",
+        "",
+        *[f"- `{method}`" for method in current["adoptedServerRequests"]["experimental"]],
         "",
         f"## Excluded ({len(excluded)})",
         "",

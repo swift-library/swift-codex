@@ -9,11 +9,41 @@ import NIOWebSocket
 public enum CodexAppServerNIOError: Error, Equatable, Sendable {
   case closed
   case invalidURL
+  case invalidUnixSocketPath
+  case invalidRequestURI
+  case invalidHostHeader
   case missingHost
   case unsupportedScheme(String?)
   case invalidUTF8
   case unsupportedFrame
   case upgradeRejected
+}
+
+extension CodexAppServerNIOError: LocalizedError {
+  public var errorDescription: String? {
+    switch self {
+    case .closed:
+      "The Codex WebSocket transport is closed."
+    case .invalidURL:
+      "The Codex WebSocket URL is invalid."
+    case .invalidUnixSocketPath:
+      "The Codex Unix socket path must be absolute and fit the platform address limit."
+    case .invalidRequestURI:
+      "The Codex WebSocket request path is invalid."
+    case .invalidHostHeader:
+      "The Codex WebSocket Host header is invalid."
+    case .missingHost:
+      "The Codex WebSocket URL has no host."
+    case .unsupportedScheme(let scheme):
+      "The Codex WebSocket URL scheme is unsupported: \(scheme ?? "missing")."
+    case .invalidUTF8:
+      "The Codex WebSocket returned a message that is not valid UTF-8."
+    case .unsupportedFrame:
+      "The Codex WebSocket returned an unsupported frame."
+    case .upgradeRejected:
+      "The Codex app-server rejected the WebSocket upgrade."
+    }
+  }
 }
 
 public struct CodexAppServerNIOHeader: Equatable, Sendable {
@@ -54,8 +84,33 @@ public final class CodexAppServerNIOTransport: CodexAppServerMessageTransport,
     eventLoopGroup: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
     configuration: CodexAppServerNIOConfiguration = .init()
   ) async throws -> CodexAppServerNIOTransport {
-    try await connect(
-      url: url,
+    let endpoint = try CodexAppServerNIOEndpoint(url: url)
+    return try await connect(
+      endpoint: endpoint,
+      eventLoopGroup: eventLoopGroup,
+      configuration: configuration,
+      connector: CodexAppServerNIONIOConnector()
+    )
+  }
+
+  /// Connects to a WebSocket App Server endpoint over a Unix domain socket.
+  ///
+  /// Codex's `unix://` listener still speaks an HTTP WebSocket upgrade and
+  /// framed WebSocket messages. It is not a newline-delimited stdio socket.
+  public static func connect(
+    unixSocketPath: String,
+    requestURI: String = "/",
+    hostHeader: String = "localhost",
+    eventLoopGroup: any EventLoopGroup = MultiThreadedEventLoopGroup.singleton,
+    configuration: CodexAppServerNIOConfiguration = .init()
+  ) async throws -> CodexAppServerNIOTransport {
+    let endpoint = try CodexAppServerNIOEndpoint(
+      unixSocketPath: unixSocketPath,
+      requestURI: requestURI,
+      hostHeader: hostHeader
+    )
+    return try await connect(
+      endpoint: endpoint,
       eventLoopGroup: eventLoopGroup,
       configuration: configuration,
       connector: CodexAppServerNIONIOConnector()
@@ -68,8 +123,42 @@ public final class CodexAppServerNIOTransport: CodexAppServerMessageTransport,
     configuration: CodexAppServerNIOConfiguration,
     connector: any CodexAppServerNIOWebSocketConnector
   ) async throws -> CodexAppServerNIOTransport {
+    try await connect(
+      endpoint: CodexAppServerNIOEndpoint(url: url),
+      eventLoopGroup: eventLoopGroup,
+      configuration: configuration,
+      connector: connector
+    )
+  }
+
+  static func connect(
+    unixSocketPath: String,
+    requestURI: String = "/",
+    hostHeader: String = "localhost",
+    eventLoopGroup: any EventLoopGroup,
+    configuration: CodexAppServerNIOConfiguration,
+    connector: any CodexAppServerNIOWebSocketConnector
+  ) async throws -> CodexAppServerNIOTransport {
+    try await connect(
+      endpoint: CodexAppServerNIOEndpoint(
+        unixSocketPath: unixSocketPath,
+        requestURI: requestURI,
+        hostHeader: hostHeader
+      ),
+      eventLoopGroup: eventLoopGroup,
+      configuration: configuration,
+      connector: connector
+    )
+  }
+
+  private static func connect(
+    endpoint: CodexAppServerNIOEndpoint,
+    eventLoopGroup: any EventLoopGroup,
+    configuration: CodexAppServerNIOConfiguration,
+    connector: any CodexAppServerNIOWebSocketConnector
+  ) async throws -> CodexAppServerNIOTransport {
     let webSocket = try await connector.connect(
-      url: url,
+      endpoint: endpoint,
       eventLoopGroup: eventLoopGroup,
       configuration: configuration
     )
@@ -126,7 +215,14 @@ public final class CodexAppServerNIOTransport: CodexAppServerMessageTransport,
       case .text, .binary:
         try inboundChannel.yield(try string(from: frame), byteCount: frame.data.readableBytes)
       case .ping:
-        try await webSocket.sendFrame(WebSocketFrame(fin: true, opcode: .pong, data: frame.data))
+        try await webSocket.sendFrame(
+          WebSocketFrame(
+            fin: true,
+            opcode: .pong,
+            maskKey: maskingKey(),
+            data: frame.data
+          )
+        )
       case .pong:
         continue
       case .connectionClose:
@@ -148,8 +244,19 @@ public final class CodexAppServerNIOTransport: CodexAppServerMessageTransport,
     WebSocketFrame(
       fin: true,
       opcode: .text,
+      maskKey: maskingKey(),
       data: ByteBuffer(string: message)
     )
+  }
+
+  private static func maskingKey() -> WebSocketMaskingKey {
+    var generator = SystemRandomNumberGenerator()
+    return [
+      UInt8.random(in: .min ... .max, using: &generator),
+      UInt8.random(in: .min ... .max, using: &generator),
+      UInt8.random(in: .min ... .max, using: &generator),
+      UInt8.random(in: .min ... .max, using: &generator),
+    ]
   }
 
   private static func string(from frame: WebSocketFrame) throws -> String {
@@ -171,7 +278,7 @@ protocol CodexAppServerNIOWebSocket: Sendable {
 
 protocol CodexAppServerNIOWebSocketConnector: Sendable {
   func connect(
-    url: URL,
+    endpoint: CodexAppServerNIOEndpoint,
     eventLoopGroup: any EventLoopGroup,
     configuration: CodexAppServerNIOConfiguration
   ) async throws -> any CodexAppServerNIOWebSocket
@@ -200,10 +307,15 @@ private actor CodexAppServerNIOTransportState {
   }
 }
 
-private struct CodexAppServerNIOEndpoint: Sendable {
+struct CodexAppServerNIOEndpoint: Equatable, Sendable {
+  enum Target: Equatable, Sendable {
+    case hostPort(host: String, port: Int)
+    case unixSocket(path: String)
+  }
+
+  var target: Target
   var host: String
   var hostHeader: String
-  var port: Int
   var uri: String
   var usesTLS: Bool
 
@@ -226,7 +338,8 @@ private struct CodexAppServerNIOEndpoint: Sendable {
     }
 
     self.host = host
-    self.port = url.port ?? (usesTLS ? 443 : 80)
+    let port = url.port ?? (usesTLS ? 443 : 80)
+    self.target = .hostPort(host: host, port: port)
     self.hostHeader = url.port == nil ? host : "\(host):\(port)"
 
     var uri = url.path(percentEncoded: true)
@@ -238,20 +351,64 @@ private struct CodexAppServerNIOEndpoint: Sendable {
     }
     self.uri = uri
   }
+
+  init(
+    unixSocketPath: String,
+    requestURI: String,
+    hostHeader: String
+  ) throws {
+    guard
+      !unixSocketPath.isEmpty,
+      (unixSocketPath as NSString).isAbsolutePath,
+      !unixSocketPath.utf8.contains(0)
+    else {
+      throw CodexAppServerNIOError.invalidUnixSocketPath
+    }
+    do {
+      _ = try SocketAddress(unixDomainSocketPath: unixSocketPath)
+    } catch {
+      throw CodexAppServerNIOError.invalidUnixSocketPath
+    }
+    guard
+      requestURI.hasPrefix("/"),
+      !requestURI.utf8.contains(0),
+      !Self.containsLineBreak(requestURI)
+    else {
+      throw CodexAppServerNIOError.invalidRequestURI
+    }
+    guard
+      !hostHeader.isEmpty,
+      !hostHeader.utf8.contains(0),
+      !Self.containsLineBreak(hostHeader)
+    else {
+      throw CodexAppServerNIOError.invalidHostHeader
+    }
+
+    self.target = .unixSocket(path: unixSocketPath)
+    self.host = "localhost"
+    self.hostHeader = hostHeader
+    self.uri = requestURI
+    self.usesTLS = false
+  }
+
+  private static func containsLineBreak(_ value: String) -> Bool {
+    value.unicodeScalars.contains { CharacterSet.newlines.contains($0) }
+  }
 }
 
 private struct CodexAppServerNIONIOConnector:
   CodexAppServerNIOWebSocketConnector
 {
   func connect(
-    url: URL,
+    endpoint: CodexAppServerNIOEndpoint,
     eventLoopGroup: any EventLoopGroup,
     configuration: CodexAppServerNIOConfiguration
   ) async throws -> any CodexAppServerNIOWebSocket {
-    let endpoint = try CodexAppServerNIOEndpoint(url: url)
-    let upgradeResult: EventLoopFuture<CodexAppServerNIONIOUpgradeResult> =
-      try await ClientBootstrap(group: eventLoopGroup)
-      .connect(host: endpoint.host, port: endpoint.port) { channel in
+    let bootstrap = ClientBootstrap(group: eventLoopGroup)
+    let channelInitializer:
+      @Sendable (any Channel) -> EventLoopFuture<
+        EventLoopFuture<CodexAppServerNIONIOUpgradeResult>
+      > = { channel in
         channel.eventLoop.makeCompletedFuture {
           if endpoint.usesTLS {
             let tlsContext = try NIOSSLContext(
@@ -304,6 +461,21 @@ private struct CodexAppServerNIONIOConnector:
             configuration: .init(upgradeConfiguration: upgradeConfiguration)
           )
         }
+      }
+
+    let upgradeResult: EventLoopFuture<CodexAppServerNIONIOUpgradeResult> =
+      switch endpoint.target {
+      case .hostPort(let host, let port):
+        try await bootstrap.connect(
+          host: host,
+          port: port,
+          channelInitializer: channelInitializer
+        )
+      case .unixSocket(let path):
+        try await bootstrap.connect(
+          unixDomainSocketPath: path,
+          channelInitializer: channelInitializer
+        )
       }
 
     switch try await upgradeResult.get() {

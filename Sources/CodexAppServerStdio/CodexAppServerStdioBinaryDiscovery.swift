@@ -137,8 +137,10 @@ extension CodexAppServerStdioConfiguration {
     }
     return CodexAppServerStdioBinaryVersionProbe(
       arguments: versionProbeArguments,
-      stdoutText: String(decoding: result.stdout, as: UTF8.self),
-      stderrText: String(decoding: result.stderr, as: UTF8.self),
+      stdoutText: CodexAppServerProcessDiagnostic.redact(
+        String(decoding: result.stdout, as: UTF8.self)),
+      stderrText: CodexAppServerProcessDiagnostic.redact(
+        String(decoding: result.stderr, as: UTF8.self)),
       exitStatus: result.exit.status)
   }
 }

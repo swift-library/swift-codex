@@ -5,6 +5,29 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## [Unreleased]
 
+### Added
+
+- Typed experimental thread/turn start parameters with stable response contracts,
+  presence-sensitive appearance and service-tier updates, plugin reconciliation,
+  Bedrock discovery/setup, and a typed current-time server callback.
+- Value-free, bounded observations for unhandled typed inbound methods; unknown
+  server requests receive a method-not-found response without closing the session.
+- Unix-domain WebSocket clients through NIO and bounded, redacted stderr
+  diagnostics for natural unsuccessful App Server process exits.
+
+### Fixed
+
+- Preserve shared properties and required fields on generated object-union
+  branches, including MCP elicitation scope and notification timestamps.
+- Mask client WebSocket text and pong frames and bind typed callbacks to their
+  receiving connection and admission generation, including reused request IDs.
+
+### Changed
+
+- The typed callback enum and transport error enums gain cases, and corrected
+  generated models require upstream-mandated shared fields. These public changes
+  require a minor release during `0.x`.
+
 ## [0.4.1] - 2026-09-29
 
 ### Fixed

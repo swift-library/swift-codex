@@ -32,7 +32,35 @@ import Testing
         try Data().write(to: directory.appendingPathComponent("release"))
         #expect(try await transport.waitForExit() == .exited(23))
         #expect(root.hasExited)
-        #expect(try await messages.next() == nil)
+        await #expect(
+          throws: CodexAppServerStdioError.processTerminated(exitStatus: 23, diagnostic: "")
+        ) {
+          try await messages.next()
+        }
+      }
+    }
+
+    @Test("Natural nonzero exit joins and redacts native stderr diagnostics")
+    func naturalExitReportsRedactedDiagnostic() async throws {
+      try await withTransport(mode: "stderr-fatal") { transport in
+        var messages = transport.inboundLines.makeAsyncIterator()
+        do {
+          _ = try await messages.next()
+          Issue.record("Expected a nonzero process diagnostic")
+        } catch let error as CodexAppServerStdioError {
+          guard case .processTerminated(let status, let diagnostic) = error else {
+            Issue.record("Unexpected error: \(error)")
+            return
+          }
+          #expect(status == 42)
+          #expect(diagnostic.contains("fatal fixture"))
+          #expect(diagnostic.contains("[REDACTED]"))
+          #expect(!diagnostic.contains("fixture-secret"))
+          #expect(!diagnostic.contains("fixture-cookie"))
+          #expect(!diagnostic.contains("quoted"))
+          #expect(!diagnostic.contains("suffix"))
+        }
+        #expect(try await transport.waitForExit() == .exited(42))
       }
     }
 

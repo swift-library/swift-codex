@@ -28,7 +28,10 @@ deprecated fuzzy-file search, and unadopted fuzzy sessions do not receive
 public wrappers.
 
 Stable and experimental namespaces are separate. Experimental methods already
-present in stable are not duplicated as client wrappers.
+present in stable are not duplicated as client wrappers. Object unions inherit
+sibling properties and required fields into each inline branch; conflicting or
+unsupported shared constraints fail generation rather than dropping fields.
+Explicit experimental server-request adoption is recorded in the same manifest.
 
 ## Client Semantics
 
@@ -56,9 +59,19 @@ and results, including fields beyond the pinned model. Explicitly excluded
 methods and the initialize/initialized lifecycle remain unavailable through
 raw access. Typed methods continue to provide the pinned generated contract;
 clients forwarding experimental or newer fields use the raw representation.
-Raw server-request handles bind the receiving connection and request ID;
-completion or rejection is allowed once through that connection. Unknown
+Typed and raw server-request handles bind the receiving connection, request ID
+and admission token; completion or rejection is allowed once through that
+connection. Reusing an ID does not authorize an old handle to complete new work. Unknown
 methods are delivered to the raw consumer for a response or explicit rejection.
+
+In typed mode, unknown and experimental-only notifications produce value-free
+observations; unadopted server requests receive JSON-RPC -32601. Observations
+retain the latest 64 entries and at most 256 UTF-8 bytes of each method name.
+Known malformed payloads and invalid envelopes still fail the connection.
+`currentTime/read` is an explicitly adopted experimental typed callback.
+Experimental thread/turn start overlays preserve generated experimental params
+with stable response types. Presence-sensitive update overloads distinguish
+omitted, explicit null and replacement fields.
 
 Closing, peer failure, malformed input, and cancellation complete every
 pending response and stream once. Correlation state, pending-response objects,
@@ -68,12 +81,18 @@ channels, and binary-probe reports are package implementation details.
 
 All transports implement `CodexAppServerMessageTransport`. Stdio owns process
 resolution and launch. URLSession and NIO own outbound WebSocket clients. Vapor
-and Hummingbird own server-framework adapters. Client policy, schema, auth
-storage, gateway policy, audit, and redaction do not move into transport
-targets.
+and Hummingbird own server-framework adapters. Schema, client policy, auth
+storage, gateway forwarding, payload audit and payload redaction remain with
+their client or application owners. Transports bound and redact their own
+process diagnostics.
 
 NIO is implemented directly with SwiftNIO, NIOHTTP1, NIOWebSocket, and NIOSSL.
-It does not depend directly on AsyncHTTPClient.
+It does not depend directly on AsyncHTTPClient. TCP/TLS and Unix-domain clients
+perform an HTTP WebSocket upgrade and mask outgoing text and pong frames.
+Stdio retains a line-safe 64 KiB stderr diagnostic and redacts common credential
+forms before reporting a nonzero or signalled natural exit. Native process
+ownership, EOF completion, cancellation and joined cleanup remain independent
+of diagnostic capture.
 
 ## Stability
 
