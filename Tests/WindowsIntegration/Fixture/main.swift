@@ -20,6 +20,10 @@ import Foundation
         try FileHandle.standardError.write(contentsOf: Data(repeating: 121, count: 48_000))
       case "probe-overflow":
         try output("codex-probe" + String(repeating: "x", count: 2_000_000))
+      case "stderr-fatal":
+        try FileHandle.standardError.write(
+          contentsOf: Data("fatal fixture; token=fixture-secret\n".utf8))
+        ExitProcess(42)
       case "echo":
         let input = try FileHandle.standardInput.readToEnd() ?? Data()
         let value: [String: Any] = [

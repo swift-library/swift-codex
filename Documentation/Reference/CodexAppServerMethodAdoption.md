@@ -6,9 +6,9 @@ is the source of truth for typed wrappers, the raw-method deny policy,
 and this inventory.
 
 Pinned schema: `rust-v0.154.0`. Inventory SHA-256:
-`7f5aa61a8f2dbd8ae3c99380aef92c617a33bbba33851ff32d56715ef900b1e4`.
+`aed704c1356e0e801788914898b0541fe410539a05eebe5ca97f2abbd24ebd63`.
 
-## Stable (96)
+## Stable (97)
 
 - `account/login/cancel`
 - `account/login/start`
@@ -62,6 +62,7 @@ Pinned schema: `rust-v0.154.0`. Inventory SHA-256:
 - `plugin/installed`
 - `plugin/list`
 - `plugin/read`
+- `plugin/reconcile`
 - `plugin/share/checkout`
 - `plugin/share/delete`
 - `plugin/share/list`
@@ -107,8 +108,10 @@ Pinned schema: `rust-v0.154.0`. Inventory SHA-256:
 - `windowsSandbox/readiness`
 - `windowsSandbox/setupStart`
 
-## Experimental-only (51)
+## Experimental-only (53)
 
+- `account/bedrock/discover`
+- `account/bedrock/setup`
 - `collaborationMode/list`
 - `environment/add`
 - `environment/info`
@@ -161,21 +164,22 @@ Pinned schema: `rust-v0.154.0`. Inventory SHA-256:
 - `thread/timeline/list`
 - `turn/settings/update`
 
-## Excluded (17)
+## Adopted experimental server requests
+
+- `currentTime/read`
+
+## Excluded (14)
 
 - `FuzzyFileSearch` — legacy method is not adopted
 - `GetAuthStatus` — legacy method is not adopted
 - `GetConversationSummary` — legacy method is not adopted
 - `GitDiffToRemote` — legacy method is not adopted
-- `account/bedrock/discover` — Bedrock account onboarding is not adopted
-- `account/bedrock/setup` — Bedrock account onboarding is not adopted
 - `fuzzyFileSearch` — deprecated upstream method is not adopted
 - `fuzzyFileSearch/sessionStart` — experimental fuzzy session is not adopted
 - `fuzzyFileSearch/sessionStop` — experimental fuzzy session is not adopted
 - `fuzzyFileSearch/sessionUpdate` — experimental fuzzy session is not adopted
 - `initialize` — connection lifecycle owns the handshake
 - `initialized` — connection lifecycle owns the handshake
-- `plugin/reconcile` — plugin reconciliation is not adopted
 - `userVerification/delete` — user verification administration is not adopted
 - `userVerification/enroll` — user verification administration is not adopted
 - `userVerification/status` — user verification administration is not adopted
@@ -183,33 +187,15 @@ Pinned schema: `rust-v0.154.0`. Inventory SHA-256:
 
 ## Last Schema Refresh API Diff
 
-Added: 21. Removed: 2.
+Added: 4. Removed: 0.
 
 ### Added
 
-- `experimental` `mcpServer/event/stream/start`
-- `experimental` `mcpServer/event/stream/stop`
-- `experimental` `project/create`
-- `experimental` `project/delete`
-- `experimental` `project/import`
-- `experimental` `project/list`
-- `experimental` `project/move`
-- `experimental` `project/read`
-- `experimental` `project/update`
-- `experimental` `server/diagnostics`
-- `experimental` `thread/queue/add`
-- `experimental` `thread/queue/delete`
-- `experimental` `thread/queue/list`
-- `experimental` `thread/queue/reorder`
-- `experimental` `thread/queue/start`
-- `experimental` `thread/queue/update`
-- `experimental` `thread/timeline/list`
-- `experimental` `turn/settings/update`
-- `stable` `thread/items/list`
-- `stable` `thread/revert`
-- `stable` `thread/turns/list`
+- `experimental` `account/bedrock/discover`
+- `experimental` `account/bedrock/setup`
+- `server/experimental` `currentTime/read`
+- `stable` `plugin/reconcile`
 
 ### Removed
 
-- `experimental` `thread/items/list`
-- `experimental` `thread/turns/list`
+None.

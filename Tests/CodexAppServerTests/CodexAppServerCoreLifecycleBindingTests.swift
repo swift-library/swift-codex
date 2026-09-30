@@ -8,6 +8,7 @@ import Testing
 @testable import CodexAppServerStdio
 
 private typealias Stable = CodexAppServerProtocol.Stable
+private typealias Experimental = CodexAppServerProtocol.Experimental
 
 @Suite("CodexAppServer Core Lifecycle Binding")
 struct CodexAppServerCoreLifecycleBindingTests {
@@ -48,6 +49,68 @@ struct CodexAppServerCoreLifecycleBindingTests {
     let response = try await requestTask.value
     #expect(response.thread.id == "thr_start")
     #expect(response.model == "gpt-5.1-codex")
+
+    await connection.close()
+  }
+
+  @Test("Experimental thread/start parameters preserve typed dynamic tools and stable response")
+  func experimentalThreadStartPreservesDynamicToolsAndStableResponse() async throws {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = try await startLifecycleReadyConnection(peer: peer, experimentalAPI: true)
+    let tool = Experimental.DynamicToolSpec.namespace(
+      .init(
+        description: "Read-only notebook research tools.",
+        name: "notebook",
+        tools: [
+          .function(
+            .init(
+              deferLoading: false,
+              description: "Search the current notebook source scope.",
+              inputSchema: .object(["type": .string("object")]),
+              name: "search_sources",
+              type: .function
+            )
+          )
+        ],
+        type: .namespace
+      )
+    )
+
+    let requestTask = Task {
+      try await connection.threadStart(
+        Experimental.ThreadStartParams(
+          approvalPolicy: .never,
+          cwd: "/tmp/swift-codex/notebook",
+          dynamicTools: [tool],
+          sandbox: .readOnly
+        )
+      )
+    }
+
+    let requestLine = await peer.nextSentLine()
+    let clientRequest = try decode(Experimental.ClientRequest.self, from: requestLine)
+    guard case .threadStartRequest(let request) = clientRequest else {
+      Issue.record("Expected experimental thread/start generated request.")
+      return
+    }
+    #expect(request.method == .threadStart)
+    #expect(request.params.dynamicTools == [tool])
+    #expect(request.params.cwd == "/tmp/swift-codex/notebook")
+
+    let responseID =
+      switch request.id {
+      case .requestidoption1(let value): Stable.RequestId.requestidoption1(value)
+      case .requestidoption2(let value): Stable.RequestId.requestidoption2(value)
+      }
+    peer.receiveLine(
+      try responseLine(
+        id: responseID,
+        result: threadStartResponse(threadID: "thr_dynamic_tools")
+      )
+    )
+
+    let response = try await requestTask.value
+    #expect(response.thread.id == "thr_dynamic_tools")
 
     await connection.close()
   }
@@ -133,6 +196,57 @@ struct CodexAppServerCoreLifecycleBindingTests {
     let response = try await requestTask.value
     #expect(response.turn.id == "turn_start")
     #expect(response.turn.status == .inprogress)
+
+    await connection.close()
+  }
+
+  @Test("Experimental turn/start preserves collaboration mode and stable response")
+  func experimentalTurnStartPreservesCollaborationModeAndStableResponse() async throws {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = try await startLifecycleReadyConnection(peer: peer, experimentalAPI: true)
+    let mode = Experimental.CollaborationMode(
+      mode: .plan,
+      settings: .init(model: "gpt-5.1-codex", reasoning_effort: "high")
+    )
+
+    let requestTask = Task {
+      try await connection.turnStart(
+        Experimental.TurnStartParams(
+          clientUserMessageId: "submission-1",
+          collaborationMode: mode,
+          effort: "high",
+          input: [.text(.init(text: "Review the plan", type: .text))],
+          model: "gpt-5.1-codex",
+          threadId: "thr_new"
+        )
+      )
+    }
+
+    let requestLine = await peer.nextSentLine()
+    let clientRequest = try decode(Experimental.ClientRequest.self, from: requestLine)
+    guard case .turnStartRequest(let request) = clientRequest else {
+      Issue.record("Expected experimental turn/start generated request.")
+      return
+    }
+    #expect(request.params.threadId == "thr_new")
+    #expect(request.params.clientUserMessageId == "submission-1")
+    #expect(request.params.collaborationMode == mode)
+    #expect(request.params.input.count == 1)
+
+    let responseID =
+      switch request.id {
+      case .requestidoption1(let value): Stable.RequestId.requestidoption1(value)
+      case .requestidoption2(let value): Stable.RequestId.requestidoption2(value)
+      }
+    peer.receiveLine(
+      try responseLine(
+        id: responseID,
+        result: Stable.TurnStartResponse(turn: turn(id: "turn_experimental"))
+      )
+    )
+
+    let response = try await requestTask.value
+    #expect(response.turn.id == "turn_experimental")
 
     await connection.close()
   }
@@ -259,10 +373,11 @@ struct CodexAppServerCoreLifecycleBindingTests {
 
 }
 private func startLifecycleReadyConnection(
-  peer: CodexAppServerInMemoryLinePeer
+  peer: CodexAppServerInMemoryLinePeer,
+  experimentalAPI: Bool = false
 ) async throws -> CodexAppServerConnection {
   let startTask = Task {
-    try await makeLifecycleClient(peer: peer).start()
+    try await makeLifecycleClient(peer: peer, experimentalAPI: experimentalAPI).start()
   }
 
   let initializeLine = await peer.nextSentLine()
@@ -277,14 +392,18 @@ private func startLifecycleReadyConnection(
   return try await startTask.value
 }
 
-private func makeLifecycleClient(peer: CodexAppServerInMemoryLinePeer) -> CodexAppServerClient {
+private func makeLifecycleClient(
+  peer: CodexAppServerInMemoryLinePeer,
+  experimentalAPI: Bool
+) -> CodexAppServerClient {
   CodexAppServerClient(
     sessionConfiguration: .init(
       clientInfo: .init(
         name: "swift_codex_lifecycle_tests",
         title: "swift-codex Lifecycle Tests",
         version: "0.1.0"
-      )
+      ),
+      experimentalApi: experimentalAPI
     ),
     transportFactory: {
       peer

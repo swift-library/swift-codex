@@ -44,13 +44,15 @@ jobs:
 
       - name: AppServer real-binary tests
         run: |
+          SWIFT_CODEX_APP_SERVER_UNIX_REAL_BINARY_TESTS=1 \
+          SWIFT_CODEX_APP_SERVER_UNIX_REAL_BINARY_PATH="$SWIFT_CODEX_BINARY" \
           SWIFT_CODEX_APP_SERVER_REAL_BINARY_TESTS=1 \
           SWIFT_CODEX_APP_SERVER_REAL_BINARY_PATH="$SWIFT_CODEX_BINARY" \
           SWIFT_CODEX_APP_SERVER_REAL_BINARY_VERSION_CONTAINS="$PINNED_CODEX_VERSION" \
             swift test \
               --scratch-path "$RUNNER_TEMP/swift-codex-real-binary" \
               --no-parallel \
-              --filter CodexAppServerRealBinaryIntegration
+              --filter 'CodexAppServerRealBinaryIntegration|CodexAppServerNIORealBinary'
 
       - name: Install and verify the MCP-compatible CLI
         run: |

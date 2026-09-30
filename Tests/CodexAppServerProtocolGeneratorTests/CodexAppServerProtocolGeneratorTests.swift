@@ -125,6 +125,56 @@ struct CodexAppServerProtocolGeneratorTests {
     )
   }
 
+  @Test("common union properties merge into every object branch", arguments: ["oneOf", "anyOf"])
+  func commonUnionPropertiesMergeIntoEveryObjectBranch(unionKeyword: String) throws {
+    let declaration = try SwiftTypeRenderer(context: .init(knownTypeNames: [])).declaration(
+      name: "ScopedRequest",
+      schema: [
+        "type": "object",
+        "properties": [
+          "scope": ["type": "string"],
+          "sequence": ["type": "integer", "format": "int64"],
+        ],
+        "required": ["scope"],
+        unionKeyword: [
+          [
+            "title": "TextRequest",
+            "type": "object",
+            "properties": ["text": ["type": "string"]],
+            "required": ["text"],
+          ],
+          [
+            "title": "URLRequest",
+            "type": "object",
+            "properties": ["url": ["type": "string"]],
+            "required": ["url"],
+          ],
+        ],
+      ]
+    )
+
+    #expect(declaration.components(separatedBy: "public let scope: String").count == 3)
+    #expect(declaration.components(separatedBy: "public let sequence: Int64?").count == 3)
+  }
+
+  @Test("conflicting common union properties fail closed")
+  func conflictingCommonUnionPropertiesFailClosed() {
+    #expect(throws: GeneratorError.self) {
+      try SwiftTypeRenderer(context: .init(knownTypeNames: [])).declaration(
+        name: "ConflictingRequest",
+        schema: [
+          "properties": ["scope": ["type": "string"]],
+          "oneOf": [
+            [
+              "type": "object",
+              "properties": ["scope": ["type": "integer"]],
+            ]
+          ],
+        ]
+      )
+    }
+  }
+
   @Test("client binding emitter writes representative stable and experimental wrappers")
   func clientBindingEmitterWritesRepresentativeWrappers() throws {
     let outputRoot = temporaryDirectory().appendingPathComponent("ClientBindings")
@@ -133,9 +183,9 @@ struct CodexAppServerProtocolGeneratorTests {
     try plan.validateForGeneration()
     try ClientBindingEmitter(plan: plan).emit()
 
-    #expect(plan.bindings.count == 147)
-    #expect(plan.bindings.filter { $0.surface == .stable }.count == 96)
-    #expect(plan.bindings.filter { $0.surface == .experimental }.count == 51)
+    #expect(plan.bindings.count == 150)
+    #expect(plan.bindings.filter { $0.surface == .stable }.count == 97)
+    #expect(plan.bindings.filter { $0.surface == .experimental }.count == 53)
     try expectFileContains(
       outputRoot.appendingPathComponent("CodexAppServerClient+StableBindings.swift"),
       "public func threadStart("
@@ -168,6 +218,18 @@ struct CodexAppServerProtocolGeneratorTests {
       outputRoot.appendingPathComponent("CodexAppServerClient+MethodPolicy.swift"),
       "\"fuzzyFileSearch\""
     )
+    for (name, method) in [
+      ("stableServerNotificationMethods", "warning"),
+      ("experimentalServerNotificationMethods", "thread/realtime/started"),
+      ("stableServerRequestMethods", "mcpServer/elicitation/request"),
+      ("adoptedExperimentalServerRequestMethods", "currentTime/read"),
+    ] {
+      try expectFileContains(
+        outputRoot.appendingPathComponent("CodexAppServerClient+MethodPolicy.swift"), name)
+      try expectFileContains(
+        outputRoot.appendingPathComponent("CodexAppServerClient+MethodPolicy.swift"),
+        "\"\(method)\"")
+    }
     let generatedBindings = plan.bindings.map(\.method)
     #expect(!generatedBindings.contains("fuzzyFileSearch"))
     #expect(!generatedBindings.contains("fuzzyFileSearch/sessionStart"))

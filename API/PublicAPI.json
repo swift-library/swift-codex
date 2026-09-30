@@ -19,11 +19,11 @@
     {
       "api_sha256_by_swift_minor": {
         "6.3": "63442e8faeb9fce5ba2eca13660f116558f61224d09709443ad62b1671b70447",
-        "6.4": "0793ae634e23e0e3aca632eb788e08557f09aadfe32280b4617ce06e59563136"
+        "6.4": "8fd4f0593bb64309de4da1883e8d41c436c98e89b70eeb08d42b858c5ee0d98f"
       },
       "name": "CodexAppServerClient",
-      "relationship_count": 244,
-      "symbol_count": 223
+      "relationship_count": 313,
+      "symbol_count": 268
     },
     {
       "api_sha256_by_swift_minor": {
@@ -37,20 +37,20 @@
     {
       "api_sha256_by_swift_minor": {
         "6.3": "719d42fc643bda373915c37b46ea6c5584b005dcaa580743772ae42582baa74d",
-        "6.4": "a061fa5f804a23f8bb6d884946155b4482de06c65da9ccb23904cb5c87d11cc3"
+        "6.4": "04f9c905521854cac8e3027a9627fa40d66d1d6a012e36fadc255045de2d91e5"
       },
       "name": "CodexAppServerNIO",
-      "relationship_count": 30,
-      "symbol_count": 21
+      "relationship_count": 41,
+      "symbol_count": 26
     },
     {
       "api_sha256_by_swift_minor": {
         "6.3": "288f335f84711ab5e007ed18ffc580c97c1f6deeb9b4e62d59c9e37fb849845c",
-        "6.4": "59e357ecd39332022597edfca6a9118f9243e4cc70e7bb55d9e742dc8849aa74"
+        "6.4": "c2f4758775df0f1e8c486d72f5558ea781e7f581b8ad26b336c72ccab563cd80"
       },
       "name": "CodexAppServerProtocol",
-      "relationship_count": 34434,
-      "symbol_count": 16914
+      "relationship_count": 34751,
+      "symbol_count": 17231
     },
     {
       "api_sha256_by_swift_minor": {
@@ -64,11 +64,11 @@
     {
       "api_sha256_by_swift_minor": {
         "6.3": "b6afc6fe10ba7db1c661e1e72ea1b2d45b881293a1f4125da3c8f2dffa60243f",
-        "6.4": "fb2debf5555e562a7f259ddeff06765a024276ae8dd11edf3ca0ac9ea3980ee5"
+        "6.4": "c19075225d750f9cfd8b86e1fbd8b1806873e487b8b35710eef240ab43c5c9d5"
       },
       "name": "CodexAppServerStdio",
-      "relationship_count": 48,
-      "symbol_count": 35
+      "relationship_count": 56,
+      "symbol_count": 37
     },
     {
       "api_sha256_by_swift_minor": {

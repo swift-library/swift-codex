@@ -175,6 +175,14 @@ func connectToNIOWebSocket(url: URL) async throws {
 }
 ```
 
+## Connect Over A Unix WebSocket
+
+Launch the pinned Codex binary with `app-server --listen unix:///absolute/path.sock`.
+Use a private directory owned by your application for the socket. Connect with
+`CodexAppServerNIOTransport.connect(unixSocketPath: "/absolute/path.sock")` inside
+the client's transport factory. The listener uses an HTTP WebSocket upgrade;
+`requestURI` and `hostHeader` are available for a local reverse proxy.
+
 ## Accept Downstream Vapor WebSockets
 
 ```swift
@@ -406,8 +414,13 @@ func observeNotifications(connection: CodexAppServerConnection) async throws {
 }
 ```
 
-The generated `ServerNotification` enum preserves every adopted notification
-family in wire order. Switch on its cases when typed payload handling is needed.
+The generated `ServerNotification` enum preserves known stable notifications in
+wire order. Switch on its cases when typed payload handling is needed. Unknown
+and experimental-only notifications are summarized by `unhandledInboundMessages`
+without retaining parameter values. This diagnostic stream keeps the latest
+64 entries and truncates method names to 256 UTF-8 bytes. Unadopted server
+requests receive -32601 and a summary. Known malformed messages still fail the
+connection. Raw modes deliver complete payloads for application handling.
 
 ## Handle Server-Initiated Requests
 
@@ -447,6 +460,20 @@ Examples of supported method families include:
 Prefer generated types over handwritten payload mirrors. Runtime code should
 stay focused on connection, lifecycle, JSON-RPC correlation, streams, and
 request resolution.
+
+## Experimental And Presence-Sensitive Parameters
+
+Enable `experimentalApi: true` during initialization when using experimental
+APIs. The `threadStart` and `turnStart` overloads accept generated experimental
+params, including dynamic tools and collaboration mode, while returning their
+stable response types. The manifest also adopts typed `currentTime/read`
+callbacks and experimental Bedrock discovery/setup methods.
+
+Use `threadSectionUpdate(sectionID:name:appearanceUpdate:)` with `.unchanged`, `.clear` or
+`.replace(...)` to omit, explicitly null or replace appearance. Use
+`turnSettingsUpdate(threadID:turnID:effort:model:summary:serviceTierUpdate:)` with the same three states for an
+experimental service-tier update. Generated optional params retain their normal
+encoding behavior; these overloads express wire presence explicitly.
 
 ## Preserve Complete JSON Messages
 

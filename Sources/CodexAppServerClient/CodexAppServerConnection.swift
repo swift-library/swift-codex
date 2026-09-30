@@ -11,6 +11,11 @@ public final class CodexAppServerConnection: @unchecked Sendable {
   /// Typed server requests that require a client response.
   public let typedServerRequests: AsyncThrowingStream<CodexAppServerTypedServerRequest, Error>
 
+  /// Value-free compatibility observations in typed mode. At most the newest 64 are retained.
+  /// Dropping an older observation does not drop protocol messages or responses.
+  public let unhandledInboundMessages:
+    AsyncThrowingStream<CodexAppServerUnhandledInboundMessage, Error>
+
   /// Complete notifications in wire order when the session selects raw inbound messages.
   public let rawNotifications: AsyncThrowingStream<CodexAppServerRawNotification, Error>
 
@@ -36,6 +41,7 @@ public final class CodexAppServerConnection: @unchecked Sendable {
     self.transport = transport
     self.state = state
     self.inboundChannels = inboundChannels
+    self.unhandledInboundMessages = inboundChannels.unhandled.stream
     self.notifications = inboundChannels.notifications.stream
     self.typedServerRequests = inboundChannels.typedServerRequests.stream
     self.rawNotifications = inboundChannels.rawNotifications.stream
@@ -65,6 +71,8 @@ public final class CodexAppServerConnection: @unchecked Sendable {
 }
 
 struct CodexAppServerInboundChannels: Sendable {
+  let unhandled = AsyncThrowingStream<CodexAppServerUnhandledInboundMessage, Error>.makeStream(
+    bufferingPolicy: .bufferingNewest(64))
   let mode: CodexAppServerClient.InboundMessageMode
   let connectionID = UUID()
   let notifications =
@@ -84,10 +92,12 @@ struct CodexAppServerInboundChannels: Sendable {
       rawServerRequests.finish()
       rawInboundMessages.finish()
     case .raw:
+      unhandled.continuation.finish()
       notifications.finish()
       typedServerRequests.finish()
       rawInboundMessages.finish()
     case .rawOrdered:
+      unhandled.continuation.finish()
       notifications.finish()
       typedServerRequests.finish()
       rawNotifications.finish()
@@ -97,12 +107,14 @@ struct CodexAppServerInboundChannels: Sendable {
 
   func finish(throwing error: (any Error)? = nil) {
     if let error {
+      unhandled.continuation.finish(throwing: error)
       notifications.finish(throwing: error)
       typedServerRequests.finish(throwing: error)
       rawNotifications.finish(throwing: error)
       rawServerRequests.finish(throwing: error)
       rawInboundMessages.finish(throwing: error)
     } else {
+      unhandled.continuation.finish()
       notifications.finish()
       typedServerRequests.finish()
       rawNotifications.finish()

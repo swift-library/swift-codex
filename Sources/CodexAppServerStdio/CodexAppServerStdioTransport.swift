@@ -44,6 +44,7 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
       handle: process.standardInput, maximumMessageBytes: configuration.maximumMessageBytes)
     let stdout = process.standardOutput
     let stderr = process.standardError
+    let stderrDiagnostic = CodexAppServerProcessDiagnostic()
     let stdoutReader = Task.detached(priority: nil) {
       defer { try? stdout.close() }
       do {
@@ -59,7 +60,9 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
     }
     let stderrReader = Task.detached(priority: nil) {
       defer { try? stderr.close() }
-      await CodexAppServerPipeReader.discard(from: stderr)
+      while let chunk = try? await CodexProcessPipe.readChunk(from: stderr) {
+        stderrDiagnostic.append(chunk)
+      }
     }
     self.inboundLines = inboundChannel.stream
     self.process = process
@@ -73,8 +76,14 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
       let output = await stdoutReader.result
       await stderrReader.value
       do {
-        _ = try exit.get()
+        let termination = try exit.get()
         try output.get()
+        if !process.cancellationWasRequested,
+          termination.wasSignalled || termination.status != 0
+        {
+          throw CodexAppServerStdioError.processTerminated(
+            exitStatus: termination.status, diagnostic: stderrDiagnostic.snapshot())
+        }
         inboundChannel.finish()
       } catch {
         inboundChannel.finish(throwing: error)
