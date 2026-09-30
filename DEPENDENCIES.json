@@ -632,11 +632,11 @@
       "required_by": [
         "vapor"
       ],
-      "revision": "cfd8f434843ac7850e2d97f46c1aa5ddb906cf1c",
+      "revision": "33e61d0a02a9ddc9f025f8398a0dc24774f6cbe1",
       "roles": [
         "runtime"
       ],
-      "version": "4.121.4"
+      "version": "4.122.2"
     },
     {
       "direct": false,
