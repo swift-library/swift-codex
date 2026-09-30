@@ -15,6 +15,18 @@ baseline.
   experimental schema changes. Such changes must still be called out in the
   changelog.
 
+## Public API Baselines
+
+Run the public API verifier with its update option after an accepted API change.
+The baseline records hashes for each Apple Swift minor used by the release gate.
+For a hosted toolchain unavailable locally, dispatch API Breaking Changes against
+the candidate branch and download the public-api-snapshot artifact. Its manual
+run generates a baseline; pull request runs diagnose compatibility. Confirm the
+run's source commit and toolchain, merge the freshly generated records with the
+local toolchain records, and verify the committed result locally and through the
+candidate's Repository quality check. Do not
+retain a hash from an older API merely because its compiler is unavailable.
+
 ## Release Gate
 
 From the repository root, run:

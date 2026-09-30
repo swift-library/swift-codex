@@ -47,6 +47,16 @@ struct CodexAppServerServerRequestFamilyTests {
       return
     }
     #expect(elicitation.id == .requestidoption1("mcp-elicit"))
+    guard
+      case .mcpserverelicitationrequestparamsoption4(let elicitationParams) =
+        elicitation.params
+    else {
+      Issue.record("Expected an MCP URL elicitation request.")
+      return
+    }
+    #expect(elicitationParams.serverName == "local-mcp")
+    #expect(elicitationParams.threadId == "thr_123")
+    #expect(elicitationParams.turnId == "turn_123")
 
     guard case .permissionsApproval(let permissions) = try await requests.next() else {
       Issue.record("Expected permissions approval request.")
@@ -311,6 +321,9 @@ private func stableServerRequestFixtures() -> [Stable.ServerRequest] {
             elicitationId: "elicit-1",
             message: "Open authorization page",
             mode: .url,
+            serverName: "local-mcp",
+            threadId: "thr_123",
+            turnId: "turn_123",
             url: "https://example.com/auth"
           ))
       )),

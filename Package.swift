@@ -243,6 +243,7 @@ let package = Package(
     .testTarget(
       name: "CodexAppServerNIOTests",
       dependencies: [
+        "CodexAppServerClient",
         "CodexAppServerNIO",
         "CodexAppServerRuntime",
         .product(name: "NIOCore", package: "swift-nio"),

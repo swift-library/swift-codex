@@ -75,7 +75,11 @@ import Testing
         #expect(kill(transport.processIdentifier, 0) == 0)
         try Data().write(to: release)
         #expect(try await transport.waitForExit() == .exited(23))
-        #expect(try await messages.next() == nil)
+        await #expect(
+          throws: CodexAppServerStdioError.processTerminated(exitStatus: 23, diagnostic: "")
+        ) {
+          try await messages.next()
+        }
         await transport.close()
       } catch {
         await transport.close()

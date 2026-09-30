@@ -46,6 +46,7 @@ struct CodexAppServerNIOTransportTests {
 
     let frame = try await webSocket.waitForSentFrame()
     #expect(frame.opcode == .text)
+    #expect(frame.maskKey != nil)
     #expect(string(from: frame) == #"{"jsonrpc":"2.0"}"#)
     await transport.close()
   }
@@ -59,6 +60,7 @@ struct CodexAppServerNIOTransportTests {
 
     let frame = try await webSocket.waitForSentFrame()
     #expect(frame.opcode == .pong)
+    #expect(frame.maskKey != nil)
     #expect(string(from: frame) == "ping")
     await transport.close()
   }
@@ -157,6 +159,59 @@ struct CodexAppServerNIOTransportTests {
       )
     }
   }
+
+  @Test("Unix socket connect validates and forwards WebSocket endpoint metadata")
+  func unixSocketConnectValidatesAndForwardsEndpointMetadata() async throws {
+    let connector = RecordingConnector()
+    let transport = try await CodexAppServerNIOTransport.connect(
+      unixSocketPath: "/tmp/codex-app-server.sock",
+      requestURI: "/control?client=notes",
+      hostHeader: "codex.local",
+      eventLoopGroup: MultiThreadedEventLoopGroup.singleton,
+      configuration: .init(),
+      connector: connector
+    )
+
+    let expectedEndpoint = try CodexAppServerNIOEndpoint(
+      unixSocketPath: "/tmp/codex-app-server.sock",
+      requestURI: "/control?client=notes",
+      hostHeader: "codex.local"
+    )
+    #expect(
+      await connector.endpoint == expectedEndpoint
+    )
+    await transport.close()
+  }
+
+  @Test("Unix socket connect rejects unsafe endpoint metadata before network I/O")
+  func unixSocketConnectRejectsUnsafeEndpointMetadata() async {
+    await #expect(throws: CodexAppServerNIOError.invalidUnixSocketPath) {
+      _ = try await CodexAppServerNIOTransport.connect(
+        unixSocketPath: "relative.sock",
+        eventLoopGroup: MultiThreadedEventLoopGroup.singleton,
+        configuration: .init(),
+        connector: FailingConnector(error: CodexAppServerNIOError.upgradeRejected)
+      )
+    }
+    await #expect(throws: CodexAppServerNIOError.invalidRequestURI) {
+      _ = try await CodexAppServerNIOTransport.connect(
+        unixSocketPath: "/tmp/codex-app-server.sock",
+        requestURI: "control",
+        eventLoopGroup: MultiThreadedEventLoopGroup.singleton,
+        configuration: .init(),
+        connector: FailingConnector(error: CodexAppServerNIOError.upgradeRejected)
+      )
+    }
+    await #expect(throws: CodexAppServerNIOError.invalidHostHeader) {
+      _ = try await CodexAppServerNIOTransport.connect(
+        unixSocketPath: "/tmp/codex-app-server.sock",
+        hostHeader: "codex.local\r\nInjected: true",
+        eventLoopGroup: MultiThreadedEventLoopGroup.singleton,
+        configuration: .init(),
+        connector: FailingConnector(error: CodexAppServerNIOError.upgradeRejected)
+      )
+    }
+  }
 }
 
 private final class FakeWebSocket: CodexAppServerNIOWebSocket, @unchecked Sendable {
@@ -244,11 +299,25 @@ private struct FailingConnector: CodexAppServerNIOWebSocketConnector {
   var error: Error
 
   func connect(
-    url: URL,
+    endpoint: CodexAppServerNIOEndpoint,
     eventLoopGroup: any EventLoopGroup,
     configuration: CodexAppServerNIOConfiguration
   ) async throws -> any CodexAppServerNIOWebSocket {
     throw error
+  }
+}
+
+private actor RecordingConnector: CodexAppServerNIOWebSocketConnector {
+  private(set) var endpoint: CodexAppServerNIOEndpoint?
+  private let webSocket = FakeWebSocket()
+
+  func connect(
+    endpoint: CodexAppServerNIOEndpoint,
+    eventLoopGroup: any EventLoopGroup,
+    configuration: CodexAppServerNIOConfiguration
+  ) async throws -> any CodexAppServerNIOWebSocket {
+    self.endpoint = endpoint
+    return webSocket
   }
 }
 

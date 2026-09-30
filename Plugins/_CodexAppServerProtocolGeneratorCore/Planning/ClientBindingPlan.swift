@@ -4,6 +4,10 @@ struct ClientBindingPlan {
   let outputRoot: URL
   let bindings: [ClientBinding]
   let adoption: ClientMethodAdoption
+  let stableServerNotificationMethods: Set<String>
+  let experimentalServerNotificationMethods: Set<String>
+  let stableServerRequestMethods: Set<String>
+  let experimentalServerRequestMethods: Set<String>
 
   var outputRelativePaths: [String] {
     Surface.allCases.map { "CodexAppServerClient+\($0.namespaceName)Bindings.swift" }
@@ -68,8 +72,11 @@ struct ClientBindingPlanner {
     }
 
     let adoption = try ClientMethodAdoption.load(schemaRoot: schemaRoot)
-    let stableSchemaMethods = try schemaMethods(surface: .stable)
-    let experimentalSchemaMethods = try schemaMethods(surface: .experimental)
+    let stableSchemaMethods = try schemaMethods(surface: .stable, aggregate: "ClientRequest")
+    let experimentalSchemaMethods = try schemaMethods(
+      surface: .experimental,
+      aggregate: "ClientRequest"
+    )
     try adoption.validate(
       stableSchemaMethods: stableSchemaMethods,
       experimentalSchemaMethods: experimentalSchemaMethods
@@ -93,18 +100,47 @@ struct ClientBindingPlanner {
         : $0.surface.rawValue < $1.surface.rawValue
     }
 
-    return ClientBindingPlan(outputRoot: outputRoot, bindings: allBindings, adoption: adoption)
+    let stableRequests = try schemaMethods(surface: .stable, aggregate: "ServerRequest")
+    let experimentalRequests = try schemaMethods(surface: .experimental, aggregate: "ServerRequest")
+    guard
+      adoption.experimentalServerRequestMethods.isSubset(
+        of: experimentalRequests.subtracting(stableRequests))
+    else {
+      throw GeneratorError.invalidSchema(
+        "adopted experimental server request is absent from the experimental-only schema")
+    }
+    return ClientBindingPlan(
+      outputRoot: outputRoot,
+      bindings: allBindings,
+      adoption: adoption,
+      stableServerNotificationMethods: try schemaMethods(
+        surface: .stable,
+        aggregate: "ServerNotification"
+      ),
+      experimentalServerNotificationMethods: try schemaMethods(
+        surface: .experimental,
+        aggregate: "ServerNotification"
+      ),
+      stableServerRequestMethods: try schemaMethods(
+        surface: .stable,
+        aggregate: "ServerRequest"
+      ),
+      experimentalServerRequestMethods: try schemaMethods(
+        surface: .experimental,
+        aggregate: "ServerRequest"
+      )
+    )
   }
 
-  private func schemaMethods(surface: Surface) throws -> Set<String> {
+  private func schemaMethods(surface: Surface, aggregate: String) throws -> Set<String> {
     let jsonRoot = schemaRoot.appendingPathComponent(surface.rawValue).appendingPathComponent(
       "json")
     let requestObject = try JSONObject(
-      fileURL: jsonRoot.appendingPathComponent("ClientRequest.json"))
+      fileURL: jsonRoot.appendingPathComponent("\(aggregate).json"))
     let requestSchema = try SchemaNode.object(requestObject.rawValue)
     guard let branches = requestSchema["oneOf"] as? [Any] else {
       throw GeneratorError.invalidSchema(
-        "ClientRequest.json does not contain oneOf request branches")
+        "\(aggregate).json does not contain oneOf message branches")
     }
     return try Set(
       branches.map { branch in

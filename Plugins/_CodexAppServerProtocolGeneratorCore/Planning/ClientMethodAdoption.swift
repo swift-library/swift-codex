@@ -8,6 +8,7 @@ struct ClientMethodAdoption: Sendable {
   let stableMethods: Set<String>
   let experimentalMethods: Set<String>
   let exclusions: [Exclusion]
+  let experimentalServerRequestMethods: Set<String>
 
   var adoptedMethods: Set<String> {
     stableMethods.union(experimentalMethods)
@@ -48,7 +49,8 @@ struct ClientMethodAdoption: Sendable {
         upstreamTag: manifest.upstreamTag,
         stableMethods: Set(manifest.adopted.stable),
         experimentalMethods: Set(manifest.adopted.experimental),
-        exclusions: manifest.excluded
+        exclusions: manifest.excluded,
+        experimentalServerRequestMethods: Set(manifest.adoptedServerRequests?.experimental ?? [])
       )
       try adoption.validateManifestShape()
       return adoption
@@ -139,6 +141,11 @@ struct ClientMethodAdoption: Sendable {
     let upstreamTag: String
     let adopted: Adopted
     let excluded: [Exclusion]
+    let adoptedServerRequests: ServerRequests?
+
+    struct ServerRequests: Decodable {
+      let experimental: [String]
+    }
 
     struct Adopted: Decodable {
       let stable: [String]

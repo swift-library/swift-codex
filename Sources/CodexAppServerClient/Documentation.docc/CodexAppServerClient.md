@@ -15,7 +15,19 @@ client continues to own handshake, correlation, cancellation, and once-only
 server-request responses. The default `.typed` mode retains the pinned stable
 protocol contract. Consume each selected stream once.
 
-Each selected inbound stream retains at most 256 messages and 16 MiB of original
+In typed mode, unknown or experimental-only notifications are summarized by
+`unhandledInboundMessages`. Unadopted server requests receive JSON-RPC -32601
+and a summary. This diagnostic stream retains the latest 64 entries, omits
+parameter values and limits method names to 256 UTF-8 bytes. It is inactive in
+raw modes. Known malformed payloads remain connection failures. The adopted
+experimental `currentTime/read` callback has a typed response handle.
+
+Typed and raw handles carry connection and admission ownership. A completed
+handle cannot answer a later request reusing its ID. Experimental thread/turn
+start overloads accept generated experimental params and return stable response
+types. Presence-sensitive update overloads distinguish omission, null and value.
+
+Each selected protocol inbound stream retains at most 256 messages and 16 MiB of original
 wire payload. A slow consumer that exceeds either budget receives an explicit
 `CodexAppServerConnectionFoundation.FoundationError.bufferLimitExceeded` failure.
 The connection fails pending replies, releases its backlog and closes its
@@ -52,6 +64,9 @@ Responses and request completion release their reservations.
 - ``CodexAppServerTypedServerRequest``
 - ``CodexAppServerRawServerRequest``
 - ``CodexAppServerRawNotification``
+- ``CodexAppServerUnhandledInboundMessage``
+- ``CodexAppServerThreadSectionAppearanceUpdate``
+- ``CodexAppServerTurnServiceTierUpdate``
 
 Select `inboundMessageMode: .rawOrdered` and consume `rawInboundMessages` to
 observe notifications and server requests in their combined wire order. Each

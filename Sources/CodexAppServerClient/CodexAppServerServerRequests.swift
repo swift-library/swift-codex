@@ -1,14 +1,12 @@
 import CodexAppServerProtocol
 import CodexAppServerRuntime
+import Foundation
 
 package struct CodexAppServerServerRequest: Equatable, Sendable {
   package let id: CodexAppServerProtocol.Stable.RequestId
-  package let request: CodexAppServerProtocol.Stable.ServerRequest
+  let connectionID: UUID
+  let requestToken: UUID
 
-  package init(request: CodexAppServerProtocol.Stable.ServerRequest) {
-    self.request = request
-    self.id = request.codexAppServerRequestID
-  }
 }
 
 public struct CodexAppServerServerRequestHandle<
@@ -28,6 +26,7 @@ public struct CodexAppServerServerRequestHandle<
 
 public enum CodexAppServerTypedServerRequest: Sendable {
   public typealias Stable = CodexAppServerProtocol.Stable
+  public typealias Experimental = CodexAppServerProtocol.Experimental
 
   case commandExecutionApproval(
     CodexAppServerServerRequestHandle<
@@ -90,6 +89,12 @@ public enum CodexAppServerTypedServerRequest: Sendable {
     >
   )
 
+  case currentTimeRead(
+    CodexAppServerServerRequestHandle<
+      Experimental.CurrentTimeReadParams, Experimental.CurrentTimeReadResponse
+    >
+  )
+
   public var id: CodexAppServerProtocol.Stable.RequestId {
     switch self {
     case .commandExecutionApproval(let handle):
@@ -112,11 +117,15 @@ public enum CodexAppServerTypedServerRequest: Sendable {
       return handle.id
     case .attestationGenerate(let handle):
       return handle.id
+    case .currentTimeRead(let handle):
+      return handle.id
     }
   }
 
-  init(serverRequest: CodexAppServerServerRequest) {
-    switch serverRequest.request {
+  init(
+    serverRequest: CodexAppServerServerRequest, request: CodexAppServerProtocol.Stable.ServerRequest
+  ) {
+    switch request {
     case .itemCommandExecutionRequestApprovalRequest(let value):
       self = .commandExecutionApproval(.init(rawRequest: serverRequest, params: value.params))
     case .itemFileChangeRequestApprovalRequest(let value):
@@ -146,15 +155,14 @@ extension CodexAppServerConnection {
     _ serverRequest: CodexAppServerServerRequest,
     with response: Response
   ) async throws {
-    try await Self.mapRuntimeStateError {
-      try await state.completeServerRequest(id: Self.runtimeRequestID(serverRequest.id))
-    }
     let rpcResponse = CodexAppServerProtocol.Stable.JSONRPCResponse(
       id: serverRequest.id,
       result: try Self.encodeStableJSONValue(response)
     )
 
-    try await sendStableMessage(rpcResponse)
+    let line = try CodexAppServerConnectionFoundation.encodeLine(rpcResponse)
+    try await completeTypedServerRequest(serverRequest)
+    try await transport.sendMessage(line)
   }
 
   package func rejectServerRequest(
@@ -163,15 +171,24 @@ extension CodexAppServerConnection {
     message: String,
     data: CodexAppServerProtocol.Stable.JSONValue? = nil
   ) async throws {
-    try await Self.mapRuntimeStateError {
-      try await state.completeServerRequest(id: Self.runtimeRequestID(serverRequest.id))
-    }
     let rpcError = CodexAppServerProtocol.Stable.JSONRPCError(
       error: .init(code: code, data: data, message: message),
       id: serverRequest.id
     )
 
-    try await sendStableMessage(rpcError)
+    let line = try CodexAppServerConnectionFoundation.encodeLine(rpcError)
+    try await completeTypedServerRequest(serverRequest)
+    try await transport.sendMessage(line)
+  }
+
+  private func completeTypedServerRequest(_ request: CodexAppServerServerRequest) async throws {
+    guard request.connectionID == inboundChannels.connectionID else {
+      throw CodexAppServerClientError.foreignServerRequest(id: request.id)
+    }
+    try await Self.mapRuntimeStateError {
+      try await state.completeServerRequest(
+        id: Self.runtimeRequestID(request.id), token: request.requestToken)
+    }
   }
 
   public func resolveServerRequest<Params: Sendable, Response: Encodable & Sendable>(
@@ -193,32 +210,5 @@ extension CodexAppServerConnection {
       message: message,
       data: data
     )
-  }
-}
-
-extension CodexAppServerProtocol.Stable.ServerRequest {
-  fileprivate var codexAppServerRequestID: CodexAppServerProtocol.Stable.RequestId {
-    switch self {
-    case .itemCommandExecutionRequestApprovalRequest(let value):
-      return value.id
-    case .itemFileChangeRequestApprovalRequest(let value):
-      return value.id
-    case .itemToolRequestUserInputRequest(let value):
-      return value.id
-    case .mcpserverElicitationRequestRequest(let value):
-      return value.id
-    case .itemPermissionsRequestApprovalRequest(let value):
-      return value.id
-    case .itemToolCallRequest(let value):
-      return value.id
-    case .accountChatgptAuthTokensRefreshRequest(let value):
-      return value.id
-    case .applypatchapprovalrequest(let value):
-      return value.id
-    case .execcommandapprovalrequest(let value):
-      return value.id
-    case .attestationGenerateRequest(let value):
-      return value.id
-    }
   }
 }

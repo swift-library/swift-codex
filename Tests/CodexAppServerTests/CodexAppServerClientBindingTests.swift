@@ -8,9 +8,269 @@ import Testing
 @testable import CodexAppServerStdio
 
 private typealias Stable = CodexAppServerProtocol.Stable
+private typealias Experimental = CodexAppServerProtocol.Experimental
 
 @Suite("CodexAppServer Client Binding")
 struct CodexAppServerClientBindingTests {
+  @Test("Unknown notifications are observed without closing the typed connection")
+  func unknownNotificationsAreObservedWithoutClosingConnection() async throws {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = try await startReadyConnection(peer: peer)
+    var observations = connection.unhandledInboundMessages.makeAsyncIterator()
+    var notifications = connection.notifications.makeAsyncIterator()
+    let method = String(repeating: "future/", count: 50)
+    let line = try CodexAppServerConnectionFoundation.encodeLine(
+      CodexAppServerConnectionFoundation.RawEnvelope(
+        jsonrpc: "2.0",
+        method: method,
+        params: .object(["secret": .string("must-not-be-retained")])
+      )
+    )
+
+    peer.receiveLine(line)
+
+    let observation = try #require(try await observations.next())
+    #expect(observation.kind == .notification)
+    #expect(observation.methodStatus == .unknown)
+    #expect(observation.methodWasTruncated)
+    #expect(observation.method.count == 256)
+    #expect(observation.parameters.shape == .object)
+    #expect(observation.parameters.valueCount == 1)
+    #expect(observation.messageByteCount == line.utf8.count)
+
+    peer.receiveLine(try warningNotificationLine("connection remains usable"))
+    guard case .warningnotification(let warning) = try await notifications.next() else {
+      Issue.record("Expected the known notification after the unknown notification.")
+      await connection.close()
+      return
+    }
+    #expect(warning.params.message == "connection remains usable")
+    await connection.close()
+  }
+
+  @Test("Unhandled server requests are rejected and observed without closing the connection")
+  func unhandledServerRequestsAreRejectedAndObserved() async throws {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = try await startReadyConnection(peer: peer)
+    var observations = connection.unhandledInboundMessages.makeAsyncIterator()
+    var notifications = connection.notifications.makeAsyncIterator()
+    let requestID = CodexAppServerConnectionFoundation.RequestID.string("future-request")
+
+    peer.receiveLine(
+      try CodexAppServerConnectionFoundation.encodeLine(
+        CodexAppServerConnectionFoundation.RawEnvelope(
+          jsonrpc: "2.0",
+          id: requestID,
+          method: "future/request",
+          params: .object(["secret": .string("must-not-be-retained")])
+        )
+      )
+    )
+
+    let rejection = try CodexAppServerConnectionFoundation.decodeLine(await peer.nextSentLine())
+    guard case .failure(let rejectedID, let error) = try rejection.classify() else {
+      Issue.record("Expected a JSON-RPC rejection for the unhandled request.")
+      await connection.close()
+      return
+    }
+    #expect(rejectedID == requestID)
+    #expect(error.code == -32_601)
+    #expect(error.message == "Method not found")
+    #expect(error.data == nil)
+
+    let observation = try #require(try await observations.next())
+    #expect(observation.kind == .rejectedRequest)
+    #expect(observation.methodStatus == .unknown)
+    #expect(observation.method == "future/request")
+    #expect(observation.parameters.shape == .object)
+    #expect(observation.parameters.valueCount == 1)
+
+    peer.receiveLine(try warningNotificationLine("connection remains usable"))
+    guard case .warningnotification = try await notifications.next() else {
+      Issue.record("Expected the typed connection to remain usable after rejection.")
+      await connection.close()
+      return
+    }
+    await connection.close()
+  }
+
+  @Test("Experimental current-time requests use a typed response handle")
+  func currentTimeRequestsUseTypedResponseHandle() async throws {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = try await startReadyConnection(peer: peer)
+    var requests = connection.typedServerRequests.makeAsyncIterator()
+
+    peer.receiveLine(
+      try CodexAppServerConnectionFoundation.encodeLine(
+        Experimental.ServerRequest.currenttimeReadRequest(
+          .init(
+            id: .requestidoption1("current-time"),
+            method: .currenttimeRead,
+            params: .init(threadId: "thread-1")
+          )
+        )
+      )
+    )
+
+    guard case .currentTimeRead(let request) = try await requests.next() else {
+      Issue.record("Expected a typed current-time request.")
+      await connection.close()
+      return
+    }
+    #expect(request.id == .requestidoption1("current-time"))
+    #expect(request.params.threadId == "thread-1")
+
+    try await connection.resolveServerRequest(
+      request,
+      with: Experimental.CurrentTimeReadResponse(currentTimeAt: 1_725_000_000)
+    )
+    let response = try CodexAppServerConnectionFoundation.decodeLine(await peer.nextSentLine())
+    guard case .success(let id, let result) = try response.classify() else {
+      Issue.record("Expected a current-time JSON-RPC response.")
+      await connection.close()
+      return
+    }
+    #expect(id == .string("current-time"))
+    #expect(
+      result == .object(["currentTimeAt": .number(.integer(1_725_000_000))])
+    )
+    await connection.close()
+  }
+
+  @Test("Malformed experimental current-time parameters fail closed")
+  func malformedCurrentTimeParametersFailClosed() async throws {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = try await startReadyConnection(peer: peer)
+    var requests = connection.typedServerRequests.makeAsyncIterator()
+
+    peer.receiveLine(
+      try CodexAppServerConnectionFoundation.encodeLine(
+        CodexAppServerConnectionFoundation.RawEnvelope(
+          jsonrpc: "2.0",
+          id: .string("bad-current-time"),
+          method: "currentTime/read",
+          params: .object([:])
+        )
+      )
+    )
+
+    do {
+      _ = try await requests.next()
+      Issue.record("Expected malformed current-time parameters to fail closed.")
+    } catch let error as CodexAppServerClientError {
+      guard case .malformedInbound(let diagnostic) = error else {
+        Issue.record("Expected malformedInbound, got \(error).")
+        await connection.close()
+        return
+      }
+      #expect(diagnostic.contains("server request 'currentTime/read' decode failed"))
+    }
+    await connection.close()
+  }
+
+  @Test("Malformed parameters for a known method still fail closed")
+  func malformedKnownMethodParametersStillFailClosed() async throws {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = try await startReadyConnection(peer: peer)
+    var notifications = connection.notifications.makeAsyncIterator()
+
+    peer.receiveLine(
+      try CodexAppServerConnectionFoundation.encodeLine(
+        CodexAppServerConnectionFoundation.RawEnvelope(
+          jsonrpc: "2.0",
+          method: "warning",
+          params: .object([:])
+        )
+      )
+    )
+
+    do {
+      _ = try await notifications.next()
+      Issue.record("Expected malformed known notification parameters to fail closed.")
+    } catch let error as CodexAppServerClientError {
+      guard case .malformedInbound(let diagnostic) = error else {
+        Issue.record("Expected malformedInbound, got \(error).")
+        await connection.close()
+        return
+      }
+      #expect(diagnostic.contains("notification 'warning' decode failed"))
+    }
+    await connection.close()
+  }
+
+  @Test("Typed callbacks reject foreign and stale owners even when request IDs match")
+  func typedCallbackOwnershipSurvivesIDReuse() async throws {
+    let firstPeer = CodexAppServerInMemoryLinePeer()
+    let secondPeer = CodexAppServerInMemoryLinePeer()
+    let first = try await startReadyConnection(peer: firstPeer)
+    let second = try await startReadyConnection(peer: secondPeer)
+    var firstRequests = first.typedServerRequests.makeAsyncIterator()
+    var secondRequests = second.typedServerRequests.makeAsyncIterator()
+    let id = Stable.RequestId.requestidoption1("shared-id")
+    let line = try CodexAppServerConnectionFoundation.encodeLine(authRefreshServerRequest(id: id))
+    firstPeer.receiveLine(line)
+    secondPeer.receiveLine(line)
+    guard case .chatgptAuthTokensRefresh(let original) = try await firstRequests.next(),
+      case .chatgptAuthTokensRefresh(let other) = try await secondRequests.next()
+    else {
+      Issue.record("Expected both typed callbacks")
+      await first.close()
+      await second.close()
+      return
+    }
+    await #expect(throws: CodexAppServerClientError.foreignServerRequest(id: id)) {
+      try await second.rejectServerRequest(original, code: -32603, message: "foreign")
+    }
+    try await first.rejectServerRequest(original, code: -32603, message: "first")
+    _ = await firstPeer.nextSentLine()
+    firstPeer.receiveLine(line)
+    guard case .chatgptAuthTokensRefresh(let replacement) = try await firstRequests.next() else {
+      Issue.record("Expected replacement typed callback")
+      await first.close()
+      await second.close()
+      return
+    }
+    await #expect(throws: CodexAppServerClientError.serverRequestAlreadyCompleted(id: id)) {
+      try await first.rejectServerRequest(original, code: -32603, message: "stale")
+    }
+    try await first.rejectServerRequest(replacement, code: -32603, message: "replacement")
+    _ = await firstPeer.nextSentLine()
+    try await second.rejectServerRequest(other, code: -32603, message: "second")
+    _ = await secondPeer.nextSentLine()
+    await first.close()
+    await second.close()
+  }
+
+  @Test("Unknown-method observations retain only the latest 64 entries")
+  func unhandledObservationsHaveBoundedBacklog() async throws {
+    let peer = CodexAppServerInMemoryLinePeer()
+    let connection = try await startReadyConnection(peer: peer)
+    var notifications = connection.notifications.makeAsyncIterator()
+    for index in 0..<100 {
+      peer.receiveLine("{\"method\":\"future/\(index)\",\"params\":null}")
+    }
+    peer.receiveLine(try warningNotificationLine("drained"))
+    _ = try #require(try await notifications.next())
+    await connection.close()
+    var methods: [String] = []
+    for try await observation in connection.unhandledInboundMessages {
+      methods.append(observation.method)
+    }
+    #expect(methods == (36..<100).map { "future/\($0)" })
+  }
+
+  @Test("Observation method limits count UTF-8 bytes and preserve valid Unicode")
+  func observationMethodHasByteLimit() {
+    let method = String(repeating: "🐈", count: 63) + "a🐈"
+    let observation = CodexAppServerUnhandledInboundMessage(
+      kind: .notification, methodStatus: .unknown, method: method,
+      params: .string("sensitive-value"), messageByteCount: 300)
+    #expect(observation.method == String(repeating: "🐈", count: 63) + "a")
+    #expect(observation.method.utf8.count == 253)
+    #expect(observation.methodWasTruncated)
+    #expect(observation.parameters.valueCount == 15)
+  }
+
   @Test("Client binding performs initialize / initialized handshake through fake peer")
   func clientBindingPerformsInitializeHandshakeThroughFakePeer() async throws {
     let peer = CodexAppServerInMemoryLinePeer()
