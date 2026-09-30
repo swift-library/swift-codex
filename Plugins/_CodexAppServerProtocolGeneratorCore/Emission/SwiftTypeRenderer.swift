@@ -539,6 +539,11 @@ struct SwiftTypeRenderer {
 
       let branchRequired = Set((branch["required"] as? [String]) ?? [])
       let required = branchRequired.union(commonRequired)
+      guard required.isSubset(of: Set(properties.keys)) else {
+        throw GeneratorError.invalidSchema(
+          "\(unionName) branch \(index + 1) requires fields with no property schema"
+        )
+      }
       if !required.isEmpty {
         branch["required"] = required.sorted()
       }

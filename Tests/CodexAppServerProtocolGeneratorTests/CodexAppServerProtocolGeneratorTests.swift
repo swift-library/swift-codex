@@ -175,6 +175,25 @@ struct CodexAppServerProtocolGeneratorTests {
     }
   }
 
+  @Test("common required union fields without property schemas fail closed")
+  func untypedCommonRequiredFieldFailsClosed() {
+    #expect(throws: GeneratorError.self) {
+      try SwiftTypeRenderer(context: .init(knownTypeNames: [])).declaration(
+        name: "IncompleteRequest",
+        schema: [
+          "required": ["scope"],
+          "oneOf": [
+            [
+              "type": "object",
+              "properties": ["text": ["type": "string"]],
+              "required": ["text"],
+            ]
+          ],
+        ]
+      )
+    }
+  }
+
   @Test("client binding emitter writes representative stable and experimental wrappers")
   func clientBindingEmitterWritesRepresentativeWrappers() throws {
     let outputRoot = temporaryDirectory().appendingPathComponent("ClientBindings")
