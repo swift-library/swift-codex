@@ -56,6 +56,7 @@ import Testing
           #expect(diagnostic.contains("fatal fixture"))
           #expect(diagnostic.contains("[REDACTED]"))
           #expect(!diagnostic.contains("fixture-secret"))
+          #expect(!diagnostic.contains("fixture-cookie"))
           #expect(!diagnostic.contains("quoted"))
           #expect(!diagnostic.contains("suffix"))
         }

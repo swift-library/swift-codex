@@ -81,9 +81,10 @@ channels, and binary-probe reports are package implementation details.
 
 All transports implement `CodexAppServerMessageTransport`. Stdio owns process
 resolution and launch. URLSession and NIO own outbound WebSocket clients. Vapor
-and Hummingbird own server-framework adapters. Client policy, schema, auth
-storage, gateway policy, audit, and redaction do not move into transport
-targets.
+and Hummingbird own server-framework adapters. Schema, client policy, auth
+storage, gateway forwarding, payload audit and payload redaction remain with
+their client or application owners. Transports bound and redact their own
+process diagnostics.
 
 NIO is implemented directly with SwiftNIO, NIOHTTP1, NIOWebSocket, and NIOSSL.
 It does not depend directly on AsyncHTTPClient. TCP/TLS and Unix-domain clients

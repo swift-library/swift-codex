@@ -122,6 +122,20 @@
       #expect(!snapshot.contains("ssss"))
     }
 
+    @Test("Complete cookie headers are redacted across multiple values")
+    func completeCookieHeadersAreRedacted() {
+      let diagnostic = CodexAppServerProcessDiagnostic(byteLimit: 1_024)
+      diagnostic.append(
+        Data(
+          "Cookie: first=private-first; second=private-second\nSet-Cookie: session=private-session; Path=/; HttpOnly\nuseful failure\n"
+            .utf8))
+      let snapshot = diagnostic.snapshot()
+      #expect(!snapshot.contains("private-first"))
+      #expect(!snapshot.contains("private-second"))
+      #expect(!snapshot.contains("private-session"))
+      #expect(snapshot.contains("useful failure"))
+    }
+
     @Test("JSON credential keys and escaped quoted values are fully redacted")
     func jsonCredentialsAreRedacted() throws {
       let diagnostic = CodexAppServerProcessDiagnostic(byteLimit: 2_048)
