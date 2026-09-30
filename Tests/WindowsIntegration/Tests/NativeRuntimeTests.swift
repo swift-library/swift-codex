@@ -56,6 +56,8 @@ import Testing
           #expect(diagnostic.contains("fatal fixture"))
           #expect(diagnostic.contains("[REDACTED]"))
           #expect(!diagnostic.contains("fixture-secret"))
+          #expect(!diagnostic.contains("quoted"))
+          #expect(!diagnostic.contains("suffix"))
         }
         #expect(try await transport.waitForExit() == .exited(42))
       }

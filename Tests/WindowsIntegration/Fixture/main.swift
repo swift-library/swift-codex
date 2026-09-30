@@ -22,7 +22,9 @@ import Foundation
         try output("codex-probe" + String(repeating: "x", count: 2_000_000))
       case "stderr-fatal":
         try FileHandle.standardError.write(
-          contentsOf: Data("fatal fixture; token=fixture-secret\n".utf8))
+          contentsOf: Data(
+            (#"fatal fixture; {"access_token":"fixture-secret","password":"fixture-\"quoted\"-suffix"}"#
+              + "\n").utf8))
         ExitProcess(42)
       case "echo":
         let input = try FileHandle.standardInput.readToEnd() ?? Data()

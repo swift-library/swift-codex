@@ -79,7 +79,7 @@ package final class CodexAppServerProcessDiagnostic: @unchecked Sendable {
         "Bearer [REDACTED]"
       ),
       (
-        #"(?i)\b(api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|token|secret|password|authorization|cookie)\s*([:=])\s*(\"[^\"]*\"|'[^']*'|[^\s,;]+)"#,
+        #"(?i)\b((?:api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|id[-_ ]?token|session[-_ ]?token|client[-_ ]?secret|secret[-_ ]?access[-_ ]?key|token|secret|password|authorization|cookie)["']?)\s*([:=])\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;]+)"#,
         "$1$2[REDACTED]"
       ),
       (

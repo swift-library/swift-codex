@@ -122,6 +122,28 @@
       #expect(!snapshot.contains("ssss"))
     }
 
+    @Test("JSON credential keys and escaped quoted values are fully redacted")
+    func jsonCredentialsAreRedacted() throws {
+      let diagnostic = CodexAppServerProcessDiagnostic(byteLimit: 2_048)
+      diagnostic.append(
+        try JSONSerialization.data(withJSONObject: [
+          "access_token": "json-private-access",
+          "idToken": "json-private-id",
+          "client_secret": "json-private-client",
+          "secret_access_key": "json-private-aws",
+          "password": #"private-"quoted"-suffix"#,
+          "cookie": "json-private-cookie",
+          "message": "startup rejected",
+        ]))
+      let snapshot = diagnostic.snapshot()
+      #expect(snapshot.contains("startup rejected"))
+      #expect(snapshot.contains("[REDACTED]"))
+      #expect(!snapshot.contains("json-private"))
+      #expect(!snapshot.contains("private-"))
+      #expect(!snapshot.contains("quoted"))
+      #expect(!snapshot.contains("suffix"))
+    }
+
     @Test("Stderr diagnostics redact common credential forms")
     func stderrDiagnosticsRedactCommonCredentialForms() {
       let diagnostic = CodexAppServerProcessDiagnostic(byteLimit: 1_024)
