@@ -2,6 +2,9 @@
 
 Use this guide for repository work.
 
+For branch, worktree, artifact or dependency maintenance, follow the ownership
+and closeout rules in `CONTRIBUTING.md`.
+
 ## Package Boundaries
 
 - Inspect `Package.swift` before changing targets, products, or dependencies.
