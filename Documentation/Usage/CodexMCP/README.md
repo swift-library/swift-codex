@@ -22,7 +22,11 @@ Use this product when your code needs:
 import CodexMCP
 
 func connectMCP() async throws {
-  let client = CodexMCPClient()
+  let client = CodexMCPClient(clientInfo: .init(
+    name: "my_swift_app",
+    version: "1.0.0",
+    requestedProtocolVersion: "2025-03-26"
+  ))
 
   try await client.start()
   do {
@@ -41,7 +45,11 @@ func connectMCP() async throws {
 import CodexMCP
 
 func listTools() async throws {
-  let client = CodexMCPClient()
+  let client = CodexMCPClient(clientInfo: .init(
+    name: "my_swift_app",
+    version: "1.0.0",
+    requestedProtocolVersion: "2025-03-26"
+  ))
   try await client.start()
   do {
     let tools = try await client.listTools()
@@ -62,7 +70,11 @@ func listTools() async throws {
 import CodexMCP
 
 func runCodexTool() async throws {
-  let client = CodexMCPClient()
+  let client = CodexMCPClient(clientInfo: .init(
+    name: "my_swift_app",
+    version: "1.0.0",
+    requestedProtocolVersion: "2025-03-26"
+  ))
   try await client.start()
   do {
     let handle = try await client.runCodex(.init(
@@ -103,7 +115,11 @@ func runCodexTool() async throws {
 import CodexMCP
 
 func replyAndCancel(threadID: String) async throws {
-  let client = CodexMCPClient()
+  let client = CodexMCPClient(clientInfo: .init(
+    name: "my_swift_app",
+    version: "1.0.0",
+    requestedProtocolVersion: "2025-03-26"
+  ))
   try await client.start()
   do {
     let handle = try await client.reply(.init(

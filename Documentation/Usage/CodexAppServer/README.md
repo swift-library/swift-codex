@@ -104,9 +104,12 @@ import CodexAppServerClient
 import CodexAppServerStdio
 
 func connect() async throws {
-  let client = CodexAppServerClient(transportFactory: {
-    try CodexAppServerStdioTransport()
-  })
+  let client = CodexAppServerClient(
+    sessionConfiguration: .init(clientInfo: .init(name: "my_swift_app", version: "1.0.0")),
+    transportFactory: {
+      try CodexAppServerStdioTransport()
+    }
+  )
   let connection = try await client.start()
 
   await connection.close()
@@ -149,9 +152,12 @@ import CodexAppServerURLSession
 import Foundation
 
 func connectToWebSocket(url: URL) async throws {
-  let client = CodexAppServerClient(transportFactory: {
-    CodexAppServerURLSessionTransport(url: url)
-  })
+  let client = CodexAppServerClient(
+    sessionConfiguration: .init(clientInfo: .init(name: "my_swift_app", version: "1.0.0")),
+    transportFactory: {
+      CodexAppServerURLSessionTransport(url: url)
+    }
+  )
   let connection = try await client.start()
 
   await connection.close()
@@ -166,9 +172,12 @@ import CodexAppServerNIO
 import Foundation
 
 func connectToNIOWebSocket(url: URL) async throws {
-  let client = CodexAppServerClient(transportFactory: {
-    try await CodexAppServerNIOTransport.connect(url: url)
-  })
+  let client = CodexAppServerClient(
+    sessionConfiguration: .init(clientInfo: .init(name: "my_swift_app", version: "1.0.0")),
+    transportFactory: {
+      try await CodexAppServerNIOTransport.connect(url: url)
+    }
+  )
   let connection = try await client.start()
 
   await connection.close()
