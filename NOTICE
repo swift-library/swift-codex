@@ -1,0 +1,8 @@
+swift-codex
+Copyright (c) 2026 Xudong Xu and the swift-library project authors
+
+Licensed under Apache License 2.0 with the Swift Runtime Library Exception.
+See LICENSE for the complete terms.
+
+The vendored App Server protocol schema has its own notice. See
+THIRD_PARTY_NOTICES.md.
