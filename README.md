@@ -12,7 +12,7 @@
   <a href="https://github.com/swift-library/swift-codex/actions/workflows/swift-package.yml"><img src="https://github.com/swift-library/swift-codex/actions/workflows/swift-package.yml/badge.svg?branch=master" alt="CI"></a>
   <img src="https://img.shields.io/badge/Swift-6.2%2B-F05138" alt="Swift 6.2+">
   <img src="https://img.shields.io/badge/platforms-macOS%2014%2B-lightgrey" alt="Platforms: macOS 14+">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
 </p>
 
 [Overview](#overview) · [Install](#install) · [Quick start](#quick-start) ·
@@ -519,7 +519,8 @@ Participation follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-swift-codex is available under the MIT License. See [LICENSE](LICENSE).
+swift-codex is licensed under the Apache License 2.0 with the Swift Runtime
+Library Exception. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 The vendored App Server protocol schema in `Vendor/CodexAppServerProtocolSchema`
 is derived from the OpenAI Codex CLI source and is licensed under the Apache

@@ -24,6 +24,8 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ### Changed
 
+- swift-codex is now licensed under the Apache License 2.0 with the Swift Runtime
+  Library Exception. Releases up to 0.4.1 remain available under the MIT License.
 - The typed callback enum and transport error enums gain cases, and corrected
   generated models require upstream-mandated shared fields. These public changes
   require a minor release during `0.x`.

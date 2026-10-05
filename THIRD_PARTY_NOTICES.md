@@ -1,7 +1,8 @@
 # Third-Party Notices
 
-`swift-codex`'s original Swift source is licensed under the MIT License in
-[`LICENSE`](LICENSE). The following vendored material has separate terms.
+`swift-codex`'s original Swift source is licensed under the Apache License 2.0
+with the Swift Runtime Library Exception in [`LICENSE`](LICENSE). The following
+vendored material has separate terms.
 
 ## OpenAI Codex App Server Protocol Schema
 
