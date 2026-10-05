@@ -5,6 +5,8 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-05
+
 ### Added
 
 - Typed experimental thread/turn start parameters with stable response contracts,
