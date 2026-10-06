@@ -1,5 +1,10 @@
 # ``CodexAppServerRuntime``
 
+@Metadata {
+  @PageImage(purpose: icon, source: "codexappserverruntime-icon", alt: "swift-codex logo")
+  @PageColor(purple)
+}
+
 Build schema-independent Codex AppServer sessions and transports.
 
 ## Overview

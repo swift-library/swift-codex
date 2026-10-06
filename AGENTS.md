@@ -49,3 +49,31 @@ Scripts/verify-documentation.sh
 
 Use the pinned Codex CLI version for opt-in App Server and MCP integration
 tests before a release.
+
+## Code Review Rules
+
+### Compatibility and versioning
+
+- Flag a change to public API or observable behavior, including a raised
+  minimum platform or Swift version, without a `CHANGELOG.md` entry or a release version
+  consistent with `RELEASING.md`. Safe path: record the change under the next
+  version and follow that compatibility policy.
+
+### Claims
+
+- Flag README, DocC, or release-note statements that the code and tests do
+  not support: capabilities that do not exist, existing behavior described as
+  new, or platforms CI does not build. Safe path: describe what the code
+  shows.
+
+### Public documentation
+
+- Flag a new public symbol without a documentation comment, and public prose
+  that compares the package with other projects or describes internal
+  process. Safe path: document the symbol, and describe only this package's
+  own behavior.
+
+### Tests
+
+- Flag a behavior change without a test that would fail before the change.
+  Safe path: add the test beside the existing suite for that behavior.

@@ -1,5 +1,10 @@
 # ``CodexAppServerClient``
 
+@Metadata {
+  @PageImage(purpose: icon, source: "codexappserverclient-icon", alt: "swift-codex logo")
+  @PageColor(purple)
+}
+
 Call an upstream Codex AppServer through typed bindings or complete JSON messages.
 
 ## Overview

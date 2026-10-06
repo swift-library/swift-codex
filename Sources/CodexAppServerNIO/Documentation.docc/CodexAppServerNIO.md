@@ -1,5 +1,10 @@
 # ``CodexAppServerNIO``
 
+@Metadata {
+  @PageImage(purpose: icon, source: "codexappservernio-icon", alt: "swift-codex logo")
+  @PageColor(purple)
+}
+
 Connect to a Codex AppServer WebSocket endpoint with SwiftNIO.
 
 ## Overview
