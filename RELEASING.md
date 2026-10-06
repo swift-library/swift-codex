@@ -67,14 +67,20 @@ Before tagging:
    machine-local paths are not tracked.
 6. Resolve and build a fresh consumer without this repository's `.build` or a
    sibling checkout.
-7. Confirm the worktree is clean and all required checks are green.
+7. Open a pull request for the release preparation branch. Address or answer
+   review findings and confirm all required checks pass before squash-merging
+   the reviewed head. Follow the organization's
+   [PR workflow](https://github.com/swift-library/.github/blob/master/MAINTENANCE.md).
+8. Fetch the merged default branch and verify the clean merged candidate and
+   its required checks before tagging. Use that accepted commit for the tag.
 
-Create and push the release only after review:
+Set `release_tag` to the intended immutable `vMAJOR.MINOR.PATCH` tag and
+`accepted_commit` to the validated merged commit. Create a signed annotated
+tag only after the above acceptance:
 
 ```sh
-git push origin master
-git tag -s -a v0.1.0 -m "swift-codex 0.1.0"
-git push origin v0.1.0
+git tag -s -a "$release_tag" "$accepted_commit" -m "swift-codex $release_tag"
+git push origin "$release_tag"
 ```
 
 After publishing, check out the remote tag in an empty directory and repeat

@@ -1,5 +1,10 @@
 # ``CodexAppServerURLSession``
 
+@Metadata {
+  @PageImage(purpose: icon, source: "codexappserverurlsession-icon", alt: "swift-codex logo")
+  @PageColor(purple)
+}
+
 Connect to a Codex AppServer WebSocket endpoint with Foundation URLSession.
 
 ## Overview

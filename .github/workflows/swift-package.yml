@@ -11,6 +11,37 @@ permissions:
   contents: read
 
 jobs:
+  policy:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    uses: swift-library/.github/.github/workflows/policy.yml@7badcc53166c6afcb265b39c789b8240d9a30233
+    with:
+      allow-terms: Codex
+
+  integration:
+    uses: ./.github/workflows/real-codex-binary.yml
+
+  result:
+    needs: [policy, windows, windows-runtime, quality, build-and-test, integration]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require all package checks to succeed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          jobs = json.loads(os.environ['RESULTS'])
+          failed = []
+          for name, job in jobs.items():
+              expected = 'skipped' if name == 'policy' and os.environ['EVENT'] == 'workflow_dispatch' else 'success'
+              if job['result'] != expected:
+                  failed.append(name)
+          if failed:
+              raise SystemExit('Validation did not succeed: ' + ', '.join(failed))
+          PY
+
   windows:
     name: Windows products
     runs-on: windows-2022
