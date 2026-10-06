@@ -1,5 +1,10 @@
 # ``Codex``
 
+@Metadata {
+  @PageImage(purpose: icon, source: "codex-icon", alt: "swift-codex logo")
+  @PageColor(purple)
+}
+
 Use Codex through SDK-style Swift threads and streamed or buffered turns.
 
 ## Overview

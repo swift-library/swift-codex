@@ -1,5 +1,10 @@
 # ``CodexAppServerProtocol``
 
+@Metadata {
+  @PageImage(purpose: icon, source: "codexappserverprotocol-icon", alt: "swift-codex logo")
+  @PageColor(purple)
+}
+
 Use generated stable and experimental Codex AppServer protocol models.
 
 ## Overview

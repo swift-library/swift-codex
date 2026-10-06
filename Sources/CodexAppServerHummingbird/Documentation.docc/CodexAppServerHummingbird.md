@@ -1,5 +1,10 @@
 # ``CodexAppServerHummingbird``
 
+@Metadata {
+  @PageImage(purpose: icon, source: "codexappserverhummingbird-icon", alt: "swift-codex logo")
+  @PageColor(purple)
+}
+
 Expose a downstream AppServer-compatible WebSocket route through Hummingbird.
 
 ## Overview

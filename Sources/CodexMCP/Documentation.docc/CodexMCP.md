@@ -1,5 +1,10 @@
 # ``CodexMCP``
 
+@Metadata {
+  @PageImage(purpose: icon, source: "codexmcp-icon", alt: "swift-codex logo")
+  @PageColor(purple)
+}
+
 Integrate with the upstream `codex mcp-server` process.
 
 ## Overview

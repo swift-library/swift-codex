@@ -1,5 +1,10 @@
 # ``CodexExec``
 
+@Metadata {
+  @PageImage(purpose: icon, source: "codexexec-icon", alt: "swift-codex logo")
+  @PageColor(purple)
+}
+
 Run `codex exec` and `codex exec resume` through a typed Swift process boundary.
 
 ## Overview

@@ -1,5 +1,10 @@
 # ``CodexAppServerStdio``
 
+@Metadata {
+  @PageImage(purpose: icon, source: "codexappserverstdio-icon", alt: "swift-codex logo")
+  @PageColor(purple)
+}
+
 Launch and connect to a local `codex app-server` process over stdio.
 
 ## Overview
