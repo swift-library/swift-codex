@@ -133,8 +133,15 @@ if repository_content_files_null ':(exclude)Vendor/**' | xargs -0 rg -n --no-mes
 fi
 
 while IFS= read -r use_line; do
-  [[ "$use_line" =~ uses:[[:space:]]+[^[:space:]@]+@[0-9a-fA-F]{40}([[:space:]]|$) ]] \
-    || fail "GitHub Actions must be pinned to a full commit SHA: $use_line"
+  # Local reusable workflows execute from the caller's commit.
+  if [[ "$use_line" =~ uses:[[:space:]]+\./(\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml)[[:space:]]*$ ]]; then
+    local_workflow="${BASH_REMATCH[1]}"
+    [[ -f "$local_workflow" ]] && git ls-files --error-unmatch "$local_workflow" >/dev/null \
+      || fail "Local reusable workflow must be tracked: $use_line"
+  else
+    [[ "$use_line" =~ uses:[[:space:]]+[^[:space:]@]+@[0-9a-fA-F]{40}([[:space:]]|$) ]] \
+      || fail "External GitHub Actions must be pinned to a full commit SHA: $use_line"
+  fi
 done < <(rg --no-filename '^\s*-?\s*uses:' .github/workflows || true)
 
 if [[ "$(find Sources -type d -name '*.docc' | wc -l | tr -d ' ')" != "11" ]]; then
