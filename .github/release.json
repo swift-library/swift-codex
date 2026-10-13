@@ -1,0 +1,40 @@
+{
+  "repository": "swift-library/swift-codex",
+  "version_file": "VERSION",
+  "version_pattern": "^([^\\n]+)\\n?$",
+  "changelog": "CHANGELOG.md",
+  "check_command": "Scripts/check",
+  "minimum_swift": "6.2",
+  "platforms": {
+    "macOS": [
+      15,
+      26,
+      27
+    ]
+  },
+  "ci": {
+    "include": [
+      {
+        "name": "macos-15-swift-6.2",
+        "runner": "macos-15",
+        "xcode": "26.0.1",
+        "command": "Scripts/check --compiler-check",
+        "timeout_minutes": 90
+      },
+      {
+        "name": "macos-26-swift-6.3",
+        "runner": "macos-26",
+        "xcode": "26.6",
+        "command": "Scripts/check --compiler-check",
+        "timeout_minutes": 90
+      },
+      {
+        "name": "repository-quality",
+        "runner": "macos-26",
+        "xcode": "26.6",
+        "command": "brew install ripgrep && Scripts/check --quality-check",
+        "timeout_minutes": 90
+      }
+    ]
+  }
+}

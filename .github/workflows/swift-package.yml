@@ -5,6 +5,7 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+    types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
 
 permissions:
@@ -13,7 +14,7 @@ permissions:
 jobs:
   policy:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
-    uses: swift-library/.github/.github/workflows/policy.yml@b1ea823a9792496113f625c6f9f8649a3b28268a
+    uses: swift-library/.github/.github/workflows/policy.yml@c4fac2499d45d7ff3fb543e803e89dae2be5a6c6
     with:
       allow-terms: Codex
 
@@ -21,7 +22,7 @@ jobs:
     uses: ./.github/workflows/real-codex-binary.yml
 
   result:
-    needs: [policy, windows, windows-runtime, quality, build-and-test, integration]
+    needs: [policy, windows, windows-runtime, validate, integration]
     if: always()
     runs-on: ubuntu-24.04
     steps:
@@ -147,80 +148,5 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
-  quality:
-    name: Repository quality
-    runs-on: macos-26
-    steps:
-      - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-
-      - name: Install release tooling
-        run: brew install ripgrep
-
-      - name: Toolchain
-        run: |
-          swift --version
-          xcodebuild -version
-
-      - name: Public repository hygiene
-        run: Scripts/verify-public-repository.sh
-
-      - name: Vendored schema integrity
-        run: Scripts/verify-schema-snapshot.sh
-
-      - name: Dependency manifest
-        run: Scripts/verify-dependency-manifest.py
-
-      - name: Public API baseline
-        run: Scripts/verify-public-api.py
-
-      - name: Strict Swift format
-        run: |
-          xcrun swift-format lint --strict --recursive \
-            --configuration .swift-format \
-            Package.swift Sources Tests Plugins
-
-      - name: Build DocC documentation
-        run: Scripts/verify-documentation.sh
-
-  build-and-test:
-    name: ${{ matrix.name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Swift 6.2 baseline
-            runner: macos-26
-            xcode_path: /Applications/Xcode_26.0.1.app/Contents/Developer
-            expected_version: 'Swift version 6.2'
-          - name: Current hosted Swift
-            runner: macos-26
-            xcode_path: /Applications/Xcode.app/Contents/Developer
-            expected_version: ''
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
-    env:
-      NSUnbufferedIO: 'YES'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-
-      - name: Toolchain
-        run: |
-          sudo xcode-select --switch "${{ matrix.xcode_path }}"
-          swift_version="$(swift --version)"
-          echo "$swift_version"
-          xcodebuild -version
-          if [[ -n "${{ matrix.expected_version }}" ]]; then
-            [[ "$swift_version" == *"${{ matrix.expected_version }}"* ]]
-          fi
-
-      - name: Build
-        run: swift build
-
-      - name: Test
-        run: swift test --no-parallel
-
-      - name: Isolated native build and test
-        timeout-minutes: 25
-        run: Scripts/verify-native-build-and-test.sh
+  validate:
+    uses: swift-library/.github/.github/workflows/swift-package-ci.yml@c4fac2499d45d7ff3fb543e803e89dae2be5a6c6

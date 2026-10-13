@@ -33,7 +33,8 @@ Keep changes small, boundary-first, and placed by role.
 - Keep current structure in `Documentation/Architecture/*`.
 - Keep task-specific plans and investigation notes outside the public tree.
 - Keep GitHub-facing collaboration files in `.github/`.
-- Use Conventional Commit subjects because local hooks and CI validate them.
+- External contributions are welcome. Use a Conventional Commit PR title.
+  Maintainers follow the shared [signing instructions](https://github.com/swift-library/.github/blob/master/MAINTENANCE.md#signing).
 
 ## Work Ownership And Closeout
 
@@ -62,9 +63,8 @@ Keep changes small, boundary-first, and placed by role.
 
 ## Dependency Maintenance
 
-- Dependabot checks Swift packages and GitHub Actions weekly. Minor and patch
-  version updates are grouped by ecosystem; major updates remain separate.
-  Grouping does not replace compatibility review or required checks.
+- Dependabot checks Swift packages and GitHub Actions weekly. Updates need
+  compatibility review and all required checks.
 - For an accepted Swift dependency update, synchronize `Package.resolved` and
   `DEPENDENCIES.json` using `Scripts/verify-dependency-manifest.py --update`, then
   run the verifier and the applicable package gates. Review the resulting pins,

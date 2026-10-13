@@ -113,7 +113,7 @@ if any("library" not in product.get("type", {}) for product in products):
 ' || fail "Package.swift does not expose exactly the 11 supported libraries"
 
 for required_file in \
-  LICENSE \
+  LICENSE.txt \
   THIRD_PARTY_NOTICES.md \
   DEPENDENCIES.json \
   API/PublicAPI.json \
