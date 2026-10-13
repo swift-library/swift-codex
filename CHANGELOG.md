@@ -3,9 +3,11 @@
 All notable changes to `swift-codex` are documented in this file. The project
 follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
-## [Unreleased]
+## Unreleased
 
-## [0.5.0] - 2026-10-05
+## 0.5.0
+
+Released 2026-10-05.
 
 ### Added
 
@@ -32,7 +34,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
   generated models require upstream-mandated shared fields. These public changes
   require a minor release during `0.x`.
 
-## [0.4.1] - 2026-09-29
+## 0.4.1
+
+Released 2026-09-29.
 
 ### Fixed
 
@@ -41,7 +45,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
   identity through a Double fallback. Supported exact integers and finite
   fractions retain their representation across the native CodexMCP path.
 
-## [0.4.0] - 2026-09-29
+## 0.4.0
+
+Released 2026-09-29.
 
 ### Added
 
@@ -66,7 +72,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 - Join version probes, failed native writes, process termination and transport
   retirement without retaining blocked pipe readers or request owners.
 
-## [0.3.0] - 2026-09-27
+## 0.3.0
+
+Released 2026-09-27.
 
 ### Added
 
@@ -80,7 +88,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
   switches must handle it; this source compatibility change requires a minor
   release during `0.x`.
 
-## [0.2.2] - 2026-09-21
+## 0.2.2
+
+Released 2026-09-21.
 
 ### Fixed
 
@@ -89,7 +99,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 - Wait for tool requests to reach the MCP transport before returning their call
   handles, so immediate cancellation cannot overtake the original request.
 
-## [0.2.1] - 2026-09-19
+## 0.2.1
+
+Released 2026-09-19.
 
 ### Fixed
 
@@ -101,7 +113,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
   validation, and bound CI validation jobs so a stall cannot occupy a runner for
   six hours.
 
-## [0.2.0] - 2026-09-19
+## 0.2.0
+
+Released 2026-09-19.
 
 ### Changed
 
@@ -125,7 +139,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 - Close Exec standard input after writing the prompt and retain native process
   termination and cancellation results.
 
-## [0.1.2] - 2026-08-17
+## 0.1.2
+
+Released 2026-08-17.
 
 ### Added
 
@@ -133,7 +149,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
   `codex exec --ignore-user-config` flag while retaining `CODEX_HOME`
   authentication.
 
-## [0.1.1] - 2026-08-09
+## 0.1.1
+
+Released 2026-08-09.
 
 ### Fixed
 
@@ -141,7 +159,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
   checking its signature in the release workflow. This prevents the checkout
   action's peeled commit ref from replacing the signed tag object.
 
-## [0.1.0] - 2026-08-09
+## 0.1.0
+
+Released 2026-08-09.
 
 ### Added
 
