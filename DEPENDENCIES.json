@@ -435,11 +435,11 @@
         "swift-sdk",
         "vapor"
       ],
-      "revision": "21de5f08c1a166a6dd293d0e587ad977bf8dac5d",
+      "revision": "6db9d9abd92ad7399b8a564cafbb87d3507245fa",
       "roles": [
         "runtime"
       ],
-      "version": "2.103.0"
+      "version": "2.104.0"
     },
     {
       "direct": false,
