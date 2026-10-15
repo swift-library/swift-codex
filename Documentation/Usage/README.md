@@ -1,5 +1,7 @@
 # Usage
 
+- [Integration guide](Integration.md): product selection and end-to-end examples.
+
 This directory is the user-facing usage layer for `swift-codex`.
 
 Architecture docs define current truth. Usage docs show how to consume the
