@@ -2,6 +2,17 @@ name: Windows CodexMCP
 
 on:
   push:
+    branches: [master]
+    paths:
+      - 'Package.swift'
+      - 'Package.resolved'
+      - 'Sources/CodexMCP/**'
+      - 'Sources/_CodexProcess/**'
+      - 'Tests/CodexMCPTests/**'
+      - 'Tests/WindowsMCP/**'
+      - '.github/workflows/windows-mcp.yml'
+  pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - 'Package.swift'
       - 'Package.resolved'
@@ -11,6 +22,10 @@ on:
       - 'Tests/WindowsMCP/**'
       - '.github/workflows/windows-mcp.yml'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
