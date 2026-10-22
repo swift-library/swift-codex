@@ -542,11 +542,11 @@
       "required_by": [
         "swift-sdk"
       ],
-      "revision": "61914e07e36440e0a4ee08d9f4644f20e4fa41f4",
+      "revision": "0603094e1c1a6fe249ebb1a1fd71c499cc2c55a3",
       "roles": [
         "runtime"
       ],
-      "version": "0.13.1-computer-mcp.1"
+      "version": "0.13.2-computer-mcp.1"
     },
     {
       "direct": false,

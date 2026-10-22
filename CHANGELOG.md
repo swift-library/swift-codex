@@ -5,6 +5,23 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## Unreleased
 
+## 0.5.1
+
+Released 2026-10-22.
+
+### Fixed
+
+- Adopt MCP `0.13.2-computer-mcp.1`. Servers built on the SDK's `MCP.Server`
+  answer undecodable messages under JSON-RPC rules: parameters that cannot be
+  decoded, including integers outside the signed Int range, receive `-32602`
+  with the request's id; invalid JSON receives `-32700` with a null id; invalid
+  request objects receive `-32600`; notifications stay unanswered; and
+  undecodable responses never take a request route. The SDK client's receive
+  path, which CodexMCP uses, is unchanged.
+- The SDK's HTTP server transports answer on the carrying POST, route by typed
+  id, reject batches, and create no session for an undecodable `initialize`
+  request.
+
 ## 0.5.0
 
 Released 2026-10-05.
@@ -177,7 +194,8 @@ Released 2026-08-09.
 - Deterministic Swift Testing coverage, API inventory, schema verification, and
   opt-in real Codex binary validation.
 
-[Unreleased]: https://github.com/swift-library/swift-codex/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/swift-library/swift-codex/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/swift-library/swift-codex/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/swift-library/swift-codex/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/swift-library/swift-codex/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/swift-library/swift-codex/compare/v0.3.0...v0.4.0
