@@ -189,10 +189,11 @@ struct CodexAppServerStdioBinaryDiscoveryTests {
   @Test("Binary compatibility times out a hanging version probe")
   func binaryCompatibilityTimesOutHangingVersionProbe() async throws {
     let temporaryDirectory = try makeTemporaryDirectory(named: "appserver-binary-version-timeout")
+    // The probe deadline owns termination of this deliberately long-lived child.
     let executable = try writeExecutableScript(
       named: "codex",
       in: temporaryDirectory,
-      contents: "#!/bin/sh\nsleep 2\n"
+      contents: "#!/bin/sh\nexec sleep 60\n"
     )
 
     let configuration = CodexAppServerStdioConfiguration(

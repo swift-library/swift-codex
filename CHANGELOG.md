@@ -15,6 +15,8 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ### Fixed
 
+- Process output readers drain readiness events into bounded buffers, maintaining
+  throughput when concurrent work delays their consumers.
 - Darwin exit observation retries until the child is waitable and reaped, retaining
   process-group cleanup and PID ownership. Cancelled version probes report
   `CancellationError` after joined cleanup even when their deadline expires.

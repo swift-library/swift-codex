@@ -88,11 +88,8 @@ private actor CodexMCPStderrCapture {
     }
 
     task = Task.detached {
-      while true {
-        do {
-          guard let data = try await CodexProcessPipe.readChunk(from: fileHandle) else { return }
-          await self.append(data)
-        } catch { return }
+      try? await CodexProcessPipe.readChunks(from: fileHandle) { data in
+        await self.append(data)
       }
     }
   }

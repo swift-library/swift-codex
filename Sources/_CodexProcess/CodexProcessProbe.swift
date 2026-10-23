@@ -82,7 +82,7 @@ package enum CodexProcessProbe {
     defer { try? handle.close() }
     var captured = Data()
     do {
-      while let chunk = try await CodexProcessPipe.readChunk(from: handle) {
+      try await CodexProcessPipe.readChunks(from: handle) { chunk in
         let count = min(chunk.count, limit - captured.count)
         captured.append(contentsOf: chunk.prefix(count))
         if count < chunk.count {

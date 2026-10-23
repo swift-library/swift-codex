@@ -175,7 +175,7 @@ private func readStdoutLines(
   onLine: (String) async throws -> Void
 ) async throws -> Int64 {
   var parser = CodexExecBoundedLineParser(limits: limits)
-  while let chunk = try await CodexProcessPipe.readChunk(from: handle) {
+  try await CodexProcessPipe.readChunks(from: handle) { chunk in
     for byte in chunk {
       if let line = parser.append(byte) { try await onLine(line) }
     }
@@ -187,7 +187,7 @@ private func readStdoutLines(
 private func readStderr(from handle: FileHandle, limit: Int) async throws -> CodexExecCapturedStderr
 {
   var capture = CodexExecCapturedStderr(data: Data(), droppedBytes: 0)
-  while let chunk = try await CodexProcessPipe.readChunk(from: handle) {
+  try await CodexProcessPipe.readChunks(from: handle) { chunk in
     let retainedCount = min(chunk.count, limit - capture.data.count)
     capture.data.append(contentsOf: chunk.prefix(retainedCount))
     capture.droppedBytes += Int64(chunk.count - retainedCount)

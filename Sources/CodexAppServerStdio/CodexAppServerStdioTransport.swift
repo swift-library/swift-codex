@@ -61,7 +61,7 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
     }
     let stderrReader = Task.detached(priority: nil) {
       defer { try? stderr.close() }
-      while let chunk = try? await CodexProcessPipe.readChunk(from: stderr) {
+      try? await CodexProcessPipe.readChunks(from: stderr) { chunk in
         stderrDiagnostic.append(chunk)
       }
     }
