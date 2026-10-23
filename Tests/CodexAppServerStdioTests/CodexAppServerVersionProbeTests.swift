@@ -144,8 +144,10 @@ import Testing
       }
     }
 
-    @Test("Cancelling a version probe joins its process before returning")
-    func cancellationJoinsProbe() async throws {
+    @Test(
+      "Cancelling a version probe joins its process before returning",
+      arguments: [false, true])
+    func cancellationJoinsProbe(ignoresTermination: Bool) async throws {
       let directory = try temporaryDirectory()
       defer { try? FileManager.default.removeItem(at: directory) }
       let marker = directory.appendingPathComponent("pid")
@@ -154,9 +156,10 @@ import Testing
         versionRequirement: .outputContains("codex-probe"),
         versionProbeArguments: [
           "-e",
-          #"open(my $f, '>', "$ARGV[0].tmp") or die; print $f $$; close($f); rename "$ARGV[0].tmp", $ARGV[0] or die; sleep 30;"#,
+          (ignoresTermination ? "$SIG{TERM}='IGNORE'; " : "")
+            + #"open(my $f, '>', "$ARGV[0].tmp") or die; print $f $$; close($f); rename "$ARGV[0].tmp", $ARGV[0] or die; sleep 30;"#,
           marker.path,
-        ], versionProbeTimeoutSeconds: 5)
+        ], versionProbeTimeoutSeconds: ignoresTermination ? 0.1 : 5)
       let probing = Task { try await configuration.validateBinaryCompatibility() }
       let cancellation = Task {
         while !FileManager.default.fileExists(atPath: marker.path) {
@@ -178,6 +181,9 @@ import Testing
       }
       let pid = try #require(pid_t(String(contentsOf: marker, encoding: .utf8)))
       #expect(try hasExited(pid))
+      var status: Int32 = 0
+      #expect(waitpid(pid, &status, WNOHANG) == -1)
+      #expect(errno == ECHILD)
     }
 
     private func temporaryDirectory() throws -> URL {

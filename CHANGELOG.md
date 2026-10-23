@@ -15,6 +15,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ### Fixed
 
+- Darwin exit observation retries until the child is waitable and reaped, retaining
+  process-group cleanup and PID ownership. Cancelled version probes report
+  `CancellationError` after joined cleanup even when their deadline expires.
 - Process pipe reads and native exit observation await readiness and completion
   without occupying Swift cooperative threads. Version probes retain their
   deadlines, capture limits and joined cleanup under parallel execution.

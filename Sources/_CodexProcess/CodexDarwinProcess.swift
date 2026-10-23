@@ -8,7 +8,8 @@
     // identity until all group signals are issued; a reused PID is never signalled.
     private let lock = NSLock()
     private var cancelled = false
-    private var reaped = false
+    // Reaping or a terminal wait failure ends permission to signal the PID.
+    private var signalsFinished = false
     private let completion = CodexProcessCompletion()
 
     init(
@@ -32,7 +33,7 @@
 
     func cancel() {
       let requested = lock.withLock {
-        guard !reaped, !cancelled else { return false }
+        guard !signalsFinished, !cancelled else { return false }
         cancelled = true
         _ = kill(-pid, SIGTERM)
         return true
@@ -40,7 +41,7 @@
       guard requested else { return }
       DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + .milliseconds(500)) {
         self.lock.withLock {
-          guard !self.reaped else { return }
+          guard !self.signalsFinished else { return }
           _ = kill(-self.pid, SIGKILL)
         }
       }
@@ -53,12 +54,21 @@
     }
 
     private func observeExit() {
-      var information = siginfo_t()
-      while waitid(P_PID, id_t(pid), &information, WEXITED | WNOWAIT | WNOHANG) != 0 {
-        if errno == EINTR { continue }
-        let failure = Self.error("waitid", errno)
-        lock.withLock { reaped = true }
-        completion.finish(.failure(failure))
+      do {
+        let exited = try Self.pollChild("waitid") {
+          var information = siginfo_t()
+          let result = waitid(P_PID, id_t(pid), &information, WEXITED | WNOWAIT | WNOHANG)
+          return result == 0 ? information.si_pid : -1
+        }
+        guard exited else {
+          DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + .milliseconds(10)) {
+            self.observeExit()
+          }
+          return
+        }
+      } catch {
+        lock.withLock { signalsFinished = true }
+        completion.finish(.failure(error))
         return
       }
       stopGroup(until: .now() + .seconds(5))
@@ -82,14 +92,15 @@
         }
         if case .success(false) = cleanup { return nil }
         var status: Int32 = 0
-        while true {
-          let received = waitpid(pid, &status, WNOHANG)
-          if received == pid { break }
-          if received < 0, errno == EINTR { continue }
-          reaped = true
-          return .failure(Self.error("waitpid", received == 0 ? EAGAIN : errno))
+        do {
+          guard try Self.pollChild("waitpid", wait: { waitpid(pid, &status, WNOHANG) }) else {
+            return nil
+          }
+        } catch {
+          signalsFinished = true
+          return .failure(error)
         }
-        reaped = true
+        signalsFinished = true
         if case .failure(let error) = cleanup { return .failure(error) }
         let signal = status & 0x7f
         return .success(
@@ -101,6 +112,17 @@
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + .milliseconds(10)) {
           self.stopGroup(until: deadline)
         }
+      }
+    }
+
+    // A zero PID means the child is not waitable yet, even after NOTE_EXIT.
+    // Return to the asynchronous observer instead of spinning or ending ownership.
+    static func pollChild(_ operation: String, wait: () -> pid_t) throws -> Bool {
+      while true {
+        let received = wait()
+        if received >= 0 { return received > 0 }
+        if errno == EINTR { continue }
+        throw error(operation, errno)
       }
     }
 

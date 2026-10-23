@@ -94,6 +94,47 @@ import Testing
         try await CodexProcessPipe.readChunk(from: pipe.fileHandleForReading) == Data("next".utf8))
     }
 
+    #if canImport(Darwin)
+      @Test("A non-waitable child yields before another poll", arguments: ["waitid", "waitpid"])
+      func pendingChildWait(operation: String) throws {
+        var calls = 0
+        let wait: () -> pid_t = {
+          calls += 1
+          return calls == 1 ? 0 : 123
+        }
+        #expect(try !CodexDarwinProcess.pollChild(operation, wait: wait))
+        #expect(calls == 1)
+        #expect(try CodexDarwinProcess.pollChild(operation, wait: wait))
+        #expect(calls == 2)
+      }
+
+      @Test("An interrupted child wait retries and preserves a pending result")
+      func interruptedChildWait() throws {
+        var calls = 0
+        #expect(
+          try !CodexDarwinProcess.pollChild("waitpid") {
+            calls += 1
+            errno = EINTR
+            return calls == 1 ? -1 : 0
+          })
+        #expect(calls == 2)
+      }
+
+      @Test("An immediate child exit is reaped before completion", arguments: 0..<32)
+      func immediateExitIsReaped(iteration: Int) async throws {
+        let process = try await CodexProcess(
+          executableURL: URL(fileURLWithPath: "/usr/bin/true"), arguments: [],
+          environment: [:], workingDirectory: nil)
+        try process.standardInput.close()
+        #expect(try await process.waitForExit().status == 0)
+        var status: Int32 = 0
+        #expect(waitpid(process.processIdentifier, &status, WNOHANG) == -1)
+        #expect(errno == ECHILD)
+        #expect(try await collect(process.standardOutput).isEmpty)
+        #expect(try await collect(process.standardError).isEmpty)
+      }
+    #endif
+
     private func collect(_ handle: FileHandle) async throws -> Data {
       defer { try? handle.close() }
       var result = Data()

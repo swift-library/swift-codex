@@ -67,8 +67,8 @@ package enum CodexProcessProbe {
       if let failure { throw failure }
       if let pipeError = state.pipeError { throw pipeError }
       if state.overflow { throw CodexProcessProbeError.outputLimitExceeded }
-      if timedOut { throw CodexProcessProbeError.timedOut }
       try Task.checkCancellation()
+      if timedOut { throw CodexProcessProbeError.timedOut }
       guard let exit else { throw CodexProcessProbeError.cleanupTimedOut }
       return .init(exit: exit, stdout: output, stderr: error)
     } onCancel: {
