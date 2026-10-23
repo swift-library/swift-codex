@@ -10,7 +10,7 @@ import Testing
   struct CodexAppServerStdioLifecycleTests {
     @Test("Close joins a child whose stdin writer is blocked")
     func closeUnblocksWriter() async throws {
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
           arguments: [

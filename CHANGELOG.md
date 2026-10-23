@@ -5,6 +5,25 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## Unreleased
 
+### Changed
+
+- **Breaking:** `CodexAppServerStdioTransport.init(configuration:)` is now
+  `async throws`. Construct transports with `try await`, including inside a
+  client's transport factory. Optional version validation suspends until the
+  probe and its cleanup finish. Cancelling a probe terminates and joins it,
+  then throws `CancellationError`.
+
+### Fixed
+
+- Process output readers drain readiness events into bounded buffers, maintaining
+  throughput when concurrent work delays their consumers.
+- Darwin exit observation retries until the child is waitable and reaped, retaining
+  process-group cleanup and PID ownership. Cancelled version probes report
+  `CancellationError` after joined cleanup even when their deadline expires.
+- Process pipe reads and native exit observation await readiness and completion
+  without occupying Swift cooperative threads. Version probes retain their
+  deadlines, capture limits and joined cleanup under parallel execution.
+
 ## 0.5.1
 
 Released 2026-10-22.

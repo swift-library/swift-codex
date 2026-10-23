@@ -1,6 +1,7 @@
 import CodexAppServerRuntime
 import Foundation
 import Testing
+import _CodexProcess
 
 @testable import CodexAppServerStdio
 
@@ -44,27 +45,26 @@ struct CodexAppServerPipeReaderTests {
   @Test("A short line is delivered while its writer waits for a reply")
   func deliversBeforeWriterEOF() async throws {
     let pipe = Pipe()
-    let received = DispatchSemaphore(value: 0)
+    let received = AsyncStream<Bool>.makeStream(bufferingPolicy: .bufferingNewest(1))
     defer { try? pipe.fileHandleForReading.close() }
-    async let acknowledged: Bool = withCheckedThrowingContinuation { continuation in
-      DispatchQueue.global(qos: .utility).async {
-        defer { try? pipe.fileHandleForWriting.close() }
-        do {
-          try pipe.fileHandleForWriting.write(contentsOf: Data("ping\n".utf8))
-          // A failed read must still release EOF so the test can finish.
-          let result = received.wait(timeout: .now() + 5) == .success
-          continuation.resume(returning: result)
-        } catch {
-          continuation.resume(throwing: error)
-        }
-      }
+    let deadline = Task {
+      try await Task.sleep(for: .seconds(5))
+      received.continuation.finish()
+    }
+    defer { deadline.cancel() }
+    let acknowledged = Task {
+      defer { try? pipe.fileHandleForWriting.close() }
+      try await CodexProcessPipe.write(Data("ping\n".utf8), to: pipe.fileHandleForWriting)
+      var reply = received.stream.makeAsyncIterator()
+      return await reply.next() ?? false
     }
     var lines: [String] = []
     try await CodexAppServerPipeReader.readLines(from: pipe.fileHandleForReading) { line in
       lines.append(line)
-      received.signal()
+      received.continuation.yield(true)
+      received.continuation.finish()
     }
-    #expect(try await acknowledged)
+    #expect(try await acknowledged.value)
     #expect(lines == ["ping"])
   }
 

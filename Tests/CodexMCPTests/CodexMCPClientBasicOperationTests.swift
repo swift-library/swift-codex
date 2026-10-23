@@ -1,9 +1,10 @@
 import Foundation
 import Testing
+import _CodexProcess
 
 @testable import CodexMCP
 
-@Suite("CodexMCP Client Basic Operations", .serialized)
+@Suite("CodexMCP Client Basic Operations")
 struct CodexMCPClientBasicOperationTests {
   @Test("Lifecycle shell ping sends ping and succeeds without changing running state")
   func pingSucceedsWithoutChangingRunningState() async throws {
@@ -16,9 +17,9 @@ struct CodexMCPClientBasicOperationTests {
       let pingLine = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
       await transcript.record(pingLine)
 
-      stdoutPipe.fileHandleForWriting.write(
-        Data("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n".utf8)
-      )
+      try await CodexProcessPipe.write(
+        Data("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n".utf8),
+        to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -54,11 +55,10 @@ struct CodexMCPClientBasicOperationTests {
     let serverTask = Task {
       try await performStartupHandshake(stdinPipe: stdinPipe, stdoutPipe: stdoutPipe)
       _ = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
-      stdoutPipe.fileHandleForWriting.write(
+      try await CodexProcessPipe.write(
         Data(
           "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32601,\"message\":\"method not found\",\"data\":{\"retryable\":false}}}\n"
-            .utf8)
-      )
+            .utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -116,10 +116,9 @@ struct CodexMCPClientBasicOperationTests {
     let serverTask = Task {
       try await performStartupHandshake(stdinPipe: stdinPipe, stdoutPipe: stdoutPipe)
       _ = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
-      stdoutPipe.fileHandleForWriting.write(
-        Data(makePingSuccessResponseLine(requestID: 999).utf8)
-      )
-      stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+      try await CodexProcessPipe.write(
+        Data(makePingSuccessResponseLine(requestID: 999).utf8), to: stdoutPipe.fileHandleForWriting)
+      try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -164,10 +163,9 @@ struct CodexMCPClientBasicOperationTests {
       let listToolsLine = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
       await transcript.record(listToolsLine)
 
-      stdoutPipe.fileHandleForWriting.write(
-        Data(makeListToolsResponseLine(requestID: 1).utf8)
-      )
-      stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+      try await CodexProcessPipe.write(
+        Data(makeListToolsResponseLine(requestID: 1).utf8), to: stdoutPipe.fileHandleForWriting)
+      try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -204,11 +202,10 @@ struct CodexMCPClientBasicOperationTests {
     let serverTask = Task {
       try await performStartupHandshake(stdinPipe: stdinPipe, stdoutPipe: stdoutPipe)
       _ = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
-      stdoutPipe.fileHandleForWriting.write(
+      try await CodexProcessPipe.write(
         Data(
           "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32601,\"message\":\"method not found\"}}\n"
-            .utf8)
-      )
+            .utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -275,15 +272,15 @@ struct CodexMCPClientBasicOperationTests {
     let listToolsRequestID = try requestID(
       forMethod: "tools/list", from: [firstPayload, secondPayload])
 
-    stdoutPipe.fileHandleForWriting.write(
-      Data(makeListToolsResponseLine(requestID: listToolsRequestID).utf8)
-    )
-    stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+    try await CodexProcessPipe.write(
+      Data(makeListToolsResponseLine(requestID: listToolsRequestID).utf8),
+      to: stdoutPipe.fileHandleForWriting)
+    try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
     let tools = try await listToolsTask.value
-    stdoutPipe.fileHandleForWriting.write(
-      Data(makePingSuccessResponseLine(requestID: pingRequestID).utf8)
-    )
-    stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+    try await CodexProcessPipe.write(
+      Data(makePingSuccessResponseLine(requestID: pingRequestID).utf8),
+      to: stdoutPipe.fileHandleForWriting)
+    try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
     try await pingTask.value
     let lines = await transcript.lines
 
@@ -302,11 +299,10 @@ struct CodexMCPClientBasicOperationTests {
     let serverTask = Task {
       try await performStartupHandshake(stdinPipe: stdinPipe, stdoutPipe: stdoutPipe)
       _ = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
-      stdoutPipe.fileHandleForWriting.write(
+      try await CodexProcessPipe.write(
         Data(
           "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"codex\",\"inputSchema\":\"not-an-object\"}]}}\n"
-            .utf8)
-      )
+            .utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(

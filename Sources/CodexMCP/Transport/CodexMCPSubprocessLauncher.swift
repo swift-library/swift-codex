@@ -24,7 +24,7 @@ internal struct CodexMCPSubprocessLauncher: Sendable {
 
   static let live = Self { configuration in
     try Task.checkCancellation()
-    let process = try CodexProcess(
+    let process = try await CodexProcess(
       executableURL: configuration.executableURL, arguments: configuration.arguments,
       environment: environment(overrides: configuration.environment),
       workingDirectory: configuration.currentDirectoryURL)

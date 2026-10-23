@@ -8,7 +8,8 @@
     // identity until all group signals are issued; a reused PID is never signalled.
     private let lock = NSLock()
     private var cancelled = false
-    private var reaped = false
+    // Reaping or a terminal wait failure ends permission to signal the PID.
+    private var signalsFinished = false
     private let completion = CodexProcessCompletion()
 
     init(
@@ -18,7 +19,12 @@
       pid = try Self.spawn(
         executableURL: executableURL, arguments: arguments, environment: environment,
         workingDirectory: workingDirectory, input: input, output: output, error: error)
-      DispatchQueue.global(qos: .utility).async { self.observeExit() }
+      let source = DispatchSource.makeProcessSource(
+        identifier: pid, eventMask: .exit, queue: .global(qos: .utility))
+      source.setEventHandler { source.cancel() }
+      // Retain the zombie PID until the source is detached and all group signals finish.
+      source.setCancelHandler { self.observeExit() }
+      source.resume()
     }
 
     var cancellationWasRequested: Bool { lock.withLock { cancelled } }
@@ -27,7 +33,7 @@
 
     func cancel() {
       let requested = lock.withLock {
-        guard !reaped, !cancelled else { return false }
+        guard !signalsFinished, !cancelled else { return false }
         cancelled = true
         _ = kill(-pid, SIGTERM)
         return true
@@ -35,7 +41,7 @@
       guard requested else { return }
       DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + .milliseconds(500)) {
         self.lock.withLock {
-          guard !self.reaped else { return }
+          guard !self.signalsFinished else { return }
           _ = kill(-self.pid, SIGKILL)
         }
       }
@@ -43,55 +49,80 @@
 
     func waitForExit() async throws -> CodexProcessExit { try await completion.wait() }
 
-    func waitForExit(until deadline: DispatchTime) throws -> CodexProcessExit? {
-      try completion.wait(until: deadline)
+    func waitForExit(until deadline: DispatchTime) async throws -> CodexProcessExit? {
+      try await completion.wait(until: deadline)
     }
 
     private func observeExit() {
-      var information = siginfo_t()
-      while waitid(P_PID, id_t(pid), &information, WEXITED | WNOWAIT) != 0 {
-        if errno == EINTR { continue }
-        let failure = Self.error("waitid", errno)
-        lock.withLock { reaped = true }
-        completion.finish(.failure(failure))
+      do {
+        let exited = try Self.pollChild("waitid") {
+          var information = siginfo_t()
+          let result = waitid(P_PID, id_t(pid), &information, WEXITED | WNOWAIT | WNOHANG)
+          return result == 0 ? information.si_pid : -1
+        }
+        guard exited else {
+          DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + .milliseconds(10)) {
+            self.observeExit()
+          }
+          return
+        }
+      } catch {
+        lock.withLock { signalsFinished = true }
+        completion.finish(.failure(error))
         return
       }
-      let result: Result<CodexProcessExit, Error> = lock.withLock {
-        let cleanup: Result<Void, Error> = Result { try stopGroup() }
-        var status: Int32 = 0
-        while waitpid(pid, &status, 0) < 0 {
-          if errno == EINTR { continue }
-          reaped = true
-          return .failure(Self.error("waitpid", errno))
+      stopGroup(until: .now() + .seconds(5))
+    }
+
+    private func stopGroup(until deadline: DispatchTime) {
+      let result: Result<CodexProcessExit, Error>? = lock.withLock {
+        let cleanup: Result<Bool, Error> = Result {
+          guard try hasLiveGroupMembers() else { return true }
+          if kill(-pid, SIGKILL) != 0 {
+            let code = errno
+            // Darwin skips zombies and may return EPERM for an all-zombie group.
+            if code != ESRCH && code != EPERM { throw Self.error("kill process group", code) }
+            if try hasLiveGroupMembers() { throw Self.error("kill process group", code) }
+          }
+          guard DispatchTime.now() < deadline else {
+            throw CodexProcessFailure(
+              description: "Codex process group cleanup could not be confirmed.")
+          }
+          return false
         }
-        reaped = true
+        if case .success(false) = cleanup { return nil }
+        var status: Int32 = 0
+        do {
+          guard try Self.pollChild("waitpid", wait: { waitpid(pid, &status, WNOHANG) }) else {
+            return nil
+          }
+        } catch {
+          signalsFinished = true
+          return .failure(error)
+        }
+        signalsFinished = true
         if case .failure(let error) = cleanup { return .failure(error) }
         let signal = status & 0x7f
         return .success(
           .init(status: signal == 0 ? (status >> 8) & 0xff : signal, wasSignalled: signal != 0))
       }
-      completion.finish(result)
+      if let result {
+        completion.finish(result)
+      } else {
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + .milliseconds(10)) {
+          self.stopGroup(until: deadline)
+        }
+      }
     }
 
-    private func stopGroup() throws {
-      let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-      while try hasLiveGroupMembers() {
-        if kill(-pid, SIGKILL) != 0 {
-          let code = errno
-          // Darwin skips zombie members and may return EPERM for a group that
-          // just became all-zombie. Confirm absence of live members explicitly.
-          if code != ESRCH && code != EPERM {
-            throw Self.error("kill process group", code)
-          }
-          if try hasLiveGroupMembers() {
-            throw Self.error("kill process group", code)
-          }
-        }
-        guard ContinuousClock.now < deadline else {
-          throw CodexProcessFailure(
-            description: "Codex process group cleanup could not be confirmed.")
-        }
-        Thread.sleep(forTimeInterval: 0.01)
+    // A zero PID means the child is not waitable yet, even after NOTE_EXIT.
+    // Return to the asynchronous observer instead of spinning or ending ownership.
+    static func pollChild(_ operation: String, wait: () -> pid_t) throws -> Bool {
+      while true {
+        let received = wait()
+        if received >= 0 { return received > 0 }
+        if errno == EINTR { continue }
+        throw error(operation, errno)
       }
     }
 

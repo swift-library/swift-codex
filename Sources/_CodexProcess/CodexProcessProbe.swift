@@ -1,9 +1,5 @@
 import Foundation
 
-#if os(Windows)
-  import WinSDK
-#endif
-
 package enum CodexProcessProbeError: Error, LocalizedError, Sendable {
   case timedOut
   case outputLimitExceeded
@@ -25,154 +21,129 @@ package struct CodexProcessProbeResult: Sendable {
 }
 
 package enum CodexProcessProbe {
-  /// Synchronous configuration validation; IO and native completion progress on
-  /// blocking workers independently of the caller's executor.
   package static func run(
     executableURL: URL, arguments: [String], environment: [String: String],
     workingDirectory: URL?, timeoutSeconds: Double, outputLimit: Int
-  ) throws -> CodexProcessProbeResult {
+  ) async throws -> CodexProcessProbeResult {
     guard timeoutSeconds.isFinite, timeoutSeconds > 0, timeoutSeconds <= 60, outputLimit > 0 else {
       throw CodexProcessFailure(description: "Invalid Codex version probe limits.")
     }
-    let process = try CodexProcess(
+    let process = try await CodexProcess(
       executableURL: executableURL, arguments: arguments, environment: environment,
       workingDirectory: workingDirectory)
     let state = CodexProcessProbeState(deadline: .now() + timeoutSeconds + 5)
-    let readers = DispatchGroup()
-    for (isStdout, handle) in [(true, process.standardOutput), (false, process.standardError)] {
-      readers.enter()
-      DispatchQueue.global(qos: .utility).async {
-        defer {
-          try? handle.close()
-          readers.leave()
-        }
-        var captured = Data()
-        do {
-          while let chunk = try readChunk(from: handle, state: state) {
-            let count = min(chunk.count, outputLimit - captured.count)
-            captured.append(contentsOf: chunk.prefix(count))
-            if count < chunk.count {
-              state.recordOverflow()
-              process.cancel()
-            }
-          }
-        } catch {
-          state.recordPipeError(error)
-          process.cancel()
-        }
-        state.store(captured, isStdout: isStdout)
-      }
+    // Reader tasks outlive caller cancellation only to drain and join owned IO.
+    let stdout = Task.detached {
+      await capture(process.standardOutput, process: process, state: state, limit: outputLimit)
     }
+    let stderr = Task.detached {
+      await capture(process.standardError, process: process, state: state, limit: outputLimit)
+    }
+    state.startDeadline {
+      stdout.cancel()
+      stderr.cancel()
+    }
+    defer { state.stopDeadline() }
 
-    var exit: CodexProcessExit?
-    var failure: Error?
-    var timedOut = false
-    do {
-      try process.standardInput.close()
-      exit = try process.waitForExit(until: .now() + timeoutSeconds)
-      timedOut = exit == nil
-    } catch { failure = error }
-    state.beginCleanup()
-    if timedOut || failure != nil {
-      process.cancel()
+    return try await withTaskCancellationHandler {
+      var exit: CodexProcessExit?
+      var failure: Error?
+      var timedOut = false
       do {
-        exit = try process.waitForExit(until: .now() + .seconds(5))
-        if exit == nil { failure = CodexProcessProbeError.cleanupTimedOut }
+        try process.standardInput.close()
+        exit = try await process.waitForExit(until: .now() + timeoutSeconds)
+        timedOut = exit == nil
       } catch { failure = error }
+      state.beginCleanup()
+      if timedOut || failure != nil {
+        process.cancel()
+        do {
+          exit = try await process.waitForExit(until: .now() + .seconds(5))
+          if exit == nil { failure = CodexProcessProbeError.cleanupTimedOut }
+        } catch { failure = error }
+      }
+      let output = await stdout.value
+      let error = await stderr.value
+      if let failure { throw failure }
+      if let pipeError = state.pipeError { throw pipeError }
+      if state.overflow { throw CodexProcessProbeError.outputLimitExceeded }
+      try Task.checkCancellation()
+      if timedOut { throw CodexProcessProbeError.timedOut }
+      guard let exit else { throw CodexProcessProbeError.cleanupTimedOut }
+      return .init(exit: exit, stdout: output, stderr: error)
+    } onCancel: {
+      process.cancel()
     }
-    // Each reader polls its own native handle and observes the shared cleanup
-    // deadline. No original read operation survives this join, even after failure.
-    readers.wait()
-    let capture = state.snapshot()
-    if let failure { throw failure }
-    if let pipeError = capture.pipeError { throw pipeError }
-    if capture.overflow { throw CodexProcessProbeError.outputLimitExceeded }
-    if timedOut { throw CodexProcessProbeError.timedOut }
-    guard let exit else { throw CodexProcessProbeError.cleanupTimedOut }
-    return .init(exit: exit, stdout: capture.stdout, stderr: capture.stderr)
   }
 
-  private static func readChunk(
-    from handle: FileHandle, state: CodexProcessProbeState
-  ) throws -> Data? {
-    var bytes = [UInt8](repeating: 0, count: 16_384)
-    while true {
-      guard !state.readDeadlineElapsed else { throw CodexProcessProbeError.cleanupTimedOut }
-      #if os(Windows)
-        var available: DWORD = 0
-        guard PeekNamedPipe(handle._handle, nil, 0, nil, &available, nil) else {
-          let code = GetLastError()
-          if code == DWORD(ERROR_BROKEN_PIPE) { return nil }
-          throw CodexWindowsProcess.error("PeekNamedPipe", code: code)
+  private static func capture(
+    _ handle: FileHandle, process: CodexProcess, state: CodexProcessProbeState, limit: Int
+  ) async -> Data {
+    defer { try? handle.close() }
+    var captured = Data()
+    do {
+      try await CodexProcessPipe.readChunks(from: handle) { chunk in
+        let count = min(chunk.count, limit - captured.count)
+        captured.append(contentsOf: chunk.prefix(count))
+        if count < chunk.count {
+          state.recordOverflow()
+          process.cancel()
         }
-        if available == 0 {
-          Thread.sleep(forTimeInterval: 0.01)
-          continue
-        }
-        let count = min(available, DWORD(bytes.count))
-        var received: DWORD = 0
-        guard ReadFile(handle._handle, &bytes, count, &received, nil) else {
-          let code = GetLastError()
-          if code == DWORD(ERROR_BROKEN_PIPE) { return nil }
-          throw CodexWindowsProcess.error("ReadFile", code: code)
-        }
-        return received == 0 ? nil : Data(bytes.prefix(Int(received)))
-      #else
-        var descriptor = pollfd(fd: handle.fileDescriptor, events: Int16(POLLIN), revents: 0)
-        let ready = poll(&descriptor, 1, 10)
-        if ready < 0 {
-          if errno == EINTR { continue }
-          throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
-        }
-        if ready == 0 { continue }
-        let count = bytes.withUnsafeMutableBytes {
-          read(handle.fileDescriptor, $0.baseAddress, $0.count)
-        }
-        if count < 0 {
-          if errno == EINTR { continue }
-          throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
-        }
-        return count == 0 ? nil : Data(bytes.prefix(count))
-      #endif
+      }
+    } catch {
+      state.recordPipeError(
+        error is CancellationError ? CodexProcessProbeError.cleanupTimedOut : error)
+      process.cancel()
     }
+    return captured
   }
 }
 
+/// The lock covers failures and a shared deadline that cleanup may only shorten.
 private final class CodexProcessProbeState: @unchecked Sendable {
-  struct Snapshot {
-    var stdout = Data()
-    var stderr = Data()
-    var pipeError: Error?
-    var overflow = false
-  }
-
   private let lock = NSLock()
+  private var readError: Error?
+  private var exceededLimit = false
   private var deadline: DispatchTime
-  private var capture = Snapshot()
+  private var timer: (any DispatchSourceTimer)?
 
   init(deadline: DispatchTime) { self.deadline = deadline }
 
-  var readDeadlineElapsed: Bool { lock.withLock { DispatchTime.now() >= deadline } }
-
-  func beginCleanup() {
-    lock.withLock { deadline = min(deadline, .now() + .seconds(5)) }
-  }
-
-  func recordOverflow() {
-    lock.withLock { capture.overflow = true }
-    beginCleanup()
-  }
-
-  func recordPipeError(_ error: Error) {
-    lock.withLock { if capture.pipeError == nil { capture.pipeError = error } }
-    beginCleanup()
-  }
-
-  func store(_ data: Data, isStdout: Bool) {
+  func startDeadline(_ stopReading: @escaping @Sendable () -> Void) {
     lock.withLock {
-      if isStdout { capture.stdout = data } else { capture.stderr = data }
+      let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+      timer.setEventHandler(handler: stopReading)
+      timer.schedule(deadline: deadline)
+      self.timer = timer
+      timer.resume()
     }
   }
 
-  func snapshot() -> Snapshot { lock.withLock { capture } }
+  func stopDeadline() {
+    let timer = lock.withLock {
+      let timer = self.timer
+      self.timer = nil
+      return timer
+    }
+    timer?.cancel()
+  }
+
+  func beginCleanup() {
+    lock.withLock {
+      deadline = min(deadline, .now() + .seconds(5))
+      timer?.schedule(deadline: deadline)
+    }
+  }
+
+  var pipeError: Error? { lock.withLock { readError } }
+  var overflow: Bool { lock.withLock { exceededLimit } }
+
+  func recordOverflow() {
+    lock.withLock { exceededLimit = true }
+    beginCleanup()
+  }
+  func recordPipeError(_ error: Error) {
+    lock.withLock { if readError == nil { readError = error } }
+    beginCleanup()
+  }
 }

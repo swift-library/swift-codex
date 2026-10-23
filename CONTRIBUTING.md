@@ -18,13 +18,25 @@ Keep changes small, boundary-first, and placed by role.
 
 ## Local Validation
 
-- Run `Scripts/verify-public-repository.sh` and
-  `Scripts/verify-schema-snapshot.sh`.
-- Run strict `swift-format` lint for `Package.swift`, `Sources`, `Tests`, and
-  `Plugins`.
-- Run `swift build` and `swift test --no-parallel` for package changes.
-- Review documentation placement against `Documentation/README.md` before
-  opening a pull request.
+Run from the repository root:
+
+```sh
+swift build
+swift test
+swift build -c release
+xcrun swift-format lint --strict --configuration .swift-format --recursive \
+  Package.swift Sources Tests Plugins
+scripts/verify-schema-snapshot.sh
+scripts/verify-dependency-manifest.py
+scripts/verify-native-build-and-test.sh
+```
+
+CI reads `.github/swift-package.json` and builds the eleven DocC catalogs.
+The required checks are `policy / policy` and `result`, which requires the shared
+validation, the Windows product builds and the real-binary integration tests.
+
+Review documentation placement against `Documentation/README.md` before
+opening a pull request.
 
 ## Change Hygiene
 
@@ -66,7 +78,7 @@ Keep changes small, boundary-first, and placed by role.
 - Dependabot checks Swift packages and GitHub Actions weekly. Updates need
   compatibility review and all required checks.
 - For an accepted Swift dependency update, synchronize `Package.resolved` and
-  `DEPENDENCIES.json` using `Scripts/verify-dependency-manifest.py --update`, then
+  `DEPENDENCIES.json` using `scripts/verify-dependency-manifest.py --update`, then
   run the verifier and the applicable package gates. Review the resulting pins,
   licenses, dependency roles and public API before merging.
 - Respect exact dependency pins and published release provenance. Changes to

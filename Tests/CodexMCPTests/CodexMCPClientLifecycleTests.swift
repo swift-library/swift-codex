@@ -1,10 +1,11 @@
 import Darwin
 import Foundation
 import Testing
+import _CodexProcess
 
 @testable import CodexMCP
 
-@Suite("CodexMCP Client Lifecycle", .serialized)
+@Suite("CodexMCP Client Lifecycle")
 struct CodexMCPClientLifecycleTests {
   @Test("Client release preserves owned pipes until process termination finishes")
   func releaseKeepsPipesOpenUntilTermination() async throws {
@@ -364,10 +365,10 @@ struct CodexMCPClientLifecycleTests {
       await transcript.record(initializeLine)
       let initializePayload = try parseJSONObject(from: initializeLine)
 
-      stdoutPipe.fileHandleForWriting.write(
-        Data(makeInitializeResponseLine(requestID: initializePayload["id"] ?? 0).utf8)
-      )
-      stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+      try await CodexProcessPipe.write(
+        Data(makeInitializeResponseLine(requestID: initializePayload["id"] ?? 0).utf8),
+        to: stdoutPipe.fileHandleForWriting)
+      try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
 
       let initializedLine = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
       await transcript.record(initializedLine)

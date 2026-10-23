@@ -59,7 +59,7 @@ def main() -> None:
         json.dumps(lock, indent=2, sort_keys=False) + "\n", encoding="utf-8"
     )
     subprocess.run(
-        [sys.executable, str(REPOSITORY_ROOT / "Scripts" / "refresh-method-adoption.py")],
+        [sys.executable, str(REPOSITORY_ROOT / "scripts" / "refresh-method-adoption.py")],
         check=True,
     )
 

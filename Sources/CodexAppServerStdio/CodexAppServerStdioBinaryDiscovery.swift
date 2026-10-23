@@ -42,7 +42,7 @@ extension CodexAppServerStdioConfiguration {
 
   package func validateBinaryCompatibility(
     environment inheritedEnvironment: [String: String] = ProcessInfo.processInfo.environment
-  ) throws -> CodexAppServerStdioBinaryCompatibilityReport {
+  ) async throws -> CodexAppServerStdioBinaryCompatibilityReport {
     let resolution = try resolveExecutable(environment: inheritedEnvironment)
 
     switch versionRequirement {
@@ -67,7 +67,7 @@ extension CodexAppServerStdioConfiguration {
         )
       }
 
-      let probe = try runVersionProbe(
+      let probe = try await runVersionProbe(
         executableURL: resolution.executableURL,
         environment: environment ?? inheritedEnvironment
       )
@@ -119,13 +119,15 @@ extension CodexAppServerStdioConfiguration {
   private func runVersionProbe(
     executableURL: URL,
     environment effectiveEnvironment: [String: String]
-  ) throws -> CodexAppServerStdioBinaryVersionProbe {
+  ) async throws -> CodexAppServerStdioBinaryVersionProbe {
     let result: CodexProcessProbeResult
     do {
-      result = try CodexProcessProbe.run(
+      result = try await CodexProcessProbe.run(
         executableURL: executableURL, arguments: versionProbeArguments,
         environment: effectiveEnvironment, workingDirectory: workingDirectoryURL,
         timeoutSeconds: versionProbeTimeoutSeconds, outputLimit: 65_536)
+    } catch is CancellationError {
+      throw CancellationError()
     } catch CodexProcessProbeError.timedOut {
       throw CodexAppServerStdioError.executableVersionProbeTimedOut(
         executable: executableURL.path, timeoutSeconds: versionProbeTimeoutSeconds)

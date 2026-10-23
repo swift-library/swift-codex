@@ -219,7 +219,7 @@ func listModels() async throws {
     sessionConfiguration: .init(
       clientInfo: .init(name: "my_app", title: "My App", version: "1.0.0")
     ),
-    transportFactory: { try CodexAppServerStdioTransport() }
+    transportFactory: { try await CodexAppServerStdioTransport() }
   )
   let connection = try await client.start()
 
@@ -307,7 +307,7 @@ func connectToExplicitBinary() async throws {
       clientInfo: .init(name: "my_app", version: "1.0.0"),
       experimentalApi: true
     ),
-    transportFactory: { try CodexAppServerStdioTransport(configuration: process) }
+    transportFactory: { try await CodexAppServerStdioTransport(configuration: process) }
   )
   let connection = try await client.start()
   await connection.close()

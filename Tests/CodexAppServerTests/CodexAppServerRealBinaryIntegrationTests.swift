@@ -35,7 +35,7 @@ struct CodexAppServerRealBinaryIntegrationTests {
         clientInfo: .init(name: "swift_codex_raw_integration", version: "0.1.0"),
         experimentalApi: true,
         inboundMessageMode: inboundMode),
-      transportFactory: { try CodexAppServerStdioTransport(configuration: isolatedProcess) })
+      transportFactory: { try await CodexAppServerStdioTransport(configuration: isolatedProcess) })
     let connection = try await withRealBinaryTimeout(seconds: config.operationTimeoutSeconds) {
       try await client.start()
     }
@@ -164,7 +164,7 @@ private struct CodexAppServerRealBinaryIntegrationConfig {
         )
       ),
       transportFactory: {
-        try CodexAppServerStdioTransport(configuration: processConfiguration)
+        try await CodexAppServerStdioTransport(configuration: processConfiguration)
       }
     )
 

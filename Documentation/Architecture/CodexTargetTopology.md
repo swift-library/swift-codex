@@ -18,8 +18,10 @@ The schema generator executable target and its build and command plugins are
 package tools, not public executable products. `CodexAppServerTestingSupport`
 is a package test-support target, not a product. `_CodexProcess` is private to
 the package and owns native child-process and pipe lifetimes shared by Exec, Stdio, and CodexMCP. It has no protocol models, host policy, or public product.
-Native completion supports asynchronous callers and synchronous version probes
-without depending on the caller's executor. Windows uses suspended Job Object
+Native completion and version probes suspend their callers. POSIX pipe reads use
+readiness sources, Darwin exit uses a process source, and Windows exit uses a
+registered native wait. Windows anonymous pipe reads inspect readiness on timer
+events because these handles do not support overlapped IO. Windows uses suspended Job Object
 admission; macOS uses a separate process group and retains the unreaped root PID
 until group termination is confirmed. Stdio owns the version-probe deadline,
 output budget and public failure mapping.
@@ -63,13 +65,16 @@ all dependencies available on Windows.
 
 The Windows build audit includes every public product and preserves individual
 results, including unavailable dependencies. Every supported product must build
-for the CI gate to pass. The three unavailable networking products are recorded
-as dependency audits; their outcomes do not establish supported Windows behavior. Native runtime checks in
-[`Tests/WindowsIntegration`](../../Tests/WindowsIntegration/README.md) exercise
-App Server stdio and Exec ownership with process fixtures. The separate
-[`Tests/WindowsMCP`](../../Tests/WindowsMCP/README.md) check consumes the shipping
-dependency graph and a checksummed native Codex CLI. The native Windows CI uses
-`windows-2022` and Swift 6.2.3.
+for the Windows build job to pass. The three unavailable networking products are recorded
+as dependency audits; their outcomes do not establish supported Windows behavior.
+The Windows build job uses `windows-2022` and Swift 6.2.3.
+
+`CodexAppServerStdioTests/CodexWindowsNativeRuntimeTests.swift` owns the native
+Windows App Server stdio and Exec assertions. The package declares
+`CodexProcessFixture` and `CodexEnvironmentFixture` executable targets on Windows;
+they must be built beside the test runner before running these tests. They are
+separate executables so their entry points cannot replace the test runner.
+`CodexMCPTests` owns the optional real-binary protocol lifecycle assertions.
 
 Build results and native protocol tests do not establish model authentication.
 The caller supplies vendor authentication and launch configuration. Upstream

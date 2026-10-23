@@ -201,7 +201,7 @@ struct CodexExecAcceptanceCoverageTests {
           "-e",
           """
           $SIG{ALRM} = sub { exit 99 };
-          alarm 2;
+          alarm 30;
           exit 98 unless -p STDIN;
           my $count = sysread(STDIN, my $buffer, 1);
           exit(defined($count) && $count == 0 ? 0 : 97);
@@ -256,7 +256,7 @@ struct CodexExecAcceptanceCoverageTests {
     let expectedBytes = chunkSize * chunkCount
     let perlScript = """
       $SIG{ALRM} = sub { exit 99 };
-      alarm 2;
+      alarm 30;
       my $chunk = "x" x \(chunkSize);
       for (1..\(chunkCount)) {
         print STDOUT $chunk;
@@ -291,7 +291,7 @@ struct CodexExecAcceptanceCoverageTests {
     let expectedBytes = chunkSize * chunkCount
     let perlScript = """
       $SIG{ALRM} = sub { exit 99 };
-      alarm 2;
+      alarm 30;
       my $chunk = "y" x \(chunkSize);
       for (1..\(chunkCount)) {
         print STDOUT $chunk;

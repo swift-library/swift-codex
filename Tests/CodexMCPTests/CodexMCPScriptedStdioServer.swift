@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import _CodexProcess
 
 @testable import CodexMCP
 
@@ -32,7 +33,8 @@ final class CodexMCPScriptedStdioServer: @unchecked Sendable {
       let initializeLine = try await readClientLine()
       await transcript.record(initializeLine)
       let initializePayload = try Self.parseJSONObject(from: initializeLine)
-      sendServerLine(Self.makeInitializeResponseLine(requestID: initializePayload["id"] ?? 0))
+      try await sendServerLine(
+        Self.makeInitializeResponseLine(requestID: initializePayload["id"] ?? 0))
 
       let initializedLine = try await readClientLine()
       await transcript.record(initializedLine)
@@ -43,11 +45,11 @@ final class CodexMCPScriptedStdioServer: @unchecked Sendable {
   }
 
   func readClientLine() async throws -> String {
-    try await Self.readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
+    try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
   }
 
-  func tryReadAvailableClientLine() throws -> String? {
-    try Self.tryReadAvailableLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
+  func tryReadAvailableClientLine() async throws -> String? {
+    try await tryReadAvailableLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
   }
 
   func recordClientLine() async throws -> String {
@@ -56,10 +58,10 @@ final class CodexMCPScriptedStdioServer: @unchecked Sendable {
     return line
   }
 
-  func sendServerLine(_ line: String) {
-    stdoutPipe.fileHandleForWriting.write(Data(line.utf8))
+  func sendServerLine(_ line: String) async throws {
+    try await CodexProcessPipe.write(Data(line.utf8), to: stdoutPipe.fileHandleForWriting)
     if !line.hasSuffix("\n") {
-      stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+      try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
     }
   }
 
@@ -231,18 +233,6 @@ final class CodexMCPScriptedStdioServer: @unchecked Sendable {
     ]
   }
 
-  private static func readLine(from fileDescriptor: Int32) async throws -> String {
-    try await withCheckedThrowingContinuation { continuation in
-      scriptedServerBlockingIOQueue.async {
-        do {
-          continuation.resume(returning: try blockingReadLine(from: fileDescriptor))
-        } catch {
-          continuation.resume(throwing: error)
-        }
-      }
-    }
-  }
-
   private static func jsonLiteral(_ value: Any) -> String {
     let data = try? JSONSerialization.data(
       withJSONObject: value,
@@ -251,71 +241,7 @@ final class CodexMCPScriptedStdioServer: @unchecked Sendable {
     return data.flatMap { String(data: $0, encoding: .utf8) } ?? "0"
   }
 
-  private static func blockingReadLine(from fileDescriptor: Int32) throws -> String {
-    var buffer = Data()
-    var byte: UInt8 = 0
-
-    while true {
-      let bytesRead = withUnsafeMutablePointer(to: &byte) { bytePointer in
-        Darwin.read(fileDescriptor, bytePointer, 1)
-      }
-
-      if bytesRead > 0 {
-        if byte == 0x0A {
-          break
-        }
-
-        buffer.append(&byte, count: 1)
-        continue
-      }
-
-      if bytesRead == 0 {
-        throw CodexMCPError.transportFailure
-      }
-
-      if errno == EINTR {
-        continue
-      }
-
-      throw CodexMCPError.transportFailure
-    }
-
-    if buffer.last == 0x0D {
-      buffer.removeLast()
-    }
-
-    guard let line = String(data: buffer, encoding: .utf8) else {
-      throw CodexMCPError.transportFailure
-    }
-
-    return line
-  }
-
-  private static func tryReadAvailableLine(from fileDescriptor: Int32) throws -> String? {
-    var descriptor = pollfd(
-      fd: fileDescriptor,
-      events: Int16(POLLIN),
-      revents: 0
-    )
-
-    let result = Darwin.poll(&descriptor, 1, 0)
-    if result < 0 {
-      throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
-    }
-
-    guard result > 0 else {
-      return nil
-    }
-
-    return try blockingReadLine(from: fileDescriptor)
-  }
 }
-
-private let scriptedServerBlockingIOQueue = DispatchQueue(
-  label: "swift-codex.tests.codexmcp.scripted-stdio-server-blocking-io",
-  qos: .userInitiated,
-  attributes: .concurrent
-)
 
 private actor CodexMCPStdioTranscript {
   private(set) var lines: [String] = []

@@ -231,6 +231,8 @@ let package = Package(
       dependencies: [
         "CodexAppServerRuntime",
         "CodexAppServerStdio",
+        "CodexExec",
+        "_CodexProcess",
       ],
     ),
     .testTarget(
@@ -302,7 +304,7 @@ let package = Package(
     ),
     .testTarget(
       name: "CodexMCPTests",
-      dependencies: ["CodexMCP"],
+      dependencies: ["CodexMCP", "_CodexProcess"],
     ),
     .testTarget(
       name: "CodexExecTests",
@@ -310,3 +312,17 @@ let package = Package(
     ),
   ],
 )
+
+#if os(Windows)
+  package.targets += [
+    .executableTarget(
+      name: "CodexProcessFixture",
+      path: "Tests/Fixtures/CodexProcessFixture"
+    ),
+    .executableTarget(
+      name: "CodexEnvironmentFixture",
+      path: "Tests/Fixtures/CodexEnvironmentFixture",
+      linkerSettings: [.linkedLibrary("kernel32")]
+    ),
+  ]
+#endif

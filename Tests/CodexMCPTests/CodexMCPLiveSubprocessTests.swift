@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import _CodexProcess
 
 #if canImport(Darwin)
   import Darwin
@@ -19,8 +20,13 @@ import Testing
       let input = try #require(subprocess.input)
       let output = try #require(subprocess.output)
       let error = try #require(subprocess.error)
-      let descriptors = [input.fileDescriptor, output.fileDescriptor, error.fileDescriptor]
-      let line = await Task.detached { output.availableData }.value
+      let endpoints = try [input, output, error].map { handle in
+        let duplicate = fcntl(handle.fileDescriptor, F_DUPFD_CLOEXEC, 3)
+        try #require(duplicate >= 0)
+        return (handle.fileDescriptor, FileHandle(fileDescriptor: duplicate, closeOnDealloc: true))
+      }
+      defer { for (_, retained) in endpoints { try? retained.close() } }
+      let line = try #require(await CodexProcessPipe.readChunk(from: output))
       #expect(String(decoding: line, as: UTF8.self).hasPrefix("ready:"))
       try await subprocess.terminate()
       async let first: Void = subprocess.closeIO()
@@ -29,7 +35,15 @@ import Testing
       let context = await subprocess.stderrContext()
       #expect(context?.contains("[REDACTED]") == true)
       #expect(context?.contains("fixture-secret") == false)
-      for descriptor in descriptors { #expect(fcntl(descriptor, F_GETFD) == -1) }
+      // Retained duplicates prevent pipe identity reuse while parallel fixtures
+      // may reuse the original integer descriptors after their endpoints close.
+      for (descriptor, retained) in endpoints {
+        var original = stat()
+        #expect(fstat(retained.fileDescriptor, &original) == 0)
+        var current = stat()
+        let inspected = fstat(descriptor, &current)
+        #expect(inspected == -1 || current.st_ino != original.st_ino)
+      }
     }
 
     @Test("Natural exit and environment overrides complete without retaining stderr writers")
@@ -43,7 +57,8 @@ import Testing
           ],
           currentDirectoryURL: nil, environment: ["CODEX_MCP_FIXTURE": "native 汉字"]))
       let output = try #require(subprocess.output)
-      let data = await Task.detached { output.readDataToEndOfFile() }.value
+      var data = Data()
+      while let chunk = try await CodexProcessPipe.readChunk(from: output) { data.append(chunk) }
       #expect(String(decoding: data, as: UTF8.self) == "native 汉字")
       try await subprocess.terminate()
       await subprocess.closeIO()

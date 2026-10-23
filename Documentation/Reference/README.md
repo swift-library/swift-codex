@@ -1,13 +1,15 @@
 # Reference
 
-This directory contains deterministic reference artifacts for `swift-codex`.
+This directory contains release information and generated protocol references
+for `swift-codex`.
 
 ## Current Materials
 
 - `CodexAppServerMethodAdoption.md`: generated method classification for the
   pinned AppServer schema.
+- [Release](Release.md): version declaration, compatibility and release entry points.
 
 ## Use
 
-Regenerate this material with `Scripts/refresh-method-adoption.py`. Do not edit
-generated reference artifacts by hand.
+Regenerate the method-adoption reference with `scripts/refresh-method-adoption.py`.
+Do not edit generated reference artifacts by hand.

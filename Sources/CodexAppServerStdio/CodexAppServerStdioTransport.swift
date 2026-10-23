@@ -21,17 +21,18 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
   private let writer: CodexAppServerFileHandleLineWriter
   private let lifecycle: Task<Result<CodexProcessExit, Error>, Never>
 
-  public init(configuration: CodexAppServerStdioConfiguration = .init()) throws {
+  /// Validates the executable, awaits any configured version probe, and launches the server.
+  public init(configuration: CodexAppServerStdioConfiguration = .init()) async throws {
     guard configuration.maximumMessageBytes > 0,
       configuration.maximumMessageBytes <= CodexAppServerBufferLimits.bytes
     else {
       throw CodexAppServerStdioError.invalidConfiguration(
         "Maximum message bytes must be positive and no greater than 16 MiB.")
     }
-    let compatibility = try configuration.validateBinaryCompatibility()
+    let compatibility = try await configuration.validateBinaryCompatibility()
     let process: CodexProcess
     do {
-      process = try CodexProcess(
+      process = try await CodexProcess(
         executableURL: compatibility.resolution.executableURL,
         arguments: configuration.arguments,
         environment: configuration.environment ?? ProcessInfo.processInfo.environment,
@@ -60,7 +61,7 @@ public final class CodexAppServerStdioTransport: CodexAppServerLinePeer {
     }
     let stderrReader = Task.detached(priority: nil) {
       defer { try? stderr.close() }
-      while let chunk = try? await CodexProcessPipe.readChunk(from: stderr) {
+      try? await CodexProcessPipe.readChunks(from: stderr) { chunk in
         stderrDiagnostic.append(chunk)
       }
     }

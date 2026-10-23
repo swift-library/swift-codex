@@ -5,7 +5,7 @@ The public documentation is organized by reader need:
 - `Usage/` contains product guides and runnable examples.
 - `Architecture/` states the current package and target boundaries.
 - `Reference/` records pinned upstream contracts, provenance, and generated
-  adoption inventories.
+  adoption inventories, plus the package's release declaration and checks.
 
 Start with the repository [README](../README.md), then open the relevant guide
 under [Usage](Usage/README.md). Contributors changing target boundaries should

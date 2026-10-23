@@ -52,5 +52,5 @@ The maintained MCP transport package is released from
 `Package.swift` declares its exact release version and `Package.resolved`
 records the source commit. The fork owns native Windows stdio and serialized
 POSIX frame writes; Codex protocol and process ownership remain in this package.
-Native Windows CodexMCP validation is documented in
-[`Tests/WindowsMCP`](../../Tests/WindowsMCP/README.md).
+`CodexMCPTests` owns the optional real-binary startup, ping, tool discovery and
+shutdown assertions.

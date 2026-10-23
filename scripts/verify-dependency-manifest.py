@@ -157,7 +157,7 @@ def main() -> int:
     if not MANIFEST_PATH.is_file() or MANIFEST_PATH.read_text(encoding="utf-8") != serialized:
         print(
             "Dependency manifest differs from Package.resolved; review the change and "
-            "run Scripts/verify-dependency-manifest.py --update if intentional.",
+            "run scripts/verify-dependency-manifest.py --update if intentional.",
             file=sys.stderr,
         )
         return 1
