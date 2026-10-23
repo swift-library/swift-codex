@@ -36,15 +36,14 @@ and closeout rules in `CONTRIBUTING.md`.
 Run from the repository root:
 
 ```sh
-Scripts/verify-public-repository.sh
-Scripts/verify-schema-snapshot.sh
-swift-format lint --strict --recursive --configuration .swift-format \
+swift build
+swift test
+swift build -c release
+xcrun swift-format lint --strict --configuration .swift-format --recursive \
   Package.swift Sources Tests Plugins
-/usr/bin/swift build
-/usr/bin/swift build --build-system native
-/usr/bin/swift test --no-parallel
-/usr/bin/swift test --build-system native --no-parallel
-Scripts/verify-documentation.sh
+scripts/verify-schema-snapshot.sh
+scripts/verify-dependency-manifest.py
+scripts/verify-native-build-and-test.sh
 ```
 
 Use the pinned Codex CLI version for opt-in App Server and MCP integration

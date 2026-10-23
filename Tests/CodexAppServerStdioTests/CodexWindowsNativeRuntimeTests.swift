@@ -7,8 +7,8 @@ import Testing
 #if os(Windows)
   import WinSDK
 
-  @Suite("Windows native Codex consumers", .timeLimit(.minutes(1)))
-  struct NativeRuntimeTests {
+  @Suite("Windows native process runtime", .timeLimit(.minutes(1)))
+  struct CodexWindowsNativeRuntimeTests {
     @Test("Input EOF preserves final output and late writes do not terminate the child")
     func finishPreservesFinalWork() async throws {
       let directory = try temporaryDirectory()
@@ -301,7 +301,9 @@ import Testing
       let echo = try await readEcho(handle)
       #expect(echo.arguments.last == "discovery")
       #expect(echo.configuredKeyMatches)
-      #expect(echo.hostOnly.isEmpty)
+      env.removeValue(forKey: "codex_api_key")
+      env["CODEX_API_KEY"] = "fixture-configured-key"
+      #expect(normalizedEnvironment(echo.environment) == normalizedEnvironment(env))
     }
 
     @Test(
@@ -513,16 +515,17 @@ import Testing
     func execArguments(prompt: String) async throws {
       let directory = try temporaryDirectory()
       defer { try? FileManager.default.removeItem(at: directory) }
+      let configuredEnvironment = environment(mode: "echo", directory: directory)
       let client = CodexExecClient(
         configuration: .init(
           executableURL: fixture,
-          environmentOverride: environment(mode: "echo", directory: directory),
+          environmentOverride: configuredEnvironment,
           defaultWorkingDirectory: directory))
       let handle = try await client.run(.init(promptInput: .text(prompt)))
       let echo = try await readEcho(handle)
       #expect(echo.arguments.last == prompt)
-      #expect(echo.value == "fixture-value")
-      #expect(echo.hostOnly.isEmpty)
+      #expect(
+        normalizedEnvironment(echo.environment) == normalizedEnvironment(configuredEnvironment))
       #expect(echo.input.isEmpty)
       #expect(normalize(echo.cwd) == normalize(directory.path))
     }
@@ -656,8 +659,7 @@ import Testing
     private struct Echo: Decodable {
       let arguments: [String]
       let cwd: String
-      let value: String
-      let hostOnly: String
+      let environment: [String: String]
       let input: String
       let configuredKeyMatches: Bool
     }
@@ -707,6 +709,10 @@ import Testing
       ProcessInfo.processInfo.environment.first {
         $0.key.caseInsensitiveCompare(key) == .orderedSame
       }?.value
+    }
+
+    private func normalizedEnvironment(_ environment: [String: String]) -> [String: String] {
+      Dictionary(uniqueKeysWithValues: environment.map { ($0.key.lowercased(), $0.value) })
     }
 
     private func temporaryDirectory() throws -> URL {

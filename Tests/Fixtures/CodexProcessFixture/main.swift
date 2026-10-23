@@ -31,8 +31,7 @@ import Foundation
         let value: [String: Any] = [
           "arguments": Array(CommandLine.arguments.dropFirst()),
           "cwd": FileManager.default.currentDirectoryPath,
-          "value": environment["VALUE"] ?? "",
-          "hostOnly": environment["SWIFT_CODEX_HOST_ONLY"] ?? "",
+          "environment": environment,
           "input": String(decoding: input, as: UTF8.self),
           "configuredKeyMatches": environment["CODEX_API_KEY"] == "fixture-configured-key",
         ]

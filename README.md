@@ -97,8 +97,7 @@ Use `Codex` for thread and turn conveniences or select a lower-level product for
 
 CI also builds `Codex`, `CodexExec`, `CodexMCP`, `CodexAppServerRuntime`,
 `CodexAppServerProtocol`, `CodexAppServerClient`, `CodexAppServerStdio`, and
-`CodexAppServerURLSession` on Windows x86_64 with Swift 6.2.3, and runs native
-Windows process tests for Exec, App Server stdio, and MCP. `CodexAppServerNIO`,
+`CodexAppServerURLSession` on Windows x86_64 with Swift 6.2.3. `CodexAppServerNIO`,
 `CodexAppServerVapor`, and `CodexAppServerHummingbird` are unavailable on
 Windows because of their dependencies.
 [Platform support](Documentation/Architecture/CodexTargetTopology.md#platform-support)
@@ -119,7 +118,7 @@ the executable, authentication, and launch configuration.
 - [Architecture](Documentation/Architecture/README.md): product boundaries,
   dependency direction, and platform support.
 - [Reference](Documentation/Reference/README.md): the pinned protocol contract
-  and method adoption inventory.
+  and method adoption inventory, plus release guidance.
 - [Changelog](CHANGELOG.md)
 
 Each public library also has a DocC catalog under
@@ -128,8 +127,8 @@ Each public library also has a DocC catalog under
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and run
-`Scripts/verify-public-repository.sh`, `swift build`, and
-`swift test --no-parallel` before submitting changes.
+its local build, test, release build, formatting and package-specific checks
+before submitting changes.
 [Support](https://github.com/swift-library/.github/blob/master/SUPPORT.md) covers questions and bug reports. Report
 vulnerabilities through the private route in [SECURITY.md](SECURITY.md).
 Participation follows the [Code of Conduct](https://github.com/swift-library/.github/blob/master/CODE_OF_CONDUCT.md).

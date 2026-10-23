@@ -63,13 +63,16 @@ all dependencies available on Windows.
 
 The Windows build audit includes every public product and preserves individual
 results, including unavailable dependencies. Every supported product must build
-for the CI gate to pass. The three unavailable networking products are recorded
-as dependency audits; their outcomes do not establish supported Windows behavior. Native runtime checks in
-[`Tests/WindowsIntegration`](../../Tests/WindowsIntegration/README.md) exercise
-App Server stdio and Exec ownership with process fixtures. The separate
-[`Tests/WindowsMCP`](../../Tests/WindowsMCP/README.md) check consumes the shipping
-dependency graph and a checksummed native Codex CLI. The native Windows CI uses
-`windows-2022` and Swift 6.2.3.
+for the Windows build job to pass. The three unavailable networking products are recorded
+as dependency audits; their outcomes do not establish supported Windows behavior.
+The Windows build job uses `windows-2022` and Swift 6.2.3.
+
+`CodexAppServerStdioTests/CodexWindowsNativeRuntimeTests.swift` owns the native
+Windows App Server stdio and Exec assertions. The package declares
+`CodexProcessFixture` and `CodexEnvironmentFixture` executable targets on Windows;
+they must be built beside the test runner before running these tests. They are
+separate executables so their entry points cannot replace the test runner.
+`CodexMCPTests` owns the optional real-binary protocol lifecycle assertions.
 
 Build results and native protocol tests do not establish model authentication.
 The caller supplies vendor authentication and launch configuration. Upstream

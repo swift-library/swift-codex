@@ -6,7 +6,7 @@ repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 schema_root="$repository_root/Vendor/CodexAppServerProtocolSchema"
 lock_file="$schema_root/upstream.lock.json"
 
-"$repository_root/Scripts/refresh-method-adoption.py" --check
+"$repository_root/scripts/refresh-method-adoption.py" --check
 
 python3 - "$schema_root" "$lock_file" <<'PY'
 import hashlib

@@ -72,15 +72,15 @@ by the SwiftPM build-tool plugin into its plugin work directory during ordinary
 
 8. Replace `stable/json/` from the upstream checked-in stable fixtures and
    `experimental/json/` from the generated experimental fixtures.
-   Alternatively, use `Scripts/import-schema-snapshot.py` with the pinned
+   Alternatively, use `scripts/import-schema-snapshot.py` with the pinned
    commit's stable and experimental precomputed exports and complete Git tree.
    It verifies both compressed export identities and every stable JSON file
    against that source tree before replacing the vendored files.
 9. Update tag, dereferenced commit, toolchain, precomputed-export hashes, and
    provenance in `upstream.lock.json`.
-10. Run `Scripts/refresh-schema-metadata.py` to rewrite the path-sorted
+10. Run `scripts/refresh-schema-metadata.py` to rewrite the path-sorted
     manifests, file counts, bundle hashes, and deterministic tree hashes.
-11. Run `Scripts/verify-schema-snapshot.sh`, strict `swift-format` lint,
+11. Run `scripts/verify-schema-snapshot.sh`, strict `swift-format` lint,
     `swift build`, and `swift test --no-parallel`.
 
 Ordinary `swift build` and `swift test` must not contact the upstream checkout
