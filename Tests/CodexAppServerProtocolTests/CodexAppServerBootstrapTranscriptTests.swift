@@ -39,7 +39,7 @@ struct CodexAppServerBootstrapTranscriptTests {
   func requestBeforeInitializeTranscriptMatchesUpstreamFailure() throws {
     let transcript = CodexAppServerBootstrapTranscripts.requestBeforeInitializeFailure
 
-    #expect(transcript.sourceEvidence.contains("codex-rs/app-server/src/message_processor.rs"))
+    #expect(transcript.upstreamSources.contains("codex-rs/app-server/src/message_processor.rs"))
     #expect(transcript.messages.count == 2)
     #expect(transcript.messages[0].direction == .clientToServer)
     #expect(transcript.messages[1].direction == .serverToClient)

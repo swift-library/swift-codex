@@ -144,4 +144,4 @@ partial observation and its `outputCapture.stdoutDroppedBytes` and
 `stderrDroppedBytes`. Native failures and cancellation retain those same
 missing-output counts. A stdout stream error alone does not mean the process
 has terminated: always await `waitForTermination()`, including after a stream
-error, to settle process cleanup and inspect final stderr evidence.
+error, to settle process cleanup and inspect the final stderr output.
