@@ -32,7 +32,8 @@ scripts/verify-native-build-and-test.sh
 ```
 
 CI reads `.github/swift-package.json` and builds the eleven DocC catalogs.
-The required checks are `policy / policy` and `validate / result`.
+The required checks are `policy / policy` and `result`, which requires the shared
+validation, the Windows product builds and the real-binary integration tests.
 
 Review documentation placement against `Documentation/README.md` before
 opening a pull request.

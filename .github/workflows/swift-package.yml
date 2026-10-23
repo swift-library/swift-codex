@@ -72,3 +72,17 @@ jobs:
 
   validate:
     uses: swift-library/github-workflows/.github/workflows/swift-package.yml@13b7e934da06a98f1b4ee11bd09cba85c84f458c
+
+  result:
+    needs: [validate, windows, integration]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - name: Require shared validation, Windows products and binary integration
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            test "$result" = success
+          done

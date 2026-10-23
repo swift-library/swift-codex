@@ -20,7 +20,8 @@ cooperative thread pool enabled in the test process.
 
 Run the [local validation commands](../../CONTRIBUTING.md#local-validation)
 before submitting changes. The required checks are `policy / policy` and
-`validate / result`.
+`result`, which also requires the Windows product builds and the real-binary
+integration tests.
 
 Run the `Real Codex Binary` workflow against the intended release ref for
 credential-free App Server and MCP integration.
