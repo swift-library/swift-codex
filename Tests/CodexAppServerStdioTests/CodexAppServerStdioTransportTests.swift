@@ -16,7 +16,7 @@
           """
       )
       defer { try? FileManager.default.removeItem(at: executable.deletingLastPathComponent()) }
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(executableURL: executable, arguments: [])
       )
 
@@ -51,7 +51,7 @@
           """
       )
       defer { try? FileManager.default.removeItem(at: executable.deletingLastPathComponent()) }
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(executableURL: executable, arguments: []))
       do {
         var iterator = transport.inboundLines.makeAsyncIterator()
@@ -86,7 +86,7 @@
           """
       )
       defer { try? FileManager.default.removeItem(at: executable.deletingLastPathComponent()) }
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(executableURL: executable, arguments: [])
       )
       var iterator = transport.inboundLines.makeAsyncIterator()

@@ -10,7 +10,7 @@
     init(
       executableURL: URL, arguments: [String], environment: [String: String],
       workingDirectory: URL?, input: FileHandle, output: FileHandle, error: FileHandle
-    ) throws {
+    ) async throws {
       let job = try CodexWindowsJob()
       let handles = try Self.launch(
         executableURL: executableURL, arguments: arguments, environment: environment,
@@ -19,7 +19,7 @@
         try job.start(process: handles.process, thread: handles.thread)
       } catch {
         _ = TerminateProcess(handles.process, 1)
-        guard WaitForSingleObject(handles.process, 5_000) == DWORD(WAIT_OBJECT_0) else {
+        guard try await CodexWindowsProcessWait.wait(handles, milliseconds: 5_000) else {
           throw CodexProcessFailure(
             description: "Suspended Codex process cleanup could not be confirmed.")
         }
@@ -28,19 +28,19 @@
       self.handles = handles
       self.job = job
       let completion = self.completion
-      // This native waiter progresses even while a synchronous version probe
-      // occupies its caller's Swift cooperative worker.
-      DispatchQueue.global(qos: .utility).async {
+      // This owner joins native exit and job cleanup independently of caller cancellation.
+      Task.detached {
         let result: Result<CodexProcessExit, Error>
         do {
-          guard WaitForSingleObject(handles.process, DWORD(INFINITE)) == DWORD(WAIT_OBJECT_0) else {
-            let failure = Self.error("WaitForSingleObject")
+          do {
+            _ = try await CodexWindowsProcessWait.wait(handles)
+          } catch {
             job.stop(.failed)
-            try job.confirmCleanup()
-            throw failure
+            try await job.confirmCleanup()
+            throw error
           }
           job.stop(.exited)
-          try job.confirmCleanup()
+          try await job.confirmCleanup()
           var code: DWORD = 0
           guard GetExitCodeProcess(handles.process, &code) else {
             throw Self.error("GetExitCodeProcess")
@@ -62,8 +62,8 @@
 
     func waitForExit() async throws -> CodexProcessExit { try await completion.wait() }
 
-    func waitForExit(until deadline: DispatchTime) throws -> CodexProcessExit? {
-      try completion.wait(until: deadline)
+    func waitForExit(until deadline: DispatchTime) async throws -> CodexProcessExit? {
+      try await completion.wait(until: deadline)
     }
 
     private static func launch(
@@ -180,6 +180,59 @@
 
     static func error(_ operation: String, code: DWORD = GetLastError()) -> CodexProcessFailure {
       .init(description: "\(operation) failed (Windows error \(code)).")
+    }
+  }
+
+  /// Registration and completion are serialized on queue. The retained callback
+  /// context and process handles survive until the one-shot native wait is detached.
+  private final class CodexWindowsProcessWait: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "swift-codex.process-wait", qos: .utility)
+    private let handles: CodexWindowsProcessHandles
+    private let continuation: CheckedContinuation<Bool, Error>
+    private var registration: HANDLE?
+
+    private init(
+      handles: CodexWindowsProcessHandles, continuation: CheckedContinuation<Bool, Error>
+    ) {
+      self.handles = handles
+      self.continuation = continuation
+    }
+
+    static func wait(
+      _ handles: CodexWindowsProcessHandles, milliseconds: DWORD = DWORD(INFINITE)
+    ) async throws -> Bool {
+      try await withCheckedThrowingContinuation { continuation in
+        let observer = CodexWindowsProcessWait(handles: handles, continuation: continuation)
+        observer.queue.async { observer.register(milliseconds: milliseconds) }
+      }
+    }
+
+    private func register(milliseconds: DWORD) {
+      let context = Unmanaged.passRetained(self).toOpaque()
+      guard
+        RegisterWaitForSingleObject(
+          &registration, handles.process,
+          { context, timedOut in
+            guard let context else { return }
+            let observer = Unmanaged<CodexWindowsProcessWait>.fromOpaque(context)
+              .takeUnretainedValue()
+            observer.queue.async { observer.finish(exited: timedOut == 0) }
+          }, context, milliseconds, ULONG(WT_EXECUTEONLYONCE))
+      else {
+        let error = CodexWindowsProcess.error("RegisterWaitForSingleObject")
+        Unmanaged<CodexWindowsProcessWait>.fromOpaque(context).release()
+        continuation.resume(throwing: error)
+        return
+      }
+    }
+
+    private func finish(exited: Bool) {
+      // A nil completion event makes unregistration nonblocking, including while
+      // the callback is returning. WT_EXECUTEONLYONCE prevents another callback.
+      _ = UnregisterWaitEx(registration, nil)
+      registration = nil
+      continuation.resume(returning: exited)
+      Unmanaged.passUnretained(self).release()
     }
   }
 

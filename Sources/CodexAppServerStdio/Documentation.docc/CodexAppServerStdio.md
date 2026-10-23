@@ -20,12 +20,15 @@ semicolon-separated PATH entries, case-insensitive environment names and native
 scripts through PATHEXT. Empty entries do not search the current directory. An
 explicit environment replaces the inherited environment, including PATH.
 
-Optional version validation is synchronous and uses the configured deadline,
-which must be finite, positive and at most 60 seconds. It closes stdin, drains
+Construct the transport with `try await CodexAppServerStdioTransport(configuration:)`.
+Optional version validation suspends the initializer and uses the configured
+deadline, which must be finite, positive and at most 60 seconds. It closes stdin, drains
 stdout and stderr concurrently, and retains at most 64 KiB from each stream.
 Excess output fails explicitly rather than accepting a truncated version match.
 Timeout and output failure terminate the owned process and join both readers.
-Version-probe reports redact common credential forms before exposing output.
+Cancelling during a version probe terminates and joins it before throwing
+`CancellationError`. Version-probe reports redact common credential forms before
+exposing output.
 
 Windows processes belong to an invocation-specific Job Object. macOS processes
 start in an owned process group. Root exit, close and cancellation terminate

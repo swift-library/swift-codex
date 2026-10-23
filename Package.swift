@@ -232,6 +232,7 @@ let package = Package(
         "CodexAppServerRuntime",
         "CodexAppServerStdio",
         "CodexExec",
+        "_CodexProcess",
       ],
     ),
     .testTarget(
@@ -303,7 +304,7 @@ let package = Package(
     ),
     .testTarget(
       name: "CodexMCPTests",
-      dependencies: ["CodexMCP"],
+      dependencies: ["CodexMCP", "_CodexProcess"],
     ),
     .testTarget(
       name: "CodexExecTests",

@@ -1,6 +1,7 @@
 import CodexAppServerRuntime
 import Foundation
 import Testing
+import _CodexProcess
 
 @testable import CodexAppServerStdio
 
@@ -16,9 +17,8 @@ import Testing
       let writer = CodexAppServerFileHandleLineWriter(handle: pipe.fileHandleForWriting)
       let line = String(repeating: "x", count: 2_000_000)
       let sending = Task { try await writer.write(line) }
-      let prefix = try await Task.detached {
-        try pipe.fileHandleForReading.read(upToCount: 1_024) ?? Data()
-      }.value
+      let prefix = try #require(
+        await CodexProcessPipe.readChunk(from: pipe.fileHandleForReading, maximumBytes: 1_024))
       #expect(prefix.count == 1_024)
       let queued = AsyncStream<Result<Void, Error>>.makeStream(bufferingPolicy: .bufferingNewest(1))
       writer.write("queued") {
@@ -30,9 +30,10 @@ import Testing
       await #expect(throws: CodexAppServerStdioError.closed) {
         try await writer.write("late")
       }
-      let remaining = try await Task.detached {
-        try pipe.fileHandleForReading.readToEnd() ?? Data()
-      }.value
+      var remaining = Data()
+      while let chunk = try await CodexProcessPipe.readChunk(from: pipe.fileHandleForReading) {
+        remaining.append(chunk)
+      }
       try await sending.value
       try await first.value
       try await second.value
@@ -50,7 +51,7 @@ import Testing
       try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
       defer { try? FileManager.default.removeItem(at: directory) }
       let release = directory.appendingPathComponent("release")
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
           arguments: [
@@ -89,7 +90,7 @@ import Testing
 
     @Test("A lower outgoing frame bound rejects UTF-8 bytes before writing")
     func configuredOutgoingBound() async throws {
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: URL(fileURLWithPath: "/bin/cat"), arguments: [], environment: [:],
           maximumMessageBytes: 4))
@@ -112,7 +113,7 @@ import Testing
 
     @Test("Exit observers share native identity and cancellation does not terminate the child")
     func joinedTerminationObservers() async throws {
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
           arguments: ["-e", "$|=1; alarm 10; print \"$$\\n\"; scalar <STDIN>; exit 23;"],
@@ -152,10 +153,9 @@ import Testing
         maximumMessages: countLimit ? 1 : 10,
         maximumBytes: capacity)
       let sending = Task { try await writer.write(String(repeating: "x", count: capacity)) }
-      let prefix = try await Task.detached {
-        try pipe.fileHandleForReading.read(upToCount: 1_024)
-      }.value
-      #expect(prefix?.count == 1_024)
+      let prefix = try #require(
+        await CodexProcessPipe.readChunk(from: pipe.fileHandleForReading, maximumBytes: 1_024))
+      #expect(prefix.count == 1_024)
       await #expect(
         throws: CodexAppServerConnectionFoundation.FoundationError.bufferLimitExceeded(
           maximumMessages: countLimit ? 1 : 10, maximumBytes: capacity)
@@ -173,7 +173,7 @@ import Testing
 
     @Test("A native stdin failure joins a still-running child")
     func stdinFailureClosesProcess() async throws {
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
           arguments: ["-e", "$|=1; alarm 10; close STDIN; print \"$$\\n\"; sleep 20;"],
@@ -193,7 +193,7 @@ import Testing
       "Oversized incoming frames terminate and join the owned child",
       arguments: [64, 16 * 1_024 * 1_024])
     func oversizedFrameClosesProcess(limit: Int) async throws {
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: URL(fileURLWithPath: "/usr/bin/perl"),
           arguments: [

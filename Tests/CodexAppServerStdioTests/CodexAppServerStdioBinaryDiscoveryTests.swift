@@ -8,12 +8,12 @@ struct CodexAppServerStdioBinaryDiscoveryTests {
   @Test(
     "Invalid frame bounds fail before executable discovery",
     arguments: [Int.min, 0, 16 * 1_024 * 1_024 + 1, Int.max])
-  func invalidFrameBound(limit: Int) throws {
-    #expect(
+  func invalidFrameBound(limit: Int) async throws {
+    await #expect(
       throws: CodexAppServerStdioError.invalidConfiguration(
         "Maximum message bytes must be positive and no greater than 16 MiB.")
     ) {
-      _ = try CodexAppServerStdioTransport(
+      _ = try await CodexAppServerStdioTransport(
         configuration: .init(executableName: "", maximumMessageBytes: limit))
     }
   }
@@ -102,7 +102,7 @@ struct CodexAppServerStdioBinaryDiscoveryTests {
   }
 
   @Test("Binary compatibility accepts configured version output substring")
-  func binaryCompatibilityAcceptsConfiguredVersionOutputSubstring() throws {
+  func binaryCompatibilityAcceptsConfiguredVersionOutputSubstring() async throws {
     let temporaryDirectory = try makeTemporaryDirectory(named: "appserver-binary-version")
     let executable = try writeExecutableScript(
       named: "codex",
@@ -122,7 +122,7 @@ struct CodexAppServerStdioBinaryDiscoveryTests {
       versionRequirement: .outputContains("1.2.3")
     )
 
-    let report = try configuration.validateBinaryCompatibility()
+    let report = try await configuration.validateBinaryCompatibility()
     #expect(report.resolution.executableURL == executable)
     #expect(report.versionProbe?.arguments == ["--version"])
     #expect(report.versionProbe?.stdoutText == "codex 1.2.3\n")
@@ -130,7 +130,7 @@ struct CodexAppServerStdioBinaryDiscoveryTests {
   }
 
   @Test("Binary compatibility reports version mismatch deterministically")
-  func binaryCompatibilityReportsVersionMismatchDeterministically() throws {
+  func binaryCompatibilityReportsVersionMismatchDeterministically() async throws {
     let temporaryDirectory = try makeTemporaryDirectory(named: "appserver-binary-version-mismatch")
     let executable = try writeExecutableScript(
       named: "codex",
@@ -144,7 +144,7 @@ struct CodexAppServerStdioBinaryDiscoveryTests {
     )
 
     do {
-      _ = try configuration.validateBinaryCompatibility()
+      _ = try await configuration.validateBinaryCompatibility()
       Issue.record("Expected version mismatch.")
     } catch let error as CodexAppServerStdioError {
       guard case .executableVersionMismatch(let expectedSubstring, let actualOutput) = error else {
@@ -157,7 +157,7 @@ struct CodexAppServerStdioBinaryDiscoveryTests {
   }
 
   @Test("Binary compatibility reports failed version probe")
-  func binaryCompatibilityReportsFailedVersionProbe() throws {
+  func binaryCompatibilityReportsFailedVersionProbe() async throws {
     let temporaryDirectory = try makeTemporaryDirectory(named: "appserver-binary-version-fail")
     let executable = try writeExecutableScript(
       named: "codex",
@@ -171,7 +171,7 @@ struct CodexAppServerStdioBinaryDiscoveryTests {
     )
 
     do {
-      _ = try configuration.validateBinaryCompatibility()
+      _ = try await configuration.validateBinaryCompatibility()
       Issue.record("Expected failed version probe.")
     } catch let error as CodexAppServerStdioError {
       guard
@@ -187,7 +187,7 @@ struct CodexAppServerStdioBinaryDiscoveryTests {
   }
 
   @Test("Binary compatibility times out a hanging version probe")
-  func binaryCompatibilityTimesOutHangingVersionProbe() throws {
+  func binaryCompatibilityTimesOutHangingVersionProbe() async throws {
     let temporaryDirectory = try makeTemporaryDirectory(named: "appserver-binary-version-timeout")
     let executable = try writeExecutableScript(
       named: "codex",
@@ -202,7 +202,7 @@ struct CodexAppServerStdioBinaryDiscoveryTests {
     )
 
     do {
-      _ = try configuration.validateBinaryCompatibility()
+      _ = try await configuration.validateBinaryCompatibility()
       Issue.record("Expected version probe timeout.")
     } catch let error as CodexAppServerStdioError {
       guard case .executableVersionProbeTimedOut(let executablePath, let timeoutSeconds) = error

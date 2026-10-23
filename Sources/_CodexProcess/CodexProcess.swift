@@ -32,7 +32,7 @@ package final class CodexProcess: Sendable {
   package init(
     executableURL: URL, arguments: [String], environment: [String: String],
     workingDirectory: URL?
-  ) throws {
+  ) async throws {
     let input = Pipe()
     let output = Pipe()
     let error = Pipe()
@@ -53,7 +53,7 @@ package final class CodexProcess: Sendable {
       try? error.fileHandleForWriting.close()
     }
     #if os(Windows)
-      lifetime = try CodexWindowsProcess(
+      lifetime = try await CodexWindowsProcess(
         executableURL: executableURL, arguments: arguments, environment: environment,
         workingDirectory: workingDirectory, input: input.fileHandleForReading,
         output: output.fileHandleForWriting, error: error.fileHandleForWriting)
@@ -82,7 +82,7 @@ package final class CodexProcess: Sendable {
     try await lifetime.waitForExit()
   }
 
-  package func waitForExit(until deadline: DispatchTime) throws -> CodexProcessExit? {
-    try lifetime.waitForExit(until: deadline)
+  package func waitForExit(until deadline: DispatchTime) async throws -> CodexProcessExit? {
+    try await lifetime.waitForExit(until: deadline)
   }
 }

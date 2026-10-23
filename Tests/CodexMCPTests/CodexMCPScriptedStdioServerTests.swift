@@ -3,7 +3,7 @@ import Testing
 
 @testable import CodexMCP
 
-@Suite("CodexMCP Scripted Stdio Server", .serialized)
+@Suite("CodexMCP Scripted Stdio Server")
 struct CodexMCPScriptedStdioServerTests {
   @Test("Scripted stdio server drives startup handshake through live stdio")
   func scriptedServerDrivesStartupHandshake() async throws {
@@ -34,7 +34,7 @@ struct CodexMCPScriptedStdioServerTests {
       let requestLine = try await server.recordClientLine()
       let payload = try CodexMCPScriptedStdioServer.parseJSONObject(from: requestLine)
       #expect(payload["method"] as? String == "tools/list")
-      server.sendServerLine(
+      try await server.sendServerLine(
         CodexMCPScriptedStdioServer.makeListToolsResponseLine(requestID: 1)
       )
     }
@@ -52,10 +52,10 @@ struct CodexMCPScriptedStdioServerTests {
 
     let serverTask = Task {
       _ = try await server.recordClientLine()
-      server.sendServerLine(
+      try await server.sendServerLine(
         #"{"jsonrpc":"2.0","method":"codex/event","params":{"_meta":{"requestId":1,"threadId":"thread-scripted"},"id":"event-1","msg":{"type":"progress"}}}"#
       )
-      server.sendServerLine(
+      try await server.sendServerLine(
         CodexMCPScriptedStdioServer.makeRunSuccessResponseLine(
           requestID: 1,
           threadID: "thread-scripted",
@@ -105,7 +105,7 @@ struct CodexMCPScriptedStdioServerTests {
       #expect(arguments["threadId"] as? String == "thread-123")
       #expect(arguments["prompt"] as? String == "continue")
 
-      server.sendServerLine(
+      try await server.sendServerLine(
         CodexMCPScriptedStdioServer.makeReplySuccessResponseLine(
           requestID: 1,
           threadID: "thread-123",
@@ -129,7 +129,7 @@ struct CodexMCPScriptedStdioServerTests {
 
     let serverTask = Task {
       _ = try await server.recordClientLine()
-      server.sendServerLine(
+      try await server.sendServerLine(
         CodexMCPScriptedStdioServer.makeExecApprovalRequestLine(
           requestID: .integer(88),
           toolCallID: "1",
@@ -148,7 +148,7 @@ struct CodexMCPScriptedStdioServerTests {
         try CodexMCPScriptedStdioServer.requiredObject("result", in: approvalResponsePayload)[
           "decision"] as? String == "approved")
 
-      server.sendServerLine(
+      try await server.sendServerLine(
         CodexMCPScriptedStdioServer.makeRunSuccessResponseLine(
           requestID: 1,
           threadID: "thread-approval",
@@ -192,7 +192,7 @@ struct CodexMCPScriptedStdioServerTests {
       #expect(cancelPayload["method"] as? String == "notifications/cancelled")
       #expect((cancelParams["requestId"] as? NSNumber)?.intValue == 1)
 
-      server.sendServerLine(
+      try await server.sendServerLine(
         CodexMCPScriptedStdioServer.makeRunSuccessResponseLine(
           requestID: 1,
           threadID: "thread-cancel",
@@ -223,7 +223,7 @@ struct CodexMCPScriptedStdioServerTests {
           from: await server.recordClientLine())
         #expect(first["method"] as? String == "tools/call")
         #expect(second["method"] as? String == "notifications/cancelled")
-        server.sendServerLine(
+        try await server.sendServerLine(
           CodexMCPScriptedStdioServer.makeRunSuccessResponseLine(
             requestID: requestID, threadID: "ordered", content: "Completed after cancellation"))
       }
@@ -259,7 +259,7 @@ struct CodexMCPScriptedStdioServerTests {
 
     let serverTask = Task {
       _ = try await server.recordClientLine()
-      server.sendServerLine(#"{"jsonrpc":"2.0","id":1,"result":{"oops":true}}"#)
+      try await server.sendServerLine(#"{"jsonrpc":"2.0","id":1,"result":{"oops":true}}"#)
     }
 
     await #expect(throws: CodexMCPError.protocolFailure) {

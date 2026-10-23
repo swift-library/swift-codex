@@ -65,7 +65,7 @@ struct CodexExecExecutableResolver {
 struct CodexExecSystemLauncher: CodexExecLaunching {
   func launch(_ launch: CodexExecPreparedLaunch) async throws -> CodexExecLaunchedProcess {
     if Task.isCancelled { throw CodexExecLaunchCancelled() }
-    let process = try CodexProcess(
+    let process = try await CodexProcess(
       executableURL: launch.executableURL, arguments: launch.arguments,
       environment: launch.environment, workingDirectory: launch.workingDirectory)
     let stdout = process.standardOutput

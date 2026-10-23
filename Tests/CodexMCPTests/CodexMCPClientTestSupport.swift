@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import _CodexProcess
 
 @testable import CodexMCP
 
@@ -170,10 +171,9 @@ func performStartupHandshake(
   let initializeLine = try await readLine(from: inputFileDescriptor)
   await transcript?.record(initializeLine)
   let initializePayload = try parseJSONObject(from: initializeLine)
-  try blockingWriteLine(
-    makeInitializeResponseLine(requestID: initializePayload["id"] ?? 0),
-    to: outputFileDescriptor,
-  )
+  try await CodexProcessPipe.write(
+    Data((makeInitializeResponseLine(requestID: initializePayload["id"] ?? 0) + "\n").utf8),
+    to: FileHandle(fileDescriptor: outputFileDescriptor, closeOnDealloc: false))
 
   let initializedLine = try await readLine(from: inputFileDescriptor)
   await transcript?.record(initializedLine)
@@ -461,123 +461,23 @@ func requiredObject(_ key: String, in object: [String: Any]) throws -> [String: 
   return nestedObject
 }
 
-let blockingIOTestQueue = DispatchQueue(
-  label: "swift-codex.tests.codexmcp.blocking-io",
-  qos: .userInitiated,
-  attributes: .concurrent
-)
-
 func readLine(from fileDescriptor: Int32) async throws -> String {
-  try await withCheckedThrowingContinuation { continuation in
-    blockingIOTestQueue.async {
-      do {
-        continuation.resume(returning: try blockingReadLine(from: fileDescriptor))
-      } catch {
-        continuation.resume(throwing: error)
-      }
-    }
-  }
-}
-
-func blockingReadLine(from fileDescriptor: Int32) throws -> String {
+  let handle = FileHandle(fileDescriptor: fileDescriptor, closeOnDealloc: false)
   var buffer = Data()
-  var byte: UInt8 = 0
-
-  while true {
-    let bytesRead = withUnsafeMutablePointer(to: &byte) { bytePointer in
-      Darwin.read(fileDescriptor, bytePointer, 1)
-    }
-
-    if bytesRead > 0 {
-      if byte == 0x0A {
-        break
+  while let chunk = try await CodexProcessPipe.readChunk(from: handle, maximumBytes: 1) {
+    if chunk.first == 0x0A {
+      if buffer.last == 0x0D { buffer.removeLast() }
+      guard let line = String(data: buffer, encoding: .utf8) else {
+        throw CodexMCPError.transportFailure
       }
-
-      buffer.append(&byte, count: 1)
-      continue
+      return line
     }
-
-    if bytesRead == 0 {
-      throw CodexMCPError.startupFailure
-    }
-
-    if errno == EINTR {
-      continue
-    }
-
-    throw CodexMCPError.transportFailure
+    buffer.append(chunk)
   }
-
-  if buffer.last == 0x0D {
-    buffer.removeLast()
-  }
-
-  guard let line = String(data: buffer, encoding: .utf8) else {
-    throw CodexMCPError.transportFailure
-  }
-
-  return line
+  throw CodexMCPError.startupFailure
 }
 
-func blockingWriteLine(_ line: String, to fileDescriptor: Int32) throws {
-  var data = Data(line.utf8)
-  data.append(0x0A)
-  try data.withUnsafeBytes { rawBuffer in
-    guard let baseAddress = rawBuffer.baseAddress else {
-      return
-    }
-
-    var bytesWrittenTotal = 0
-    while bytesWrittenTotal < rawBuffer.count {
-      let bytesWritten = Darwin.write(
-        fileDescriptor,
-        baseAddress.advanced(by: bytesWrittenTotal),
-        rawBuffer.count - bytesWrittenTotal,
-      )
-
-      if bytesWritten > 0 {
-        bytesWrittenTotal += bytesWritten
-        continue
-      }
-
-      if bytesWritten < 0 && errno == EINTR {
-        continue
-      }
-
-      throw CodexMCPError.transportFailure
-    }
-  }
-}
-
-func readExactly(byteCount: Int, from fileDescriptor: Int32) throws -> Data {
-  var buffer = [UInt8](repeating: 0, count: byteCount)
-  var bytesReadTotal = 0
-
-  while bytesReadTotal < byteCount {
-    let bytesRead = buffer.withUnsafeMutableBytes { rawBuffer in
-      Darwin.read(
-        fileDescriptor,
-        rawBuffer.baseAddress?.advanced(by: bytesReadTotal),
-        byteCount - bytesReadTotal,
-      )
-    }
-
-    if bytesRead > 0 {
-      bytesReadTotal += bytesRead
-      continue
-    }
-
-    if errno == EINTR {
-      continue
-    }
-
-    throw CodexMCPError.transportFailure
-  }
-
-  return Data(buffer)
-}
-
-func tryReadAvailableLine(from fileDescriptor: Int32) throws -> String? {
+func tryReadAvailableLine(from fileDescriptor: Int32) async throws -> String? {
   var descriptor = pollfd(
     fd: fileDescriptor,
     events: Int16(POLLIN),
@@ -593,7 +493,7 @@ func tryReadAvailableLine(from fileDescriptor: Int32) throws -> String? {
     return nil
   }
 
-  return try blockingReadLine(from: fileDescriptor)
+  return try await readLine(from: fileDescriptor)
 }
 
 func nextApprovalRequest(from handle: CodexMCPCallHandle) async throws -> CodexMCPApprovalRequest {

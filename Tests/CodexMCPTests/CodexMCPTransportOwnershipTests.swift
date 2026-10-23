@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import _CodexProcess
 
 @testable import CodexMCP
 
@@ -47,7 +48,8 @@ struct CodexMCPTransportOwnershipTests {
       var iterator = await transport.receive().makeAsyncIterator()
       return try await iterator.next()
     }
-    try output.fileHandleForWriting.write(contentsOf: Data("{\"ready\":true}\n".utf8))
+    try await CodexProcessPipe.write(
+      Data("{\"ready\":true}\n".utf8), to: output.fileHandleForWriting)
     await observation.waitUntilEntered()
     async let first: Void = transport.disconnect()
     async let second: Void = transport.disconnect()

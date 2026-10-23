@@ -1,9 +1,10 @@
 import Foundation
 import Testing
+import _CodexProcess
 
 @testable import CodexMCP
 
-@Suite("CodexMCP Client Failures", .serialized)
+@Suite("CodexMCP Client Failures")
 struct CodexMCPClientFailureTests {
   @Test(
     "Lifecycle shell startup handshake failure cleans up owned resources and leaves the client failed"
@@ -62,9 +63,9 @@ struct CodexMCPClientFailureTests {
 
     let serverTask = Task {
       _ = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
-      stdoutPipe.fileHandleForWriting.write(
-        Data("{\"jsonrpc\":\"1.0\",\"id\":0,\"result\":{}}\n".utf8)
-      )
+      try await CodexProcessPipe.write(
+        Data("{\"jsonrpc\":\"1.0\",\"id\":0,\"result\":{}}\n".utf8),
+        to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -107,7 +108,8 @@ struct CodexMCPClientFailureTests {
       let request = try parseJSONObject(from: initializeLine)
       let response = makeInitializeResponseLine(requestID: request["id"] ?? 0)
         .replacingOccurrences(of: "2025-03-26", with: "2025-06-18")
-      stdoutPipe.fileHandleForWriting.write(Data("\(response)\n".utf8))
+      try await CodexProcessPipe.write(
+        Data("\(response)\n".utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -158,9 +160,9 @@ struct CodexMCPClientFailureTests {
       subprocessLauncher: .init { _ in
         let subprocess = CodexMCPManagedSubprocess(standardError: stderr) {}
         await subprocess.startDrainingStderr()
-        stderr.fileHandleForWriting.write(
-          Data("startup failed token=top-secret Bearer abc.def.ghi\n".utf8)
-        )
+        try await CodexProcessPipe.write(
+          Data("startup failed token=top-secret Bearer abc.def.ghi\n".utf8),
+          to: stderr.fileHandleForWriting)
         stderr.fileHandleForWriting.closeFile()
         while await subprocess.stderrContext() == nil {
           await Task.yield()

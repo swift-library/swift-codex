@@ -93,7 +93,10 @@
         try await Task.sleep(for: .milliseconds(20))
       }
       _ = Darwin.kill(process.processIdentifier, SIGKILL)
-      process.waitUntilExit()
+      for _ in 0..<100 {
+        if !process.isRunning { return }
+        try await Task.sleep(for: .milliseconds(20))
+      }
       guard !process.isRunning else {
         throw CodexAppServerNIORealBinaryError.processDidNotExit
       }

@@ -107,7 +107,7 @@ func connect() async throws {
   let client = CodexAppServerClient(
     sessionConfiguration: .init(clientInfo: .init(name: "my_swift_app", version: "1.0.0")),
     transportFactory: {
-      try CodexAppServerStdioTransport()
+      try await CodexAppServerStdioTransport()
     }
   )
   let connection = try await client.start()
@@ -135,7 +135,7 @@ func connectToExplicitBinary() async throws {
       experimentalApi: true
     ),
     transportFactory: {
-      try CodexAppServerStdioTransport(configuration: process)
+      try await CodexAppServerStdioTransport(configuration: process)
     }
   )
 
@@ -203,7 +203,7 @@ import Vapor
 func registerAppServerRoute(_ app: Application) {
   CodexAppServerVapor.webSocket(on: app, "app-server") { _, downstream in
     do {
-      let upstream = try CodexAppServerStdioTransport()
+      let upstream = try await CodexAppServerStdioTransport()
       await bridge(downstream: downstream, upstream: upstream)
     } catch {
       await downstream.close()
@@ -228,7 +228,7 @@ import HummingbirdWebSocket
 func registerAppServerRoute(_ router: Router<BasicWebSocketRequestContext>) {
   CodexAppServerHummingbird.webSocket(on: router, "app-server") { _, _, downstream in
     do {
-      let upstream = try CodexAppServerStdioTransport()
+      let upstream = try await CodexAppServerStdioTransport()
       await bridge(downstream: downstream, upstream: upstream)
     } catch {
       await downstream.close()
@@ -497,7 +497,7 @@ let client = CodexAppServerClient(
     experimentalApi: true,
     inboundMessageMode: .raw
   ),
-  transportFactory: { try CodexAppServerStdioTransport() }
+  transportFactory: { try await CodexAppServerStdioTransport() }
 )
 let connection = try await client.start()
 let result = try await connection.sendRawRequest(

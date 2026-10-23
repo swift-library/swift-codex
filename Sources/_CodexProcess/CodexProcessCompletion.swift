@@ -1,41 +1,43 @@
 import Foundation
 
-/// Native completion also serves synchronous probes without requiring a free
-/// Swift cooperative worker to settle an initializer blocked on its result.
+/// The lock serializes completion and deadline expiry; each waiter is removed once.
 final class CodexProcessCompletion: @unchecked Sendable {
   private let lock = NSLock()
-  private let completed = DispatchGroup()
   private var result: Result<CodexProcessExit, Error>?
-  private var waiters: [CheckedContinuation<CodexProcessExit, Error>] = []
-
-  init() { completed.enter() }
+  private var waiters: [UUID: CheckedContinuation<CodexProcessExit?, Error>] = [:]
 
   func wait() async throws -> CodexProcessExit {
-    try await withCheckedThrowingContinuation { continuation in
-      let value: Result<CodexProcessExit, Error>? = lock.withLock {
-        if let result = self.result { return result }
-        waiters.append(continuation)
-        return nil
-      }
-      if let value { continuation.resume(with: value) }
-    }
+    try await wait(until: .distantFuture)!
   }
 
-  func wait(until deadline: DispatchTime) throws -> CodexProcessExit? {
-    guard completed.wait(timeout: deadline) == .success else { return nil }
-    return try lock.withLock { try result!.get() }
+  func wait(until deadline: DispatchTime) async throws -> CodexProcessExit? {
+    let id = UUID()
+    return try await withCheckedThrowingContinuation { continuation in
+      let value: Result<CodexProcessExit, Error>? = lock.withLock {
+        if let result { return result }
+        waiters[id] = continuation
+        return nil
+      }
+      if let value {
+        continuation.resume(with: value.map(Optional.some))
+      } else if deadline != .distantFuture {
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: deadline) { [weak self] in
+          guard let self else { return }
+          let waiter = self.lock.withLock { self.waiters.removeValue(forKey: id) }
+          waiter?.resume(returning: nil)
+        }
+      }
+    }
   }
 
   func finish(_ result: Result<CodexProcessExit, Error>) {
-    let pending: [CheckedContinuation<CodexProcessExit, Error>]? = lock.withLock {
-      guard self.result == nil else { return nil }
+    let pending: [CheckedContinuation<CodexProcessExit?, Error>] = lock.withLock {
+      guard self.result == nil else { return [] }
       self.result = result
-      let pending = waiters
+      let pending = Array(waiters.values)
       waiters.removeAll()
       return pending
     }
-    guard let pending else { return }
-    completed.leave()
-    for waiter in pending { waiter.resume(with: result) }
+    for waiter in pending { waiter.resume(with: result.map(Optional.some)) }
   }
 }

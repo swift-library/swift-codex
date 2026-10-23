@@ -49,8 +49,8 @@
 
     func waitForExit() async throws -> CodexProcessExit { try await completion.wait() }
 
-    func waitForExit(until deadline: DispatchTime) throws -> CodexProcessExit? {
-      try completion.wait(until: deadline)
+    func waitForExit(until deadline: DispatchTime) async throws -> CodexProcessExit? {
+      try await completion.wait(until: deadline)
     }
   }
 

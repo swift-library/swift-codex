@@ -1,9 +1,10 @@
 import Foundation
 import Testing
+import _CodexProcess
 
 @testable import CodexMCP
 
-@Suite("CodexMCP Client Reply", .serialized)
+@Suite("CodexMCP Client Reply")
 struct CodexMCPClientReplyTests {
   @Test(
     "Lifecycle shell reply sends the codex-reply tool request and returns a terminal tool result")
@@ -21,17 +22,15 @@ struct CodexMCPClientReplyTests {
       let replyLine = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
       await transcript.record(replyLine)
 
-      stdoutPipe.fileHandleForWriting.write(
+      try await CodexProcessPipe.write(
         Data(
           "{\"jsonrpc\":\"2.0\",\"method\":\"codex/event\",\"params\":{\"_meta\":{\"requestId\":1,\"threadId\":\"thread-123\"},\"id\":\"event-reply-1\",\"msg\":{\"type\":\"reply-progress\"}}}\n"
-            .utf8)
-      )
-      stdoutPipe.fileHandleForWriting.write(
+            .utf8), to: stdoutPipe.fileHandleForWriting)
+      try await CodexProcessPipe.write(
         Data(
           makeReplySuccessResponseLine(requestID: 1, threadID: "thread-123", content: "Continued")
-            .utf8)
-      )
-      stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+            .utf8), to: stdoutPipe.fileHandleForWriting)
+      try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -94,11 +93,10 @@ struct CodexMCPClientReplyTests {
     let serverTask = Task {
       try await performStartupHandshake(stdinPipe: stdinPipe, stdoutPipe: stdoutPipe)
       _ = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
-      stdoutPipe.fileHandleForWriting.write(
+      try await CodexProcessPipe.write(
         Data(
           "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Reply failed\"}],\"isError\":true}}\n"
-            .utf8)
-      )
+            .utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -131,11 +129,10 @@ struct CodexMCPClientReplyTests {
     let serverTask = Task {
       try await performStartupHandshake(stdinPipe: stdinPipe, stdoutPipe: stdoutPipe)
       _ = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
-      stdoutPipe.fileHandleForWriting.write(
+      try await CodexProcessPipe.write(
         Data(
           "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32603,\"message\":\"internal error\"}}\n"
-            .utf8)
-      )
+            .utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -184,7 +181,8 @@ struct CodexMCPClientReplyTests {
 
     try await startClient(client, stdinPipe: stdinPipe, stdoutPipe: stdoutPipe)
     let didCancel = try await client.cancel(requestID: .integer(999))
-    let extraLine = try tryReadAvailableLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
+    let extraLine = try await tryReadAvailableLine(
+      from: stdinPipe.fileHandleForReading.fileDescriptor)
 
     #expect(didCancel == false)
     #expect(extraLine == nil)
@@ -200,7 +198,7 @@ struct CodexMCPClientReplyTests {
       try await performStartupHandshake(stdinPipe: stdinPipe, stdoutPipe: stdoutPipe)
       let replyLine = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
       await transcript.record(replyLine)
-      stdoutPipe.fileHandleForWriting.write(
+      try await CodexProcessPipe.write(
         Data(
           makePatchApprovalRequestLine(
             requestID: .string("patch-approval-1"),
@@ -214,18 +212,16 @@ struct CodexMCPClientReplyTests {
                 "status": .string("modified")
               ])
             ]
-          ).utf8)
-      )
-      stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+          ).utf8), to: stdoutPipe.fileHandleForWriting)
+      try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
 
       let approvalResponseLine = try await readLine(
         from: stdinPipe.fileHandleForReading.fileDescriptor)
       await transcript.record(approvalResponseLine)
-      stdoutPipe.fileHandleForWriting.write(
+      try await CodexProcessPipe.write(
         Data(
           "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Patch denied\"}],\"isError\":true}}\n"
-            .utf8)
-      )
+            .utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -297,13 +293,12 @@ struct CodexMCPClientReplyTests {
     let serverTask = Task {
       try await performStartupHandshake(stdinPipe: stdinPipe, stdoutPipe: stdoutPipe)
       _ = try await readLine(from: stdinPipe.fileHandleForReading.fileDescriptor)
-      stdoutPipe.fileHandleForWriting.write(
+      try await CodexProcessPipe.write(
         Data(
           makeReplySuccessResponseLine(
             requestID: 1, threadID: "thread-other", content: "Wrong thread"
-          ).utf8)
-      )
-      stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+          ).utf8), to: stdoutPipe.fileHandleForWriting)
+      try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
     }
 
     let client = CodexMCPClient(
@@ -362,18 +357,17 @@ struct CodexMCPClientReplyTests {
     let replyRequestID = try requiredInteger("id", in: firstPayload)
     let pingRequestID = try requiredInteger("id", in: secondPayload)
 
-    stdoutPipe.fileHandleForWriting.write(
-      Data(makePingSuccessResponseLine(requestID: pingRequestID).utf8)
-    )
-    stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+    try await CodexProcessPipe.write(
+      Data(makePingSuccessResponseLine(requestID: pingRequestID).utf8),
+      to: stdoutPipe.fileHandleForWriting)
+    try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
     try await pingTask.value
-    stdoutPipe.fileHandleForWriting.write(
+    try await CodexProcessPipe.write(
       Data(
         makeReplySuccessResponseLine(
           requestID: replyRequestID, threadID: "thread-123", content: "Continued"
-        ).utf8)
-    )
-    stdoutPipe.fileHandleForWriting.write(Data("\n".utf8))
+        ).utf8), to: stdoutPipe.fileHandleForWriting)
+    try await CodexProcessPipe.write(Data("\n".utf8), to: stdoutPipe.fileHandleForWriting)
     let result = try await handle.value()
 
     #expect(firstPayload["method"] as? String == "tools/call")

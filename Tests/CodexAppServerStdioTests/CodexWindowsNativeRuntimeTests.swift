@@ -66,7 +66,7 @@ import Testing
 
     @Test("A lower outgoing frame bound rejects UTF-8 bytes before native writing")
     func configuredOutgoingBound() async throws {
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: fixture, environment: environment(mode: "lines"), maximumMessageBytes: 4))
       do {
@@ -90,7 +90,7 @@ import Testing
     func configuredIncomingBound() async throws {
       let directory = try temporaryDirectory()
       defer { try? FileManager.default.removeItem(at: directory) }
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: fixture,
           environment: environment(mode: "oversized-frame", directory: directory),
@@ -115,12 +115,12 @@ import Testing
     @Test(
       "Invalid message bounds fail before native launch",
       arguments: [0, -1, 16 * 1_024 * 1_024 + 1, Int.max])
-    func invalidFrameBound(limit: Int) throws {
-      #expect(
+    func invalidFrameBound(limit: Int) async throws {
+      await #expect(
         throws: CodexAppServerStdioError.invalidConfiguration(
           "Maximum message bytes must be positive and no greater than 16 MiB.")
       ) {
-        _ = try CodexAppServerStdioTransport(
+        _ = try await CodexAppServerStdioTransport(
           configuration: .init(executableName: "", maximumMessageBytes: limit))
       }
     }
@@ -130,7 +130,7 @@ import Testing
     func stdioTerminationCode(code: UInt32) async throws {
       var env = environment(mode: "exit")
       env["CODEX_FIXTURE_EXIT"] = String(code)
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(executableURL: fixture, environment: env))
       do {
         #expect(try await transport.waitForExit() == .exited(Int32(bitPattern: code)))
@@ -172,7 +172,7 @@ import Testing
 
     @Test("Version probes drain both streams and deliver stdin EOF before main launch")
     func boundedVersionProbe() async throws {
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: fixture, environment: environment(mode: "lines"),
           versionRequirement: .outputContains("codex-probe"),
@@ -189,14 +189,14 @@ import Testing
     }
 
     @Test("Excess probe output fails explicitly without admitting the main process")
-    func versionProbeOverflow() throws {
+    func versionProbeOverflow() async throws {
       let directory = try temporaryDirectory()
       defer { try? FileManager.default.removeItem(at: directory) }
-      #expect(
+      await #expect(
         throws: CodexAppServerStdioError.executableVersionProbeOutputLimitExceeded(
           executable: fixture.path, limitBytes: 65_536)
       ) {
-        _ = try CodexAppServerStdioTransport(
+        _ = try await CodexAppServerStdioTransport(
           configuration: .init(
             executableURL: fixture, environment: environment(mode: "lines", directory: directory),
             versionRequirement: .outputContains("codex-probe"),
@@ -214,7 +214,9 @@ import Testing
         executableURL: fixture, environment: environment(mode: "lines", directory: directory),
         versionRequirement: .outputContains("codex-probe"),
         versionProbeArguments: ["probe-timeout"], versionProbeTimeoutSeconds: 2)
-      let probing = Task.detached { try CodexAppServerStdioTransport(configuration: configuration) }
+      let probing = Task.detached {
+        try await CodexAppServerStdioTransport(configuration: configuration)
+      }
       do {
         let marker = directory.appendingPathComponent("root").path
         let deadline = ContinuousClock.now.advanced(by: .seconds(5))
@@ -253,7 +255,7 @@ import Testing
       var env = environment(mode: "lines")
       env["pAtH"] = ";\"\(directory.path)\";;" + (env["pAtH"] ?? "")
       env["PATHEXT"] = ".CMD;.EXE"
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(executableName: name, environment: env))
       do {
         var lines = transport.inboundLines.makeAsyncIterator()
@@ -269,19 +271,19 @@ import Testing
     @Test(
       "Windows discovery rejects path-shaped command names",
       arguments: ["dir\\codex", "C:codex", "codex\u{0}"])
-    func invalidExecutableName(name: String) throws {
+    func invalidExecutableName(name: String) async throws {
       do {
-        _ = try CodexAppServerStdioTransport(configuration: .init(executableName: name))
+        _ = try await CodexAppServerStdioTransport(configuration: .init(executableName: name))
         Issue.record("Invalid bare command name was accepted")
       } catch CodexAppServerStdioError.invalidConfiguration {}
     }
 
     @Test("Windows discovery rejects ambiguous PATH names before spawning")
-    func ambiguousPath() throws {
+    func ambiguousPath() async throws {
       var env = environment(mode: "lines")
       env["PATH"] = "duplicate"
       do {
-        _ = try CodexAppServerStdioTransport(configuration: .init(environment: env))
+        _ = try await CodexAppServerStdioTransport(configuration: .init(environment: env))
         Issue.record("Ambiguous PATH was accepted")
       } catch CodexAppServerStdioError.invalidConfiguration {}
     }
@@ -321,7 +323,7 @@ import Testing
       default: env[""] = "fixture"
       }
       do {
-        let transport = try CodexAppServerStdioTransport(
+        let transport = try await CodexAppServerStdioTransport(
           configuration: .init(
             executableURL: fixture, environment: env))
         await transport.close()
@@ -369,7 +371,7 @@ import Testing
 
     @Test("Explicit environments never fall back to the parent's PATH", arguments: [false, true])
     func explicitEnvironment(setsPath: Bool) async throws {
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: fixture.deletingLastPathComponent()
             .appendingPathComponent("CodexEnvironmentFixture.exe"),
@@ -389,7 +391,7 @@ import Testing
     @Test("The Windows command processor sees the configured PATH", arguments: [false, true])
     func commandProcessorEnvironment(setsPath: Bool) async throws {
       let root = try #require(environmentValue("SystemRoot"))
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: URL(fileURLWithPath: root).appendingPathComponent("System32/cmd.exe"),
           arguments: ["/d", "/c", "echo %PATH%"],
@@ -683,7 +685,7 @@ import Testing
       mode: String, directory: URL? = nil,
       body: (CodexAppServerStdioTransport) async throws -> Void
     ) async throws {
-      let transport = try CodexAppServerStdioTransport(
+      let transport = try await CodexAppServerStdioTransport(
         configuration: .init(
           executableURL: fixture, environment: environment(mode: mode, directory: directory)))
       do {

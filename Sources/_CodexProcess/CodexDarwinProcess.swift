@@ -18,7 +18,12 @@
       pid = try Self.spawn(
         executableURL: executableURL, arguments: arguments, environment: environment,
         workingDirectory: workingDirectory, input: input, output: output, error: error)
-      DispatchQueue.global(qos: .utility).async { self.observeExit() }
+      let source = DispatchSource.makeProcessSource(
+        identifier: pid, eventMask: .exit, queue: .global(qos: .utility))
+      source.setEventHandler { source.cancel() }
+      // Retain the zombie PID until the source is detached and all group signals finish.
+      source.setCancelHandler { self.observeExit() }
+      source.resume()
     }
 
     var cancellationWasRequested: Bool { lock.withLock { cancelled } }
@@ -43,26 +48,46 @@
 
     func waitForExit() async throws -> CodexProcessExit { try await completion.wait() }
 
-    func waitForExit(until deadline: DispatchTime) throws -> CodexProcessExit? {
-      try completion.wait(until: deadline)
+    func waitForExit(until deadline: DispatchTime) async throws -> CodexProcessExit? {
+      try await completion.wait(until: deadline)
     }
 
     private func observeExit() {
       var information = siginfo_t()
-      while waitid(P_PID, id_t(pid), &information, WEXITED | WNOWAIT) != 0 {
+      while waitid(P_PID, id_t(pid), &information, WEXITED | WNOWAIT | WNOHANG) != 0 {
         if errno == EINTR { continue }
         let failure = Self.error("waitid", errno)
         lock.withLock { reaped = true }
         completion.finish(.failure(failure))
         return
       }
-      let result: Result<CodexProcessExit, Error> = lock.withLock {
-        let cleanup: Result<Void, Error> = Result { try stopGroup() }
+      stopGroup(until: .now() + .seconds(5))
+    }
+
+    private func stopGroup(until deadline: DispatchTime) {
+      let result: Result<CodexProcessExit, Error>? = lock.withLock {
+        let cleanup: Result<Bool, Error> = Result {
+          guard try hasLiveGroupMembers() else { return true }
+          if kill(-pid, SIGKILL) != 0 {
+            let code = errno
+            // Darwin skips zombies and may return EPERM for an all-zombie group.
+            if code != ESRCH && code != EPERM { throw Self.error("kill process group", code) }
+            if try hasLiveGroupMembers() { throw Self.error("kill process group", code) }
+          }
+          guard DispatchTime.now() < deadline else {
+            throw CodexProcessFailure(
+              description: "Codex process group cleanup could not be confirmed.")
+          }
+          return false
+        }
+        if case .success(false) = cleanup { return nil }
         var status: Int32 = 0
-        while waitpid(pid, &status, 0) < 0 {
-          if errno == EINTR { continue }
+        while true {
+          let received = waitpid(pid, &status, WNOHANG)
+          if received == pid { break }
+          if received < 0, errno == EINTR { continue }
           reaped = true
-          return .failure(Self.error("waitpid", errno))
+          return .failure(Self.error("waitpid", received == 0 ? EAGAIN : errno))
         }
         reaped = true
         if case .failure(let error) = cleanup { return .failure(error) }
@@ -70,28 +95,12 @@
         return .success(
           .init(status: signal == 0 ? (status >> 8) & 0xff : signal, wasSignalled: signal != 0))
       }
-      completion.finish(result)
-    }
-
-    private func stopGroup() throws {
-      let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-      while try hasLiveGroupMembers() {
-        if kill(-pid, SIGKILL) != 0 {
-          let code = errno
-          // Darwin skips zombie members and may return EPERM for a group that
-          // just became all-zombie. Confirm absence of live members explicitly.
-          if code != ESRCH && code != EPERM {
-            throw Self.error("kill process group", code)
-          }
-          if try hasLiveGroupMembers() {
-            throw Self.error("kill process group", code)
-          }
+      if let result {
+        completion.finish(result)
+      } else {
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + .milliseconds(10)) {
+          self.stopGroup(until: deadline)
         }
-        guard ContinuousClock.now < deadline else {
-          throw CodexProcessFailure(
-            description: "Codex process group cleanup could not be confirmed.")
-        }
-        Thread.sleep(forTimeInterval: 0.01)
       }
     }
 
