@@ -18,13 +18,17 @@ Keep changes small, boundary-first, and placed by role.
 
 ## Local Validation
 
+The package requires Swift 6.3 or later and macOS 15 or later. Shared CI builds
+and tests with Xcode 26.6 on `macos-26`. Deployment availability is checked
+against the selected SDK.
+
 Run from the repository root:
 
 ```sh
 swift build
 swift test
 swift build -c release
-xcrun swift-format lint --strict --configuration .swift-format --recursive \
+swift format lint --strict --configuration .swift-format --recursive \
   Package.swift Sources Tests Plugins
 scripts/verify-schema-snapshot.sh
 scripts/verify-dependency-manifest.py

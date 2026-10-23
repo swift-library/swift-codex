@@ -228,7 +228,6 @@ internal actor CodexMCPProcessTransport: Transport {
 }
 
 /// The lock admits one iterator advance; no other method accesses the iterator.
-/// This narrow bridge supports macOS 14's nonisolated AsyncIterator.next API.
 private final class CodexMCPInboundReader: @unchecked Sendable {
   private var iterator: AsyncThrowingStream<Data, Error>.Iterator
   private let lock = NSLock()

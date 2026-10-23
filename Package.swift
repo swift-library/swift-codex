@@ -1,11 +1,11 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.3
 
 import PackageDescription
 
 let package = Package(
   name: "swift-codex",
   platforms: [
-    .macOS(.v14)
+    .macOS(.v15)
   ],
   products: [
     .library(

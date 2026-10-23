@@ -36,6 +36,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
+      - name: Select Xcode
+        uses: swift-library/github-workflows/actions/select-toolchain@17e33c3a130ed207bcf80ccfbbe54fcd481d953b
+        with:
+          xcode: '26.6'
+
       - name: Install pinned Codex CLI
         run: npm install --global "@openai/codex@$PINNED_CODEX_VERSION"
 
