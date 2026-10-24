@@ -12,8 +12,8 @@
 
 <p align="center">
   <a href="https://github.com/swift-library/swift-codex/actions/workflows/swift-package.yml"><img src="https://github.com/swift-library/swift-codex/actions/workflows/swift-package.yml/badge.svg?branch=master" alt="CI"></a>
-  <img src="https://img.shields.io/badge/Swift-6.2%2B-F05138?style=flat" alt="Swift 6.2+">
-  <img src="https://img.shields.io/badge/platforms-macOS%2014%2B-lightgrey?style=flat" alt="Platforms: macOS 14+">
+  <img src="https://img.shields.io/badge/Swift-6.3%2B-F05138?style=flat" alt="Swift 6.3+">
+  <img src="https://img.shields.io/badge/platforms-macOS%2015%2B-lightgrey?style=flat" alt="Platforms: macOS 15+">
   <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat" alt="License: Apache-2.0 WITH Swift-exception"></a>
 </p>
 
@@ -90,14 +90,16 @@ Use `Codex` for thread and turn conveniences or select a lower-level product for
 
 ## Requirements
 
-- Swift 6.2 or later
-- macOS 14 or later
+- Swift 6.3 or later
+- macOS 15 or later
 - The OpenAI Codex CLI, on `PATH` or set as an explicit executable, signed in
   or configured for the features you call
 
+Shared CI builds and tests with Xcode 26.6 on macOS 26.
+
 CI also builds `Codex`, `CodexExec`, `CodexMCP`, `CodexAppServerRuntime`,
 `CodexAppServerProtocol`, `CodexAppServerClient`, `CodexAppServerStdio`, and
-`CodexAppServerURLSession` on Windows x86_64 with Swift 6.2.3. `CodexAppServerNIO`,
+`CodexAppServerURLSession` on Windows x86_64 with Swift 6.3.3. `CodexAppServerNIO`,
 `CodexAppServerVapor`, and `CodexAppServerHummingbird` are unavailable on
 Windows because of their dependencies.
 [Platform support](Documentation/Architecture/CodexTargetTopology.md#platform-support)

@@ -7,6 +7,9 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ### Changed
 
+- **Breaking:** Raise the minimum Swift tools version to 6.3 and the minimum
+  deployment target to macOS 15. Shared CI builds and tests with Xcode 26.6.
+
 - **Breaking:** `CodexAppServerStdioTransport.init(configuration:)` is now
   `async throws`. Construct transports with `try await`, including inside a
   client's transport factory. Optional version validation suspends until the

@@ -31,8 +31,8 @@ jobs:
       - name: Install Swift
         uses: compnerd/gha-setup-swift@bbae8ce86bac5a3449f3992b3d88bc4ca25f2057
         with:
-          swift-version: swift-6.2.3-release
-          swift-build: 6.2.3-RELEASE
+          swift-version: swift-6.3.3-release
+          swift-build: 6.3.3-RELEASE
 
       - name: Build library targets independently
         shell: pwsh
@@ -71,7 +71,7 @@ jobs:
           if-no-files-found: error
 
   validate:
-    uses: swift-library/github-workflows/.github/workflows/swift-package.yml@37ca96825daa6c5517bb118a233449dd564b4869
+    uses: swift-library/github-workflows/.github/workflows/swift-package.yml@17e33c3a130ed207bcf80ccfbbe54fcd481d953b
 
   result:
     needs: [validate, windows, integration]

@@ -49,7 +49,7 @@ this package.
 
 ## Platform support
 
-All eleven products support macOS 14 or newer. Windows x86_64 support follows the
+All eleven products support macOS 15 or newer. Windows x86_64 support follows the
 product boundary below. The package's Apple deployment declarations do not make
 all dependencies available on Windows.
 
@@ -67,7 +67,7 @@ The Windows build audit includes every public product and preserves individual
 results, including unavailable dependencies. Every supported product must build
 for the Windows build job to pass. The three unavailable networking products are recorded
 as dependency audits; their outcomes do not establish supported Windows behavior.
-The Windows build job uses `windows-2022` and Swift 6.2.3.
+The Windows build job uses `windows-2022` and Swift 6.3.3.
 
 `CodexAppServerStdioTests/CodexWindowsNativeRuntimeTests.swift` owns the native
 Windows App Server stdio and Exec assertions. The package declares

@@ -18,8 +18,8 @@ current public Swift products.
 
 ## Common Runtime Requirements
 
-- macOS 14 or newer
-- Swift 6.2 or newer
+- macOS 15 or newer
+- Swift 6.3 or newer
 - an upstream `codex` executable available through `PATH` or explicit launch
   configuration
 - authentication and environment configured as required by upstream Codex

@@ -33,13 +33,17 @@ and closeout rules in `CONTRIBUTING.md`.
 
 ## Validation
 
+The package requires Swift 6.3 or later and macOS 15 or later. Shared CI builds
+and tests with Xcode 26.6 on `macos-26`. Deployment availability is checked
+against the selected SDK.
+
 Run from the repository root:
 
 ```sh
 swift build
 swift test
 swift build -c release
-xcrun swift-format lint --strict --configuration .swift-format --recursive \
+swift format lint --strict --configuration .swift-format --recursive \
   Package.swift Sources Tests Plugins
 scripts/verify-schema-snapshot.sh
 scripts/verify-dependency-manifest.py
@@ -55,8 +59,9 @@ tests before a release.
 
 - Flag a change to public API or observable behavior, including a raised
   minimum platform or Swift version, without a `CHANGELOG.md` entry or a release version
-  consistent with `RELEASING.md`. Safe path: record the change under the next
-  version and follow that compatibility policy.
+  consistent with `RELEASING.md`. Safe path: record the change under
+  `Unreleased`, mark raised minimums as **Breaking**, and follow that
+  compatibility policy.
 
 ### Claims
 
