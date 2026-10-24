@@ -41,7 +41,7 @@ Unknown or MCP-related payloads therefore do not pass through a lossy common
 number representation.
 
 Successful JSONL execution requires exit status zero and a completed turn.
-Failures preserve partial session, event, final-message, and stderr evidence
+Failures preserve partial session, event, final-message, and stderr output
 when available. Resume misses, malformed JSONL, output-file failures,
 non-zero exits, interruption, launch failure, and cancellation remain distinct
 `CodexExecError` cases.

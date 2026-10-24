@@ -69,7 +69,7 @@ opening a pull request.
   merged commit and whether the source was published. Fast-forward the daily
   default checkout only when it is clean.
 - Retire owned temporary worktrees and generated outputs after preserving source,
-  necessary evidence and any non-generated ignored files. Keep normal build
+  outputs a current document requires and any non-generated ignored files. Keep normal build
   caches separate from recovery archives and acceptance records.
 - Remove a task branch only when it has no active worktree or open pull request
   and its work is accounted for. For squash merges, confirm the exact pull

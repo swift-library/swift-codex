@@ -91,12 +91,12 @@ public enum CodexAppServerBootstrapTranscripts {
 
   public struct Transcript: Equatable, Sendable {
     public let name: String
-    public let sourceEvidence: [String]
+    public let upstreamSources: [String]
     public let messages: [Message]
 
-    public init(name: String, sourceEvidence: [String], messages: [Message]) {
+    public init(name: String, upstreamSources: [String], messages: [Message]) {
       self.name = name
-      self.sourceEvidence = sourceEvidence
+      self.upstreamSources = upstreamSources
       self.messages = messages
     }
 
@@ -286,7 +286,7 @@ public enum CodexAppServerBootstrapTranscripts {
     ]
   )
 
-  private static let bootstrapSourceEvidence = [
+  private static let bootstrapUpstreamSources = [
     "codex-rs/app-server/README.md",
     "codex-rs/app-server/src/message_processor.rs",
     "codex-rs/app-server-protocol/src/protocol/v1.rs",
@@ -296,7 +296,7 @@ public enum CodexAppServerBootstrapTranscripts {
   private static func makeTranscript(name: String, messages: [Message]) -> Transcript {
     Transcript(
       name: name,
-      sourceEvidence: bootstrapSourceEvidence,
+      upstreamSources: bootstrapUpstreamSources,
       messages: messages
     )
   }
