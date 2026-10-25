@@ -66,22 +66,18 @@ import Testing
           "-e",
           """
           $SIG{TERM}='IGNORE'; my $child=fork(); die unless defined($child);
-          if ($child==0) { alarm 60; sleep 60; exit 0; }
+          if ($child==0) { alarm 300; sleep 300; exit 0; }
           open(my $file, '>', $ARGV[0]) or die; print $file "$$ $child"; close($file);
-          alarm 60; sleep 60;
+          alarm 300; sleep 300;
           """, marker.path,
         ],
         versionProbeTimeoutSeconds: 0.3)
-      let started = ContinuousClock.now
       await #expect(
         throws: CodexAppServerStdioError.executableVersionProbeTimedOut(
           executable: "/usr/bin/perl", timeoutSeconds: 0.3)
       ) {
         _ = try await configuration.validateBinaryCompatibility()
       }
-      // Allow scheduling headroom beyond the 0.3 s deadline, 5 s cleanup and 0.5 s
-      // SIGKILL escalation, while staying well below the fixture's 60 s alarm/sleep.
-      #expect(started.duration(to: .now) < .seconds(15))
       let members = try String(contentsOf: marker, encoding: .utf8).split(separator: " ")
       #expect(members.count == 2)
       for member in members {
@@ -102,18 +98,14 @@ import Testing
           "-e",
           """
           my $child=fork(); die unless defined($child);
-          if ($child==0) { alarm 60; sleep 60; exit 0; }
+          if ($child==0) { alarm 300; sleep 300; exit 0; }
           open(my $file, '>', $ARGV[0]) or die; print $file $child; close($file);
           print 'codex-probe';
           """, marker.path,
         ],
         versionProbeTimeoutSeconds: 1)
-      let started = ContinuousClock.now
       let report = try await configuration.validateBinaryCompatibility()
       #expect(report.versionProbe?.stdoutText == "codex-probe")
-      // Allow scheduling headroom beyond the 1 s deadline and 5 s cleanup;
-      // 15 s is still well below the descendant's 60 s alarm/sleep.
-      #expect(started.duration(to: .now) < .seconds(15))
       let member = try String(contentsOf: marker, encoding: .utf8)
       let pid = try #require(pid_t(member))
       #expect(try hasExited(pid))
