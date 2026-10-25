@@ -5,10 +5,16 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## Unreleased
 
+## 0.5.2
+
+Released 2026-10-25.
+
 ### Changed
 
 - **Breaking:** Raise the minimum Swift tools version to 6.3 and the minimum
   deployment target to macOS 15. Shared CI builds and tests with Xcode 26.6.
+  Upgrade your toolchain to Swift 6.3 or later and your app's minimum deployment
+  target to macOS 15 or later.
 
 - **Breaking:** `CodexAppServerStdioTransport.init(configuration:)` is now
   `async throws`. Construct transports with `try await`, including inside a
@@ -216,7 +222,8 @@ Released 2026-08-09.
 - Deterministic Swift Testing coverage, API inventory, schema verification, and
   opt-in real Codex binary validation.
 
-[Unreleased]: https://github.com/swift-library/swift-codex/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/swift-library/swift-codex/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/swift-library/swift-codex/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/swift-library/swift-codex/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/swift-library/swift-codex/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/swift-library/swift-codex/compare/v0.4.0...v0.4.1

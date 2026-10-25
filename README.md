@@ -58,7 +58,7 @@ Add the package and the products you use to `Package.swift`:
 dependencies: [
   .package(
     url: "https://github.com/swift-library/swift-codex.git",
-    .upToNextMinor(from: "0.5.1")
+    .upToNextMinor(from: "0.5.2")
   ),
 ],
 targets: [
