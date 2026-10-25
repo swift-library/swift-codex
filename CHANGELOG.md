@@ -5,6 +5,22 @@ follows [Semantic Versioning](https://semver.org/) beginning with `0.1.0`.
 
 ## Unreleased
 
+## 0.5.3
+
+Released 2026-10-25.
+
+This is the first published release of the 0.5.2 changes: v0.5.2 failed release
+validation and has no GitHub release. When upgrading from 0.5.1, read the
+[0.5.2 notes](https://github.com/swift-library/swift-codex/blob/v0.5.3/CHANGELOG.md#052).
+
+- **Breaking:** Minimum requirements are Swift 6.3 and macOS 15.
+- **Breaking:** `CodexAppServerStdioTransport.init(configuration:)` is `async throws`; use `try await`.
+
+### Fixed
+
+- Version-probe tests no longer assert wall-clock durations, so tag validation
+  does not fail under runner load. No library behavior changes since 0.5.2.
+
 ## 0.5.2
 
 Released 2026-10-25.
