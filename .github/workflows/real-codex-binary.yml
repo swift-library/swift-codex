@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Select Xcode
-        uses: swift-library/github-workflows/actions/select-toolchain@17e33c3a130ed207bcf80ccfbbe54fcd481d953b
+        uses: swift-library/github-workflows/actions/select-toolchain@5dd95c4ee515c667abaea2dc5426e8ef93e88784
         with:
           xcode: '26.6'
 
